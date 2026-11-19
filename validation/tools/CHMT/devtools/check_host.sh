@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CPU contract/component evidence only. This is not the native GPU acceptance gate.
+
 set -euo pipefail
 source_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 root="$source_root"

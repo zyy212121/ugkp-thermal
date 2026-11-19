@@ -1,6 +1,6 @@
 #pragma once
-// HOST fixture launch adapters for the pre-fusion schedule. All numerical work
-// remains in the same per-cell/per-particle production helpers as the fused path.
+
+
 void clearPairedParticleHeatKernel(DeviceState* sp)
 {
     DeviceState& s=*sp;

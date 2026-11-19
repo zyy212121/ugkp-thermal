@@ -26,7 +26,7 @@ int main(){
   if(inflow){near(out.uz,7);near(out.ux*ny-out.uy*nx,3*ny+2*nx);}
   else {near(out.ux,owner.ux);near(out.uy,owner.uy);near(out.uz,owner.uz);}
   double K=inflow?.5*(out.ux*out.ux+out.uy*out.uy+out.uz*out.uz):0;
-  // Independently evaluate the original boundary equations at the returned state.
+
   double expectedT=T0/(1+K/(R*out.T)*(gamma-1)/gamma);
   near(out.T,expectedT);near(out.rho*R*out.T,out.p);
   const double Kp=K-(inflow?.5*(value[Ux]*value[Ux]+value[Uy]*value[Uy]+value[Uz]*value[Uz]):0);

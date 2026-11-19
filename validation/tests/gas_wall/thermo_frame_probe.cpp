@@ -1,5 +1,5 @@
 
-// Thresholds below are fixed forward-error budgets, not solver tolerances.
+
 #include "common/gasWall/WallModel.H"
 #include "tool/chemistry/mechanisms/GeneratedH2O2.H"
 #include <cassert>
@@ -14,8 +14,8 @@ namespace d=ugkwp::gaswall::detail;
 using R=GpuReal;
 using L=long double;
 
-// Independent binomial expansion of the polynomial about the starting T.
-// This avoids both endpoint subtraction and the production Gauss rule.
+
+
 L cpIntegral(const R* c,L t,L delta){
  const int binomial[5][5]={{1},{1,1},{1,2,1},{1,3,3,1},{1,4,6,4,1}};
  L out=0;for(int j=0;j<5;++j)for(int k=0;k<=j;++k)
@@ -39,8 +39,8 @@ void nasaAudit(){
   const R tw=pair.first,theta=pair.second;const auto& sp=thermo.species[s];
   const R* c=thermo.coefficients+sp.coefficientOffset;const L mid=sp.midTemperature;
   const bool wallHigh=tw>sp.midTemperature;
-  // Preserve the branch convention of common speciesH: branch selection is
-  // based on the rounded physical T, even for compensated sub-ulp theta.
+
+
   const bool targetHigh=R(tw+theta)>sp.midTemperature;
   const L gasR=L(universalGasConstant<R>())/sp.molarMass;
   const L jump=enthalpyPolynomial(c+7,mid)-enthalpyPolynomial(c,mid);
@@ -51,7 +51,7 @@ void nasaAudit(){
    const L left=cpIntegral(c+(wallHigh?7:0),tw,first),right=cpIntegral(c+(targetHigh?7:0),mid,second);
    integral=left+right+(targetHigh?jump:-jump);
    termMagnitude=std::abs(left)+std::abs(right)+std::abs(jump);
-   // Only immutable branch differences use at least double precision.
+
    jumpBudget=64*std::numeric_limits<double>::epsilon()*(branchMagnitude(c,mid)+branchMagnitude(c+7,mid));
   }
   const L ref=gasR*integral;
@@ -64,7 +64,7 @@ void nasaAudit(){
   maxRelative=std::max(maxRelative,error/std::abs(ref));maxAbsolute=std::max(maxAbsolute,error);maxBudgetFraction=std::max(maxBudgetFraction,error/budget);++count;
   if(tw==R(500)&&speciesH(s,R(tw+theta),thermo)-speciesH(s,tw,thermo)==0)++naiveZeros;
  }
- // Deliberately discontinuous, allowed NASA metadata: no continuity assumption.
+
  R synthetic[140];for(int j=0;j<140;++j)synthetic[j]=table.coefficients[j];
  synthetic[12]+=R(100);thermo.coefficients=synthetic;
  const L expected=L(universalGasConstant<R>())/thermo.species[0].molarMass*(cpIntegral(synthetic,900,100)+cpIntegral(synthetic+7,1000,100)+enthalpyPolynomial(synthetic+7,1000)-enthalpyPolynomial(synthetic,1000));
@@ -110,13 +110,13 @@ void frameGaugeAudit(){
   }
   const L relGauge=std::abs(L(flux.energy)-conditioned)/std::abs(conditioned);
   const L physical=d::physicalLayerEnergyFlux(ctx,flux);
-  // Finite arithmetic sum(Fs) need not equal mass bitwise. Compare against
-  // the exactly corresponding algebraic reference, then bound that closure.
+
+
   const L expectedPhysical=absolute+L(ctx.energyReference)*(L(ctx.mass)-sumSpecies);
   const L relPhysical=std::abs(physical-expectedPhysical)/std::max(L(1),std::abs(expectedPhysical));
   assert(relGauge<(1e-12L));
   assert(relPhysical<(1e-12L));
-  assert(std::abs(conditioned)>100); // Formation/differential-diffusion energy retained.
+  assert(std::abs(conditioned)>100);
   WallWorkspace<R,2,4> work;work.state[1][2]=R(3e-6);assert(reactingWallProfileTemperature(in,work,1)==R(in.temperature+work.state[1][2]));
   maxGauge=std::max(maxGauge,relGauge);maxPhysical=std::max(maxPhysical,relPhysical);++count;
  }

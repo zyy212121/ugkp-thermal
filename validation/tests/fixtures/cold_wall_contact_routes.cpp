@@ -1,4 +1,4 @@
-// CPU-only eight-lane execution of real production headers, not a GPU emulator.
+
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -12,6 +12,7 @@
 #include "GpuColdWallSolidification.H"
 #include "GpuFiniteWallContact.H"
 #include "GpuCapillaryDetachment.H"
+#include "gasTransport/MolecularConductivity.H"
 #include "GpuParticleWallContactHeat.H"
 #include "gasNumerics/GpuParticlePhysicsAlgebra.cuh"
 #define __device__
@@ -74,7 +75,7 @@ template<class T,class U> T finiteOr(T value,U fallback) {return std::isfinite(v
 template<class T,class U> T clampMin(T value,U lo) {return value < lo ? T(lo):value;}
 template<class T,class U,class V> T clampRange(T value,U lo,V hi) {return value<lo?T(lo):(value>hi?T(hi):value);}
 template<class T> T sqr3(T x,T y,T z) {return x*x+y*y+z*z;}
-// Match the actual application helper policy so scoped callers cannot hide it.
+
 template<class T> bool finiteDevice(T x) {return x==x && std::abs(x)<(ROUTE_FSH?1.e300:(sizeof(T)==8?1.e300:1.e30));}
 template<class T> bool nonFiniteDevice(T x) {return !finiteDevice(x);}
 struct DeviceState {
@@ -101,6 +102,15 @@ struct DeviceState {
     GpuReal particleDiameterFallback=GPU_R(1e-4), TpMin=GPU_R(1), TpMax=GPU_R(1e5), TgasMin=GPU_R(1);
     GpuReal rhoMin=GPU_R(1e-8), gasMu=GPU_R(1e-4), gasCp=GPU_R(1000), gasPrClamped=GPU_R(.7);
     GpuReal gasPrOneThird=GPU_R(.8879040017), rhoSolid=GPU_R(3200), invRhoSolid=GPU_R(1./3200.);
+    GpuReal couplingGasViscosity[1]{}, couplingGasPrandtlOneThird[1]{};
+    GpuReal couplingGasConductivity[1]{};
+    DeviceState() {
+        for (std::size_t c=0; c<std::size(couplingGasViscosity); ++c) {
+            couplingGasViscosity[c]=gasMu;
+            couplingGasPrandtlOneThird[c]=gasPrOneThird;
+            couplingGasConductivity[c]=ugkwp::conductivityFromViscosityCpPr(gasMu,gasCp,gasPrClamped);
+        }
+    }
     GpuReal particleWallReflectionHeatTransferEfficiency=GPU_R(1e-5);
     GpuReal particleWallDepositionHeatTransferEfficiency=GPU_R(1e-5);
     GpuReal particleWallDensityKgM3=GPU_R(1800), particleWallSpecificHeatJkgK=GPU_R(710);
@@ -128,9 +138,9 @@ struct DeviceState {
         GPU_R(.25),GPU_R(0),0,12};
 };
 #include "operators/particleSpecificHeatDevice.cuh"
-// Use the shared production conductivity implementation directly.
+
 #include "gasTransport/GasMolecularConductivity.cuh"
-// Drag is explicitly disabled in these thermal tests. Fail if accidentally used.
+
 bool gasDragModelActive(int model) {return model!=0;}
 GpuReal solidEpsFromMomentDevice(const DeviceState&,int) {throw DeviceTrap{};}
 template<class T> GpuReal dragInverseTimeDevice(const DeviceState&,int,GpuReal,GpuReal,GpuReal,GpuReal,T) {throw DeviceTrap{};}
@@ -139,7 +149,7 @@ void clearColdWall2DParticleState(DeviceState&,int) {}
 #include "operators/atomicAddParticleWallEnergyByFace.cuh"
 #include "operators/clearColdWallParticleState.cuh"
 #if ROUTE_FSH
-// Exact alias used around this header by FSH's real backend.
+
 #define pContactAge pTheta
 #endif
 #include "GpuColdWall1DDevice.cuh"
@@ -226,7 +236,7 @@ void coldStep(DeviceState& s,GpuTime dt) {
 }
 void genericStep(DeviceState& s,GpuTime dt) {
     threadIdx.x=0;
-    // Real production launch order: mobile selection precedes wall finalization.
+
     relaxMobileParticlesToResidentGasKernelStatic(&s,dt,0);
     relaxWallBoundParticlesToResidentGasKernelStatic(&s,dt,0);
 }

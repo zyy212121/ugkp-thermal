@@ -23,8 +23,8 @@ struct Face {Range<WallPolygonTriangle> triangles;std::array<double,3> normal{},
 __global__ void resetResidentWallPolygonStatusKernel(int faces,int* firstInvalidFace){
     if(!blockIdx.x&&!threadIdx.x)*firstInvalidFace=faces;
 }
-// Every face retains the native vertex and ear-selection order. Distinct faces
-// run independently. No dynamic allocation, host callback or transfer occurs.
+
+
 __global__ void rebuildResidentWallPolygonsKernel(WallPolygonTopology topology,
     const ugkp::gpu::geometry::Point* points,WallPolygonWorkspace workspace)
 {

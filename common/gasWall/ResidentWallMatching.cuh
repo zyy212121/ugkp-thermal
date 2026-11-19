@@ -35,9 +35,9 @@ __global__ void resetResidentWallMatchingStatusKernel(int rows,const int* polygo
     if(!blockIdx.x&&!threadIdx.x){status->firstInvalidRow=rows;
         status->invalidFace=*polygonFailure<faces?*polygonFailure:-1;}
 }
-// Produces the common ray frame, donor anchor and signed owner moments.
-// FV donor reconstruction and optional positive quadrature are separate
-// consumers. A cell-average wall closure uses this anchor with unit weight.
+
+
+
 __global__ void rebuildResidentWallMatchingKernel(int count,const int* walls,WallMatchingTopology topology,
     const ugkp::gpu::geometry::Point* points,const ugkp::gpu::geometry::CellResult* cells,
     WallPolygonWorkspace polygons,bool reconstructMatching,WallMatchingGeometry* output,WallMatchingStatus* status)

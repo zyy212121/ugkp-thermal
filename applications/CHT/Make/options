@@ -15,5 +15,6 @@ EXE_LIBS = \
     -lfiniteVolume \
     -lmeshTools \
     -lmomentumTransportModels \
+    -lz \
     -lOpenFOAM \
     $(UGKWP_CUDA_EXE_LIBS)

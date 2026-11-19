@@ -4,19 +4,19 @@
 #include "core/NumericalControls.H"
 #include "mesh/GeometryDiagnostics.H"
 namespace chmt {
-// Fixed-topology Newton solve. Invalid geometry and resource failures return
-// failure; finite conservation/accuracy residuals are warnings, with no replay.
+
+
 struct SweepConstraintControls {
     Real absoluteVolumeTolerance=1e-14, relativeVolumeTolerance=1e-10;
-    // Optional per-face accuracy thresholds used to report residual warnings.
+
     std::vector<Real> faceVolumeTolerance{};
     Real rankTolerance=1e-11;
     int maximumIterations=24;
     int harmonicMaximumIterations=20000;
     Real harmonicRelativeTolerance=1e-12;
-    int maximumLineSearch=24; // Bounded mathematical damping at fixed target/interval.
-    // Compatibility-only fields. Allocation is limited by actual representable
-    // sizes and allocator availability, never by a configured policy cap.
+    int maximumLineSearch=24;
+
+
     int maximumDegreesOfFreedom=0, maximumConstraints=0;
     std::size_t maximumModeEntries=0;
     std::size_t maximumWorkspaceBytes=0;
@@ -32,11 +32,11 @@ inline SweepConstraintControls materialSweepControls(const MeshNumericalControls
     controls.harmonicRelativeTolerance=input.harmonicRelativeTolerance;
     return controls;
 }
-// Bound both cell-inventory arithmetic and endpoint coordinate quantization.
-// A thin cell far from the coordinate origin cannot resolve eight epsilon of
-// its volume in world-coordinate vertices. Its actual face-area-weighted ULP
-// bound is retained in the signed remainder, not discarded or charged to mass.
-// Requested accuracy, explicit face ceilings, EOS and GCL are checked separately.
+
+
+
+
+
 inline bool materialSweepResidualLimits(const HostMesh& mesh,const std::vector<int>& faces,
     std::vector<Real>& output) {
     std::vector<int> count(mesh.volumes.size());std::vector<unsigned char> seen(mesh.owner.size());
@@ -53,9 +53,9 @@ inline bool materialSweepResidualLimits(const HostMesh& mesh,const std::vector<i
     for (std::size_t i=0;i<faces.size();++i)if(faces[i]>=0) {
         const int cell=mesh.owner[faces[i]];
 
-        // Inventory arithmetic and endpoint representation are independent
-        // error sources. Bound the latter from this face's actual coordinate
-        // spacing, rather than treating a global coordinate as cell-local.
+
+
+
         const int f=faces[i],begin=mesh.faceOffsets[f],end=mesh.faceOffsets[f+1];
         Real representation=0;
         auto ulp=[](Real x){return maxValue(absValue(std::nextafter(x,std::numeric_limits<Real>::infinity())-x),
@@ -123,19 +123,19 @@ enum class SweepConstraintStatus {
 struct SweepConstraintReport {
     SweepConstraintStatus status=SweepConstraintStatus::InvalidInput;
     int iterations=0, rank=0, constraints=0, degreesOfFreedom=0, lineSearchTrials=0;
-    Real maximumSweepResidual=0; // m^3, measured from actual vertex sweeps.
-    Real maximumPlanarityResidual=0; // dimensionless path-polynomial residual.
+    Real maximumSweepResidual=0;
+    Real maximumPlanarityResidual=0;
     bool streamedModes=false;
     std::size_t peakWorkspaceBytes=0,modeSolves=0;
 };
-// targetSweeps are actual signed volumes [m^3], outward from mesh.owner.
-// prescribedDisplacement is only the initial guess. Each nonzero correction
-// direction provides one scalar boundary DOF; prescribed tangential motion is
-// preserved. The fixed mask also supplies harmonic interior Dirichlet anchors.
-// Corrections minimize lumped incident-face-area-weighted point motion; interior
-// modes are harmonic. A 32-epsilon geometric roundoff floor accompanies volume
-// tolerances unless a hard face ceiling requires tighter accuracy. Old planar polygons remain planar over the entire linear
-// path. Mesh/sweeps outputs change only on success; report also explains failure.
+
+
+
+
+
+
+
+
 bool constrainFaceSweeps(const HostMesh&, const std::vector<int>& faces,
     const std::vector<Real>& targetSweeps, const std::vector<Vec3>& prescribedDisplacement,
     const std::vector<unsigned char>& prescribed, const std::vector<Vec3>& correctionDirections,
@@ -144,11 +144,11 @@ bool constrainFaceSweeps(const HostMesh&, const std::vector<int>& faces,
     const SweepConstraintControls& controls=SweepConstraintControls{},
     const Tolerances& tolerances=Tolerances{},bool* numericalFailure=nullptr);
 
-// Production multirate entry: solidTargetSweeps are constitutively integrated
-// consumed-volume targets, indexed by accepted.surface.solidFace. They must not
-// be reconstructed from a macro-end porosity, a front, or a mean mass rate.
-// Legacy moveCoupledMeshes instead uses old face area * front increment and is
-// retained only for the explicit compatibility path.
+
+
+
+
+
 
 
 bool moveCoupledMeshesConstrained(const HostState&, const std::vector<FilmAux>&,

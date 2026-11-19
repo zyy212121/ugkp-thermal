@@ -1,6 +1,6 @@
 #pragma once
 #include "ParticleResidentInterval.H"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 #include "../GpuCollisionPoolCorrection.cuh"
 
 __device__ void correctOnePoissonThermalizedMobileParticle
@@ -60,8 +60,8 @@ __global__ void correctPoissonThermalizedMobileParticlesKernel
 #ifdef GPU_PAIRED_PARTICLE_HEAT
         if constexpr (PairedHeat)
         {
-            // Capture before correction: only the sampled-stuck subset waits
-            // for its finalizer, which can detach it/change the caloric law.
+
+
             const bool deferredHeatCandidate =
                 s.pStuck[i] != 0 && s.pStatus[i] == 2;
             if (s.pStuck[i] == 0)
@@ -77,8 +77,8 @@ __global__ void correctPoissonThermalizedMobileParticlesKernel
         else
 #endif
         {
-            // Keep the heat-disabled specialization's original body. A runtime
-            // branch alone would still increase its kernel register allocation.
+
+
             if (s.pStuck[i] != 0)
             {
                 continue;

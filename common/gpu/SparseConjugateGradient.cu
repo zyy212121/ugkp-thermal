@@ -658,9 +658,9 @@ template<class R> struct VCycle{
    const auto result=build(std::vector<cudaGraphNode_t>{entry});
    applyGridSelections=previous;
    std::vector<cudaGraphNode_t> before=dependencies;
-   // One publication phase per solve/submission, before all V-cycle uses,
-   // including batched CG iterations and true-residual restarts. Each handle
-   // is independent; CUDA's per-launch defaults are overwritten every time.
+
+
+
    for(std::size_t first=0;first<selections.size();first+=16){
     KernelGridPublication publication;
     publication.count=int(std::min(std::size_t(16),selections.size()-first));
@@ -938,9 +938,9 @@ __global__ void prepareLduRows(int n,const int* offsets,const int* entrySource,c
     }
     rowSum[i]=sum;if(affine)affine[i]=jump;
 }
-// Preserve native affine initial-product and normFactor semantics. Subsequent
-// Krylov matvecs remain linear; moving jump into b alone would change the
-// OpenFOAM residual normalization and relative stopping criterion.
+
+
+
 __global__ void addInitialAffine(int n,const double* affine,double* product){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<n)product[i]+=affine[i];
 }
@@ -966,7 +966,7 @@ __device__ bool confirmTrueResidual(LocalSolveParameters* parameters,double* rec
     const double residual=recurrence[4]/parameters->norm;
     const bool converged=residual<c.tolerance ||
         (c.relativeTolerance>c.normalizationSmall&&residual<c.relativeTolerance*parameters->initial);
-    const bool exhausted=recurrence[6]>=c.maximumIterations&&recurrence[6]>=c.minimumIterations;
+    const bool exhausted=recurrence[6]>=c.maximumIterations;
 
 
     recurrence[11]=!converged&&!exhausted&&!recurrence[5]&&recurrence[8]==0;
@@ -998,8 +998,16 @@ __global__ void initializeLocalCondition(LocalSolveParameters* parameters,double
     const auto& c=parameters->controls;
     const bool converged=parameters->initial<c.tolerance ||
         (c.relativeTolerance>c.normalizationSmall&&parameters->initial<c.relativeTolerance*parameters->initial);
-    recurrence[7]=c.minimumIterations<=0&&converged;
+    recurrence[7]=c.maximumIterations<=0||(c.minimumIterations<=0&&converged);
     cudaGraphSetConditional(handle,recurrence[7]?0:1);
+}
+
+
+__global__ void publishPreparedPreconditioner(ConjugateGradientReport* report,
+    const int* valid,int blocks,const int* pending){
+    if(threadIdx.x||blockIdx.x)return;
+    int count=0;if(!pending||!*pending)for(int i=0;i<blocks;++i)count+=valid[i]==0;
+    report->preconditionerFallbackBlocks=count;
 }
 __global__ void publishLocalReport(const LocalSolveParameters* parameters,const double* recurrence,
     ConjugateGradientReport* report,const int* blockValid=nullptr,int hierarchyCount=0){
@@ -1029,8 +1037,8 @@ __global__ void update(int n,const double* recurrence,const double* p,const doub
     const int i=blockIdx.x*blockDim.x+threadIdx.x;
     if(i<n&&!recurrence[5]&&!recurrence[7]){x[i]+=recurrence[3]*p[i];r[i]-=recurrence[3]*ap[i];}
 }
-// Fixed reduction tree; no floating-point atomics or scheduling-dependent sums.
-// mode: sum, absolute sum, dot, finite-volume residual normalization.
+
+
 __global__ void partialReduction(int n,int mode,const double* a,const double* b,
     const double* rowSum,double mean,double* partial,const double* stop,const double* residentMean=nullptr){
     if(residentMean)mean=*residentMean;
@@ -1061,8 +1069,8 @@ __global__ void gatherInterface(int count,const int* cells,const double* x,const
 __global__ void scatterInterface(int count,const int* cells,const double* packed,double* y){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)y[cells[i]]=packed[i];
 }
-// Keep each reduction's original grid-stride order and binary FP64 tree, while
-// producing its terms in the vector/matrix kernel that already owns the row.
+
+
 __device__ double localBlockSum(double value,double* scratch){
     scratch[threadIdx.x]=value;__syncthreads();
     for(int active=threads;active>1;active=(active+1)/2){
@@ -1145,15 +1153,15 @@ template<int Stage> __global__ void finishLocalReduction(int n,const double* par
         const bool converged=residual<controls.tolerance ||
             (controls.relativeTolerance>controls.normalizationSmall&&residual<controls.relativeTolerance*parameters->initial);
         recurrence[7]=recurrence[5] ||
-            ((recurrence[6]>=controls.maximumIterations||converged)&&recurrence[6]>=controls.minimumIterations);
+            (recurrence[6]>=controls.maximumIterations||(converged&&recurrence[6]>=controls.minimumIterations));
         cudaGraphSetConditional(handle,recurrence[7]?0:1);
     }
 }
 
-// A matrix with at most one row per lane needs no inter-block dependencies.
 
-// its complete PCG recurrence inside the owning block instead of dispatching
-// a graph node for each vector operation. No mesh/physics assumption is used.
+
+
+
 __global__ void solveLocalBlock(int n,MatrixOperator matrix,
     const double* rowSum,const double* b,const double* affine,double* x,double* r,double* z,double* p,double* ap,double* confirmedX,
     ConjugateGradientControls settings,const ConjugateGradientControls* deviceSettings,
@@ -1182,7 +1190,7 @@ __global__ void solveLocalBlock(int n,MatrixOperator matrix,
         const auto& c=parameters->controls;
         const bool converged=parameters->initial<c.tolerance ||
             (c.relativeTolerance>c.normalizationSmall&&parameters->initial<c.relativeTolerance*parameters->initial);
-        recurrence[7]=c.minimumIterations<=0&&converged;
+        recurrence[7]=c.maximumIterations<=0||(c.minimumIterations<=0&&converged);
     }
     __syncthreads();
     while(!recurrence[7]){
@@ -1209,7 +1217,7 @@ __global__ void solveLocalBlock(int n,MatrixOperator matrix,
         if(!i){
             recurrence[4]=sum;const auto& c=parameters->controls;const double value=sum/parameters->norm;
             const bool converged=value<c.tolerance||(c.relativeTolerance>c.normalizationSmall&&value<c.relativeTolerance*parameters->initial);
-            recurrence[7]=recurrence[5]||((recurrence[6]>=c.maximumIterations||converged)&&recurrence[6]>=c.minimumIterations);
+            recurrence[7]=recurrence[5]||(recurrence[6]>=c.maximumIterations||(converged&&recurrence[6]>=c.minimumIterations));
         }
         __syncthreads();
         if(recurrence[7]){
@@ -1283,7 +1291,7 @@ struct SparseConjugateGradient::Implementation {
         cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;
         void clear(){if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);executable=nullptr;graph=nullptr;}
         ~Graph(){clear();}
-    } localGraph,preparedGraph;
+    } preparedGraph;
     GraphContinuationTask preparedTask;
     unsigned long long localRevision=0,preparedRevision=~0ull;
     bool preparedResident=false;void* preparedSolution=nullptr;
@@ -1300,7 +1308,7 @@ struct SparseConjugateGradient::Implementation {
         checked(cudaStreamWaitEvent(static_cast<cudaStream_t>(consumer),externalDone,0));
     }
     Implementation(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfers.bind(stream);const auto status=cudaMallocHost(reinterpret_cast<void**>(&hostRecurrence),12*sizeof(double));if(status!=cudaSuccess){cudaStreamDestroy(stream);stream=nullptr;checked(status);}}
-    ~Implementation(){preparedTask.reset();transfers.discard();if(stream){cudaStreamSynchronize(stream);preparedGraph.clear();localGraph.clear();try{hierarchy.release();}catch(...){}cudaStreamDestroy(stream);}if(hostRecurrence)cudaFreeHost(hostRecurrence);if(externalReady)cudaEventDestroy(externalReady);if(externalDone)cudaEventDestroy(externalDone);}
+    ~Implementation(){preparedTask.reset();transfers.discard();if(stream){cudaStreamSynchronize(stream);preparedGraph.clear();try{hierarchy.release();}catch(...){}cudaStreamDestroy(stream);}if(hostRecurrence)cudaFreeHost(hostRecurrence);if(externalReady)cudaEventDestroy(externalReady);if(externalDone)cudaEventDestroy(externalDone);}
     void reduce(int n,int mode,const double* a,const double* other,double* output,
         const SparseCommunication& comm,double mean=0,const double* stop=nullptr,const double* residentMean=nullptr){
         const int blocks=std::max(1,std::min(1024,(n+threads-1)/threads));partial.reserve(blocks);
@@ -1350,7 +1358,7 @@ struct SparseConjugateGradient::Implementation {
     }
     void buildHierarchy(int n,const std::vector<int>& off,const std::vector<int>& col){
         if(hierarchyCount&&off==hierarchyOffsetsCache&&col==hierarchyColumnsCache)return;
-        localGraph.clear();graphRows=-1;++hierarchyTopologyRevision;
+        graphRows=-1;++hierarchyTopologyRevision;
         hierarchyOffsetsCache=off;hierarchyColumnsCache=col;
         hierarchy.build(off,col,transfers);hierarchyCount=1;hierarchyValid.reserve(1);
     }
@@ -1424,12 +1432,12 @@ struct SparseConjugateGradient::Implementation {
         cudaGraphConditionalHandle confirmation;
         checked(cudaGraphConditionalHandleCreate(&confirmation,body,0,cudaGraphCondAssignDefault));
         const auto iterated=appendCaptured(body,{},stream,[&]{
-            // No inter-rank callbacks are involved in this resident loop.
-            // MPI/interface solves keep their existing exchange ordering below.
+
+
             const int blocks=std::max(1,std::min(1024,(n+threads-1)/threads));
-            // Amortize conditional-graph loop dispatch without changing a
-            // single physical iteration. Every stage observes the resident
-            // stop flag; unused stages after convergence perform no arithmetic.
+
+
+
             for(int batch=0;batch<4;++batch){
                 if(n)direction<<<(n+threads-1)/threads,threads,0,stream>>>(n,z.ptr,recurrence.ptr,p.ptr);
                 multiplyAndDot<<<blocks,threads,threads*sizeof(double),stream>>>(n,matrix(),p.ptr,ap.ptr,partial.ptr,recurrence.ptr);
@@ -1487,7 +1495,7 @@ struct SparseConjugateGradient::Implementation {
             hierarchy.ready(stream,[&](cudaStream_t target){checked(cudaMemcpyAsync(x.ptr,solution,residentRows*sizeof(double),cudaMemcpyDeviceToDevice,target));});
         else checked(cudaMemcpyAsync(x.ptr,solution,residentRows*sizeof(double),cudaMemcpyDeviceToDevice,stream));
     }
-    void enqueueLocal(int n,const ConjugateGradientControls& controls,const double* initialAffine,bool launch=true){
+    void prepareLocal(int n,const ConjugateGradientControls& controls,const double* initialAffine){
         localParameters.reserve(1);localReport.reserve(1);recurrence.reserve(12);confirmedX.reserve(n);
         partial.reserve(2*std::max(1,std::min(1024,(n+threads-1)/threads)));
         const std::vector<const void*> addresses={hierarchyValid.ptr,offsets.ptr,columns.ptr,values.ptr,lduOperator?completedDiagonal.ptr:nullptr,
@@ -1500,20 +1508,13 @@ struct SparseConjugateGradient::Implementation {
             &&graphControls.minimumIterations==controls.minimumIterations&&graphControls.tolerance==controls.tolerance
             &&graphControls.relativeTolerance==controls.relativeTolerance&&graphControls.normalizationSmall==controls.normalizationSmall
             &&graphControls.singularSmall==controls.singularSmall;
-        auto& graph=localGraph;
         if(graphRows!=n||graphBlockThreads!=threads||graphAddresses!=addresses||!sameControls||graphDiffusionInternal!=operatorValues.diffusion.internalFaces||graphDiffusionTransient!=operatorValues.diffusion.transient||graphDiffusionActive!=operatorValues.diffusion.active){
-            graph.clear();++localRevision;graphRows=n;graphBlockThreads=threads;graphAddresses=addresses;graphControls=controls;graphDiffusionInternal=operatorValues.diffusion.internalFaces;graphDiffusionTransient=operatorValues.diffusion.transient;graphDiffusionActive=operatorValues.diffusion.active;
+            ++localRevision;graphRows=n;graphBlockThreads=threads;graphAddresses=addresses;graphControls=controls;graphDiffusionInternal=operatorValues.diffusion.internalFaces;graphDiffusionTransient=operatorValues.diffusion.transient;graphDiffusionActive=operatorValues.diffusion.active;
         }
-        if(!graph.executable){
-            checked(cudaGraphCreate(&graph.graph,0));
-            appendLocal(graph.graph,{},n,controls,initialAffine);
-            checked(cudaGraphInstantiateWithFlags(&graph.executable,graph.graph,0));
-        }
-        if(launch)checked(cudaGraphLaunch(graph.executable,stream));
     }
 
     void enqueuePrepared(int n,const ConjugateGradientControls& controls,const double* initialAffine,bool resident,double* solution){
-        preparedTask.wait();enqueueLocal(n,controls,initialAffine,false);
+        preparedTask.wait();prepareLocal(n,controls,initialAffine);
         if(!preparedGraph.executable||preparedRevision!=localRevision||preparedResident!=resident||preparedSolution!=solution){
             preparedGraph.clear();preparedRevision=localRevision;preparedResident=resident;preparedSolution=solution;
             checked(cudaGraphCreate(&preparedGraph.graph,0));auto graph=preparedGraph.graph;
@@ -1564,7 +1565,7 @@ ConjugateGradientReport SparseConjugateGradient::solve(const SparseMatrixView& m
     d.values.upload(matrix.values,matrix.entries,d.transfers);d.rowSum.upload(matrix.rowSum,n,d.transfers);
     d.b.upload(source,n,d.transfers);
     if(n>32)d.buildHierarchy(n,std::vector<int>(matrix.offsets,matrix.offsets+n+1),std::vector<int>(matrix.columns,matrix.columns+matrix.entries));
-    // Raw CSR uploads replace the address storage, invalidating an LDU cache.
+
     d.cachedRows=-1;d.residentConfigured=false;
     return solvePrepared(n,solution,controls,comm);
 }
@@ -1598,7 +1599,7 @@ ConjugateGradientReport SparseConjugateGradient::solvePrepared(int n,double* sol
     if(controls.relativeTolerance>controls.normalizationSmall)
         report.targetResidual=std::max(report.targetResidual,controls.relativeTolerance*report.initialResidual);
     d.hierarchy.refreshTask.wait();
-    if(controls.minimumIterations>0||!report.converged){
+    if(controls.maximumIterations>0&&(controls.minimumIterations>0||!report.converged)){
         d.confirmedX.reserve(n);
         if(n)checked(cudaMemcpyAsync(d.confirmedX.ptr,d.x.ptr,n*sizeof(double),cudaMemcpyDeviceToDevice,d.stream));
         d.recurrence.reserve(12);checked(cudaMemsetAsync(d.recurrence.ptr,0,12*sizeof(double),d.stream));
@@ -1608,7 +1609,7 @@ ConjugateGradientReport SparseConjugateGradient::solvePrepared(int n,double* sol
             d.transfers.finish();report.iterations=int(d.hostRecurrence[6]);
             report.singular=d.hostRecurrence[5]!=0;
             report.finalResidual=d.hostRecurrence[4]/norm;report.converged=converged();
-            const bool exhausted=report.iterations>=controls.maximumIterations&&report.iterations>=controls.minimumIterations;
+            const bool exhausted=report.iterations>=controls.maximumIterations;
             if(report.singular||exhausted||(report.converged&&report.iterations>=controls.minimumIterations)){
                 const double changed=d.sum(n,4,d.x.ptr,d.confirmedX.ptr,comm);
                 if(n)checked(cudaMemcpyAsync(d.confirmedX.ptr,d.x.ptr,n*sizeof(double),cudaMemcpyDeviceToDevice,d.stream));
@@ -1656,7 +1657,7 @@ void SparseConjugateGradient::prepareLdu(const SparseLduView& matrix,const Spars
         d.entrySource.upload(indices.data(),indices.size(),d.transfers);d.entryKind.upload(kinds.data(),kinds.size(),d.transfers);
         d.boundaryOffsets.upload(bOffsets.data(),bOffsets.size(),d.transfers);d.boundaryIndices.upload(bIndices.data(),bIndices.size(),d.transfers);
         d.boundaryNeighbour.upload(matrix.boundaryNeighbour,nb,d.transfers);
-        // Complete async use of temporary topology buffers before releasing them.
+
         d.transfers.finish();
         const auto copy=[](std::vector<int>& out,const int* input,int count){out.clear();if(count)out.assign(input,input+count);};
         copy(d.cachedOwner,matrix.owner,nf);copy(d.cachedNeighbour,matrix.neighbour,nf);
@@ -1704,7 +1705,7 @@ void SparseConjugateGradient::configureResidentLocalLdu(const SparseLduView& mat
     auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);prepareLdu(matrix,&values,false);
     const int n=matrix.rows;d.x.reserve(n);d.r.reserve(n);d.z.reserve(n);d.p.reserve(n);d.ap.reserve(n);
     d.residentRows=n;d.residentValues=values;d.residentAffine=matrix.boundaryJump!=nullptr;
-    d.enqueueLocal(n,controls,d.residentAffine?d.affine.ptr:nullptr,false);d.residentConfigured=true;
+    d.prepareLocal(n,controls,d.residentAffine?d.affine.ptr:nullptr);d.residentConfigured=true;
 }
 ConjugateGradientDeviceReport SparseConjugateGradient::enqueueResidentLocalLdu(double* solution){
     auto& d=*data_;d.preparedTask.wait();if(!d.residentConfigured)throw std::logic_error("resident local sparse solve is not configured");
@@ -1714,7 +1715,7 @@ ConjugateGradientDeviceReport SparseConjugateGradient::enqueueResidentLocalLdu(d
 }
 ExecutionGraphNode SparseConjugateGradient::appendResidentLocalLdu(ExecutionGraph graph,ExecutionGraphNode dependency,double* solution,const ConjugateGradientControls* deviceControls){
     auto& d=*data_;if(!d.residentConfigured)throw std::logic_error("resident local sparse solve is not configured");
-    d.enqueueLocal(d.residentRows,d.graphControls,d.residentAffine?d.affine.ptr:nullptr,false);
+    d.prepareLocal(d.residentRows,d.graphControls,d.residentAffine?d.affine.ptr:nullptr);
     using sparseGraphDetail::appendCaptured;
     std::vector<cudaGraphNode_t> dependencies;if(dependency)dependencies.push_back(dependency);
     const auto prepared=appendCaptured(graph,dependencies,d.stream,[&]{d.prepareResidentRhs(solution);});
@@ -1731,6 +1732,9 @@ ExecutionGraphNode SparseConjugateGradient::appendResidentLocalPreparation(Execu
     auto& d=*data_;
     return sparseGraphDetail::appendCaptured(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},d.stream,[&]{
         d.prepareResidentCoefficients();
+        const bool hierarchy=d.usingMultigrid(d.residentRows);
+        publishPreparedPreconditioner<<<1,1,0,d.stream>>>(d.localReport.ptr,d.hierarchyValid.ptr,
+            hierarchy?d.hierarchyCount:0,hierarchy?d.hierarchy.pending.ptr:nullptr);
     });
 }
 ExecutionGraphNode SparseConjugateGradient::appendResidentLocalPreconditioner(ExecutionGraph graph,ExecutionGraphNode dependency,const double* rhs,double* result){

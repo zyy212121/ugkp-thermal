@@ -6,8 +6,8 @@
 #include <iomanip>
 #include <cmath>
 
-// Native Amul receives the actual solution field, preserving OpenFOAM's
-// identity-sensitive jump term. This audit is independent of GPU assembly.
+
+
 Foam::scalarField trueResidual(Foam::fvScalarMatrix& equation){
     using namespace Foam;
     const scalarField diagonal(equation.diag());
@@ -39,8 +39,8 @@ int main(int argc,char** argv){
     mesh.schemes().setFluxRequired(cpu.name());mesh.schemes().setFluxRequired(gpu.name());
     bool passed=true;
     for(int sample=0;sample<4;++sample){
-        // Reuse one solver across changing jump/time/field identity. The last
-        // sample changes to ordinary cyclic to check stale affine storage.
+
+
         runTime.setTime(scalar(sample),sample);
         if(sample==3)forAll(mesh.boundary(),p)if(isA<cyclicFvPatch>(mesh.boundary()[p])){
             cpu.boundaryFieldRef().set(p,new cyclicFvPatchScalarField(mesh.boundary()[p],cpu.internalField()));

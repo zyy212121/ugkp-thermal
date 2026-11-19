@@ -4,8 +4,8 @@
 #include <future>
 #include "ExecutionGraph.H"
 namespace ugkp { namespace gpu {
-// Scalar finite-volume matrix in ordered CSR form. Each row starts with its
-// diagonal; subsequent entries retain the original face accumulation order.
+
+
 struct SparseMatrixView {
     int rows=0, entries=0;
     const int* offsets=nullptr;
@@ -13,8 +13,8 @@ struct SparseMatrixView {
     const double* values=nullptr;
     const double* rowSum=nullptr;
 };
-// Native LDU factors plus boundary coefficients, before boundary completion.
-// Boundary neighbour: >=0 local cyclic cell, -1 physical source, -2 remote.
+
+
 struct SparseLduView {
     int rows=0, faces=0, boundaryFaces=0;
     const int* owner=nullptr;
@@ -27,12 +27,12 @@ struct SparseLduView {
     const double* source=nullptr;
     const double* boundaryDiagonal=nullptr;
     const double* boundarySource=nullptr;
-    // Optional signed coupled jump per boundary face. Its weighted affine
-    // contribution belongs to the initial A*solution, not A*KrylovDirection.
+
+
     const double* boundaryJump=nullptr;
 };
-// Coefficients are borrowed device storage. Topology and boundary semantics
-// remain in SparseLduView; readyStream orders their producer without a host wait.
+
+
 struct SparsePhysicalDiffusionValues {
     int internalFaces=0;
     const int* cellOffsets=nullptr;
@@ -77,15 +77,15 @@ struct ConjugateGradientDeviceReport {
     void* readyStream=nullptr;
     std::shared_future<void> completion;
 };
-// Communication hooks only: all local matrix/vector arithmetic remains CUDA.
-// addInterface supplies the missing coupled-interface contribution to A*x.
-// Local cyclic interfaces may instead be represented directly in the CSR.
+
+
+
 struct SparseCommunication {
     void* context=nullptr;
     void (*globalSum)(void*,double*,int)=nullptr;
     void (*addInterface)(void*,const double*,double*,int)=nullptr;
-    // Exact union of local cells read/written by addInterface. Negative count
-    // retains the unrestricted callback contract; native FV supplies this set.
+
+
     const int* interfaceCells=nullptr;
     int interfaceCellCount=-1;
 };
@@ -104,14 +104,14 @@ public:
         const ConjugateGradientControls&,const SparseCommunication& communication={});
     ConjugateGradientReport solveResidentLdu(const SparseLduView&,const SparseDeviceLduValues&,
         double* deviceSolution,const ConjugateGradientControls&,const SparseCommunication& communication={});
-    // Bind local topology/controls once. In-place device coefficient updates
-    // are consumed on each enqueue; output publication is an explicit action.
-    // Native distributed-interface callbacks remain in solveResidentLdu.
+
+
+
     void configureResidentLocalLdu(const SparseLduView&,const SparseDeviceLduValues&,
         const ConjugateGradientControls&);
     ConjugateGradientDeviceReport enqueueResidentLocalLdu(double* deviceSolution);
-    // Compose the same local solve into an enclosing device-controlled loop.
-    // Caller orders input/output ownership through graph dependencies.
+
+
     ExecutionGraphNode appendResidentLocalLdu(ExecutionGraph,ExecutionGraphNode dependency,double* deviceSolution,
         const ConjugateGradientControls* deviceControls=nullptr);
     ExecutionGraphNode appendResidentLocalPreparation(ExecutionGraph,ExecutionGraphNode dependency);

@@ -22,8 +22,8 @@ def executable(tmp_path_factory):
     if compiler is None:
         pytest.skip("g++ required")
     directory=tmp_path_factory.mktemp("convex_reuse_"+'double')
-    # Keep instrumentation out of production. Actual arithmetic/control flow
-    # and the actual pressureLocalConvexScale call site remain unchanged.
+
+
     algebra=(ROOT / "common/GpuPressureConvexAlgebra.cuh").read_text()
     algebra, roots=re.subn(r"(PRESSURE_CONVEX_HD (?:float|double) root\([^\n]+\{)",r"\1 ++rootCalls;",algebra)
     algebra, fractions=re.subn(r"(PRESSURE_CONVEX_HD (?:float|double) fraction\([^\n]+\{)",r"\1 ++fractionCalls;",algebra)

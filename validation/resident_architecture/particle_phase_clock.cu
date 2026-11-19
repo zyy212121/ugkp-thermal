@@ -31,7 +31,7 @@ int main(){
     for(int i=0;i<600;++i){
         const double dt=i%97==0?0.:i<250?0.0003:i<400?0.00017:0.03125;
         end+=dt;if(i==350)end=5.;total+=dt;
-        if(i==450){ // Native configuration/state publication must not reset the graph clock.
+        if(i==450){
             ++state.particleGraphEpoch;
             check(cudaMemcpy(state.deviceState,&state,sizeof(state),cudaMemcpyHostToDevice));
         }
@@ -39,7 +39,7 @@ int main(){
             [&](double weight,double time){
                 ++recordings;
                 update<<<1,1,0,state.particleCaptureStream>>>(state.deviceState,weight,time);
-                std::swap(state.source,state.destination); // Recording has host bookkeeping too.
+                std::swap(state.source,state.destination);
                 state.preBaseDirectoryReady=1;state.csrTasksReady=1;state.csrPreparedDirectoryKind=3;
                 return int(cudaGetLastError()!=cudaSuccess);
             },[&]{std::swap(state.source,state.destination);},
@@ -53,8 +53,8 @@ int main(){
             ||actual.particleResidentInterval.active||state.preBaseDirectoryReady!=1
             ||state.csrTasksReady!=1||state.csrPreparedDirectoryKind!=3)++failures;
     }
-    // Queue many replays without intermediate publication. Kernel arguments and
-    // the device buffer/clock state must remain ordered as the host moves on.
+
+
     for(int i=0;i<256;++i){
         const double dt=i%31==0?0.:i%3==0?0.001:0.0007;end+=dt;total+=dt;
         const int result=ugkp::gpu::launchParticlePhaseGraph(&state,dt,end,

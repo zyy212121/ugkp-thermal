@@ -1,5 +1,5 @@
-// Implementation is included by PolyhedralGeometry.cu to share its CUDA
-// ownership utilities and preserve the existing application link surface.
+
+
 #include "HarmonicSweepCorrection.H"
 #include "ExecutionGraph.cuh"
 namespace ugkp { namespace gpu { namespace geometry { namespace {
@@ -165,6 +165,13 @@ ExecutionGraphNode HarmonicSweepCorrection::appendTo(ExecutionGraph graph,Execut
         });
     }
     return previous;
+}
+ExecutionGraphNode HarmonicSweepCorrection::appendBorrowed(ExecutionGraph graph,ExecutionGraphNode dependency,
+    const Point* endpoint,const double* rhs,const double* consistency,double rankTolerance,SweepPlanarityView layout){
+    auto& d=*data_;
+    auto bound=executionGraphDetail::appendCaptured(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},
+        d.stream,[&]{bindBorrowedHarmonicProblem<<<1,1,0,d.stream>>>(d.hostInput,endpoint,rhs,consistency,rankTolerance,layout,d.input.pointer);});
+    return appendTo(graph,bound,d.input.pointer);
 }
 void HarmonicSweepCorrection::solveDevice(const HarmonicSweepDeviceProblem* problem,void* rawStream){
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);

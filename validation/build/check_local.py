@@ -43,7 +43,7 @@ def main():
                         'gas-wave', 'cht-contact', 'cht-mixture', 'chmt-mixture', 'chmt-moving-short'])
     command('heat-controls', [sys.executable, ROOT / 'validation/steady_cuda/check_heat_failure.py',
                               '--binary', bindir / 'gasUGKPSteady', '--output', out / 'heat-controls'])
-    # An ordinary single-gas parcel fixture exercises FSH's real IPC backend.
+
     fsh = out / 'fsh-particles'
     native.copy_inputs(ROOT / 'validation/steady_cuda/evidence/cases/particles', fsh)
     native.control(fsh, 200, write=20)
@@ -56,7 +56,7 @@ def main():
     assert header[0] == 'UGKP_FSH_PARTICLES_SCHEMA8_FP64_FIELDS_BIN'
     assert int(header[1]) > 0
     report['fsh_live_parcels'] = int(header[1])
-    # Static boundaries and matching physical dt: compare the actual two drivers.
+
     cases = []
     for name in ['gasUGKP', 'gasUGKPSteady']:
         case = out / ('mixture-particles-' + name)

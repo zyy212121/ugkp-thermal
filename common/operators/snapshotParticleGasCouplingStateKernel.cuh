@@ -1,5 +1,5 @@
 #pragma once
-// One operator implementation; scalar/time adapters are compile-time only.
+
 __global__ void snapshotParticleGasCouplingStateKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;

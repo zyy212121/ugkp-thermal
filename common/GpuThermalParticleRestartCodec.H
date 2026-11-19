@@ -1,5 +1,6 @@
 #ifndef UGKP_THERMAL_PARTICLE_RESTART_CODEC_H
 #define UGKP_THERMAL_PARTICLE_RESTART_CODEC_H
+#include "PrecisionBuild.H"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -14,7 +15,7 @@ static constexpr std::uint32_t maximumChunkParticles = 262144u;
 static constexpr const char* schema9ChtMarker = "UGKP_CHT_PARTICLES_SCHEMA9_FLOAT_COLD_PROFILES_BIN";
 static constexpr const char* native64ChtMarker = "UGKP_CHT_PARTICLES_SCHEMA11_NATIVE64_RAW_COLD_BIN";
 static constexpr const char* native32ChtMarker = "UGKP_CHT_PARTICLES_SCHEMA12_NATIVE32_RAW_COLD_BIN";
-static constexpr const char* currentChtMarker = native64ChtMarker;
+static constexpr const char* currentChtMarker = ugkp::precision::compiledBits == 32 ? native32ChtMarker : native64ChtMarker;
 static constexpr const char* currentFshMarker = "UGKP_FSH_PARTICLES_SCHEMA8_FP64_FIELDS_BIN";
 template<class DiskTime> inline const char* marker();
 template<> inline const char* marker<float>() { return "UGKP_THERMAL_PARTICLES_SCHEMA7_T32_BIN"; }
@@ -179,6 +180,29 @@ inline void readCurrentPayload(std::istream& is,std::uint32_t bound,const View& 
             throw std::runtime_error("invalid particle restart chunk size");
         currentFields<HasCarry>(v,begin,chunk,[&](auto* p,std::size_t b,std::size_t n)
         { readArray(is,p,b,n); });
+        begin+=chunk;
+    }
+}
+
+
+
+template<bool HasCarry, class View>
+inline void readFloatColdChtPayload(std::istream& is,std::uint32_t bound,const View& v)
+{
+    (void)bound;
+    char separator=0;is.get(separator);if(separator=='\r')is.get(separator);
+    if(separator!='\n')throw std::runtime_error("invalid particle header terminator");
+    for(std::size_t begin=0;begin<v.count;){
+        std::uint32_t chunk=0;readArray(is,&chunk,0,1);
+        if(!chunk||chunk>v.count-begin)throw std::runtime_error("invalid particle chunk size");
+        fields(v,begin,chunk,[&](auto* p,std::size_t first,std::size_t count){
+            if(static_cast<const void*>(p)==static_cast<const void*>(v.pColdNodeSpecificEnthalpy))
+                readConverted<float>(is,p,first,count);
+            else readArray(is,p,first,count);
+        });
+        if constexpr(HasCarry)readArray(is,v.pThermalEnthalpyResidual,begin,chunk);
+        else if(v.pThermalEnthalpyResidual)
+            std::fill(v.pThermalEnthalpyResidual+begin,v.pThermalEnthalpyResidual+begin+chunk,0.);
         begin+=chunk;
     }
 }

@@ -2,15 +2,18 @@
 #include "../../../common/gpu/WorkPlan.H"
 #include "gpu/SharedGasDeviceStorage.cuh"
 #include "gpu/ResidentWallProgram.H"
+#include "../../../common/gpu/DeviceValue.cuh"
 #include "mesh/GeometryGpu.H"
 #include "mesh/EmptyExtrusion.H"
 #include "../../../common/gpu/ResidentStageGeometry.H"
 namespace chmt {
 namespace resident_mesh_detail {
 using Point=ugkp::gpu::geometry::Point;
+template<class Interval>
 __global__ void samplePointProgram(int count,const Point* current,const Point* knots,
     const ResidentWallKnotTime* time,int knotCount,const ResidentWallClock* clock,
-    double interval,Point* previous,Point* endpoint,ugkp::gpu::geometry::StageGeometryControls* controls){
+    Interval selected,Point* previous,Point* endpoint,ugkp::gpu::geometry::StageGeometryControls* controls){
+    const double interval=selected;
     const int i=blockIdx.x*blockDim.x+threadIdx.x;
     if(i==0)controls->interval=interval;
     if(i>=count)return;
@@ -27,9 +30,9 @@ __global__ void acceptPointTrajectory(int count,const Point* endpoint,Point* cur
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)current[i]=endpoint[i];
 }
 }
-// CHMT mesh/state adapter. All geometry mathematics belongs to the shared
-// resident stage owner. Accepted coordinates, candidate coordinates and the
-// previous accepted stage have distinct stable addresses for graph consumers.
+
+
+
 class ResidentMeshTrajectory {
     using Point=ugkp::gpu::geometry::Point;
     using Stage=ugkp::gpu::geometry::ResidentStageGeometry;
@@ -38,7 +41,9 @@ class ResidentMeshTrajectory {
     Buffer<ugkp::gpu::geometry::StageGeometryControls> controls_;
     std::unique_ptr<Stage> stage_;
     int points_=0;bool empty_=false;
-    std::uint64_t topologyHash_=0;
+    ugkp::gpu::geometry::Topology topology_;
+    std::vector<int> periodic_,owners_,neighbours_;
+    std::vector<BoundaryKind> boundaries_;
     struct Publication {
         std::vector<Point> previous,endpoint,velocity;
         std::vector<ugkp::gpu::geometry::CellResult> oldCells,cells;
@@ -51,7 +56,9 @@ public:
     bool initialize(const HostMesh& mesh,const Tolerances& tolerance,SharedGasDeviceStorage& storage,std::string& error){
         const auto definition=geometry_device::meshTopology(mesh);
         empty_detail::Extrusion extrusion;if(!empty_detail::build(mesh,extrusion,error))return false;
-        points_=mesh.points.size();empty_=extrusion.axis>=0;topologyHash_=mesh.topologyHash;
+        points_=mesh.points.size();empty_=extrusion.axis>=0;
+        topology_=definition.topology;periodic_=mesh.periodicPartner;owners_=mesh.owner;
+        neighbours_=mesh.neighbour;boundaries_=mesh.boundaryKind;
         stage_.reset(new Stage(definition.topology,points_,definition.walls,mesh.periodicPartner,extrusion.axis,extrusion.mate));
         if(!current_.resize(points_,fault_)||!previous_.resize(points_,fault_)||!endpoint_.resize(points_,fault_)||!controls_.resize(1,fault_)){
             error=fault_.message;return false;}
@@ -61,9 +68,9 @@ public:
             error=storage.error();return false;}
         return true;
     }
-    // Transitional publication boundary of the existing material producer.
-    // Microsteps consume these arrays directly; no point samples are marshaled
-    // by the host. A resident material producer can supply the same knot layout.
+
+
+
     bool installProgram(const WallProgram& program,bool gas,SharedGasDeviceStorage& storage,std::string& error){
         std::vector<Point> points;
         for(const auto& knot:program.knots){const auto& values=gas?knot.gasPoints:knot.solidPoints;
@@ -74,12 +81,17 @@ public:
         return true;
     }
     bool importAccepted(const HostMesh& mesh,SharedGasDeviceStorage& storage,std::string& error){
-        if(mesh.topologyHash!=topologyHash_||mesh.points.size()!=std::size_t(points_)){
+        if(mesh.points.size()!=std::size_t(points_)||mesh.faceOffsets!=topology_.faceOffsets
+            ||mesh.facePoints!=topology_.facePoints||mesh.cellFaceOffsets!=topology_.cellOffsets
+            ||mesh.cellFaces!=topology_.cellFaces||mesh.cellFaceSigns!=topology_.cellSigns
+            ||mesh.periodicPartner!=periodic_||mesh.owner!=owners_||mesh.neighbour!=neighbours_
+            ||mesh.boundaryKind!=boundaries_){
             error="resident trajectory requires the initialized mesh topology";return false;}
         if(!storage.write(current_.data(),geometry_device::pack(mesh.points))){error=storage.error();return false;}
         return true;
     }
-    bool prepare(double interval,const ResidentWallKnotTime* times,int knots,const ResidentWallClock* clock,
+    template<class Interval>
+    bool prepare(Interval interval,const ResidentWallKnotTime* times,int knots,const ResidentWallClock* clock,
         ugkp::diagnostics::DeviceContext* diagnostics,cudaStream_t stream,std::string& error){
         resident_mesh_detail::samplePointProgram<<<points_?(points_+ugkp::gpu::workPlan().faceBlockThreads-1)/ugkp::gpu::workPlan().faceBlockThreads:1,ugkp::gpu::workPlan().faceBlockThreads,0,stream>>>(
             points_,current_.data(),program_.data(),times,knots,clock,interval,previous_.data(),endpoint_.data(),controls_.data());
@@ -90,8 +102,8 @@ public:
         if(points_)resident_mesh_detail::acceptPointTrajectory<<<(points_+ugkp::gpu::workPlan().faceBlockThreads-1)/ugkp::gpu::workPlan().faceBlockThreads,ugkp::gpu::workPlan().faceBlockThreads,0,stream>>>(points_,endpoint_.data(),current_.data(),view().status,diagnostics);
         if(!fault_.check(cudaGetLastError(),"accept resident point trajectory")){error=fault_.message;return false;}return true;
     }
-    // Publication only: queue all reads on the owner's existing output stream.
-    // Complete them together with gas-field reads before formatting host state.
+
+
     bool queuePublication(SharedGasDeviceStorage& storage,std::string& error){
         const auto stage=view();auto& p=publication_;
         if(!storage.enqueueRead(previous_.data(),points_,p.previous)||!storage.enqueueRead(endpoint_.data(),points_,p.endpoint)
@@ -105,8 +117,8 @@ public:
             ||!storage.enqueueRead(controls_.data(),1,p.controls)){error=storage.error();return false;}
         return true;
     }
-    // Called only after the queued publication and existing diagnostics finish.
-    // This formats device results; it performs no geometric recomputation.
+
+
     void publish(HostMesh& mesh,HostStageGeometry& stage,std::uint64_t version)const{
         const auto& p=publication_;const auto cells=p.cells.size(),faces=p.faces.size();
         geometry_device::unpack(p.previous,mesh.oldPoints);geometry_device::unpack(p.endpoint,mesh.points);

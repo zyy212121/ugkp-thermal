@@ -161,8 +161,8 @@ class CompactionGeneratedDpreContract(unittest.TestCase):
 
         pressure_launch = function_block(CUDA, "applyCollisionalPressureKick")
         advance = function_block(CUDA, "ugkwpGpuResidentStrictAdvance")
-        # Cached projection visits the complete active particle buffer, covering
-        # both base and injected particles without a second directory traversal.
+
+
         self.assertIn("launchCommonPressureKick<AnalyticPressureLaunch>", pressure_launch)
         protocol = function_block(CUDA,"launchCommonPressureKick")
         self.assertIn("LaunchBackend::projectUnsorted", protocol)

@@ -23,7 +23,7 @@ int main(){
  speciesEvaluations=0;assert(pointState(m.input,m.config,ctx,x,p));
  std::cout<<"point_species_evaluations="<<speciesEvaluations<<std::endl;
  assert(speciesEvaluations==2);
- // Vary both right-hand sides, advection, mesh spacing and positive diffusion.
+
  for(int n: {3,7,24})for(int trial=0;trial<41;++trial){
    auto c=m.config;c.nodes=n;WallWorkspace<double,2,24> a{},b{};
    for(int i=0;i<n;++i){a.y[i]=b.y[i]=.001*i*(i+1);a.diagonal[i][0][0]=b.diagonal[i][0][0]=.00001*(1+(i+trial)%7);}
@@ -97,7 +97,7 @@ int main(){
  std::cout<<"shared_interval_evaluations="<<intervalCalls<<std::endl;
  assert(intervalCalls==23);assert(n0==n1);
  assert(std::memcmp(original,shared,sizeof(original))==0);
- // Live diagnostics preserve the uncached row context and warning multiplicity.
+
  w.state[6][3]=-.1;
  ugkp::diagnostics::DeviceContext d0{},d1{};
  m.input.diagnostics=&d0;intervalCalls=0;
@@ -107,7 +107,7 @@ int main(){
  assert(ok0==ok1&&intervalCalls==count0);
  assert(std::memcmp(&d0,&d1,sizeof(d0))==0);
  assert(std::memcmp(original,shared,sizeof(original))==0);
- // An incomplete H channel must still pass through the owner's storage check.
+
  m.input.model.thermo.coefficientCount=5;
  auto trial=m.input;trial.diagnostics=nullptr;
  bool available=true;m.input.diagnostics=&d0;d0=ugkp::diagnostics::DeviceContext{};

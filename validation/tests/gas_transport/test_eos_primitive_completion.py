@@ -85,7 +85,7 @@ int main(int argc,char**argv){assert(argc==2);const char*test=argv[1];Model m;do
   Caloric missing{3,{}};value=-11;c=-12;assert(evaluateCaloricEnergy(missing,700.,value,c)==ThermoStatus::InvalidModel);assert(value==-11&&c==-12);
  }else if(!std::strcmp(test,"inversion")){
   Caloric e{1,{}};ThermoInversionControls<double> c;double t=std::numeric_limits<double>::quiet_NaN();assert(invertCaloricEnergy(e,2005.,200.,4000.,c,t)==ThermoStatus::NonFiniteInput);assert(t==2100);assert(std::find(e.seen.begin(),e.seen.end(),t)!=e.seen.end());
-  Caloric nanTarget{0,{}};t=std::numeric_limits<double>::quiet_NaN();assert(invertCaloricEnergy(nanTarget,std::numeric_limits<double>::quiet_NaN(),200.,4000.,c,t)==ThermoStatus::NonFiniteInput);assert(std::isnan(t)&&nanTarget.seen.empty()); // Generic outer fallbacks retain their original seed/evaluation sequence.
+  Caloric nanTarget{0,{}};t=std::numeric_limits<double>::quiet_NaN();assert(invertCaloricEnergy(nanTarget,std::numeric_limits<double>::quiet_NaN(),200.,4000.,c,t)==ThermoStatus::NonFiniteInput);assert(std::isnan(t)&&nanTarget.seen.empty());
   Caloric missing{3,{}};t=-11;assert(invertCaloricEnergy(missing,2005.,200.,4000.,c,t)==ThermoStatus::InvalidModel);assert(t==-11&&missing.seen.size()==3);
  }else if(!std::strcmp(test,"mixture_inversion")){
   m.a[0]=m.a[3]=std::numeric_limits<double>::max();double t=std::numeric_limits<double>::quiet_NaN();ThermoInversionControls<double> c;assert(invertMixtureEnergy(mass,1.,m.v,c,t)==ThermoStatus::NonFiniteInput);assert(t==2100);
@@ -122,7 +122,16 @@ def recovery(root):
     source = (root / "common/operators/computeSstFaceFluxKernel.cuh").read_text()
     start = source.index("template<class GasState>\n__device__ void recoverGasPrimitiveCell")
     end = source.index("template<class GasState>\n__global__ void recoverGasPrimitivesKernel", start)
-    return source[start:end]
+    dependencies = []
+    if '#include "gasStencilDiagnostics.cuh"' in source:
+        dependencies.append('#include "operators/gasStencilDiagnostics.cuh"')
+        first = source.index("template<class GasState,class Scalar>")
+        last = source.index("template<class GasState>\n__device__ void sstInternalRhoDiffusivities", first)
+        dependencies.append(source[first:last])
+    owner = '#include "operators/recoverStationaryGasPrimitive.cuh"'
+    if owner in source:
+        dependencies.append(owner)
+    return '\n'.join([*dependencies, source[start:end]])
 
 
 def build(folder, root):

@@ -43,8 +43,8 @@ class ThermalCouplingScheduleContract(unittest.TestCase):
 
     def test_contact_uses_tolerant_time_schedule_and_radiation_uses_sequence(self) -> None:
         source = COUPLER.read_text(encoding="utf-8")
-        self.assertIn('#include "ThermalCouplingSchedule.H"', source)
-        self.assertEqual(source.count("ugkpcht::thermalEventIsDue"), 1)
+        self.assertIn('#include "../../../common/gpu/PhysicalEventClock.H"', source)
+        self.assertEqual(source.count("ugkp::gpu::reachedEventTime"), 1)
         self.assertIn("radiationCouplingFrequency", source)
         self.assertRegex(
             source,

@@ -18,10 +18,10 @@ template<class R> UGKP_WALL_GEOMETRY_HD inline Vec<R> cross(const Vec<R>&a,const
 template<class R> UGKP_WALL_GEOMETRY_HD inline R norm(const Vec<R>&a){return std::hypot(std::hypot(a[0],a[1]),a[2]);}
 template<class R> UGKP_WALL_GEOMETRY_HD inline bool finite(const Vec<R>&a){return gasFinite(a[0])&&gasFinite(a[1])&&gasFinite(a[2]);}
 template<class R> UGKP_WALL_GEOMETRY_HD inline R turn(const Vec<R>& a,const Vec<R>& b,const Vec<R>&c,const Vec<R>&n){return dot(cross(sub(b,a),sub(c,a)),n);}
-// Same ordered ear-clipping construction for host and resident owners.
-// Ring and triangle storage are supplied by the caller. A face with N input
-// vertices needs N mutable ring entries and at most N-2 output triangles.
-// Neither geometry-dependent allocation nor a convex-face assumption is used.
+
+
+
+
 template<class R,class Mesh,class Ring,class Output>
 UGKP_WALL_GEOMETRY_HD bool triangulateWallPolygon(const Mesh& m,Ring& ring,Output& out){
     const Vec<R> anchor=m.points[ring[0]];Vec<R> area{};
@@ -32,8 +32,8 @@ UGKP_WALL_GEOMETRY_HD bool triangulateWallPolygon(const Mesh& m,Ring& ring,Outpu
     const R amag=norm(area);
     if(!(out.scale>0)||!(amag>0))return false;
     out.normal=mul(area,R(1)/amag);
-    const R atol=0; // Geometric orientation uses the represented sign, without an area floor.
-    // A repeated vertex, crossing edge or self-touching boundary is not a face.
+    const R atol=0;
+
     for(std::size_t i=0;i<ring.size();++i)for(std::size_t j=i+1;j<ring.size();++j){
         if(ring[i]==ring[j])return false;
         if(j==i+1||(i==0&&j+1==ring.size()))continue;
@@ -41,7 +41,7 @@ UGKP_WALL_GEOMETRY_HD bool triangulateWallPolygon(const Mesh& m,Ring& ring,Outpu
         const R u=turn(a,b,c,out.normal),v=turn(a,b,d,out.normal),w=turn(c,d,a,out.normal),z=turn(c,d,b,out.normal);
         if(((u>atol&&v<-atol)||(u<-atol&&v>atol))&&((w>atol&&z<-atol)||(w<-atol&&z>atol)))return false;
     }
-    // Collinear edge points carry no triangle area but remain in the mesh's
+
 
     bool changed=true;
     while(changed&&ring.size()>3){changed=false;for(std::size_t i=0;i<ring.size();++i){

@@ -1,4 +1,4 @@
-// Immutable fa71f477 host reference.
+
 int configureLaunchOccupancy(DeviceState* s)
 {
     const int block = s->reductionBlockThreads;
@@ -130,12 +130,12 @@ int configureLaunchOccupancy(DeviceState* s)
     if (configureTrackingWorkGrid(s) != 0) return 1;
     if constexpr (coldWallSmBlocks > 0)
     {
-        // Use the existing precision-specific block-count override.
+
         s->coldWallWorkGrid = s->multiprocessorCount*coldWallSmBlocks;
     }
     else
     {
-        // No independent block-count override: inherit the particle grid.
+
         s->coldWallWorkGrid = s->particleWorkGrid;
     }
     std::fprintf(stderr, "Cold-wall launch geometry: threads=%d grid=%d\n",

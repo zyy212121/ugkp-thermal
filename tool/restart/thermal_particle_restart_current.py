@@ -1,10 +1,5 @@
-pass
-
-
-
-
-
 from __future__ import annotations
+import re
 import struct
 from pathlib import Path
 import numpy as np
@@ -19,14 +14,23 @@ PROFILES = {"pColdNodeSpecificEnthalpy", "pCold2DNodeSpecificEnthalpy"}
 
 def field_specs(marker):
 
-    if marker == LEGACY_CHT_MARKER:
+    match = re.fullmatch(r"UGKP_(CHT|THERMAL|FSH)_PARTICLES_SCHEMA[0-9]+_(.+)_BIN", marker)
+    owner, layout = match.groups() if match else ("", "")
+    if owner == "THERMAL" and layout in ("T32", "T64"):
+        return legacy_specs(f"UGKP_THERMAL_PARTICLES_SCHEMA7_{layout}_BIN")
+    if owner == "CHT" and layout == "THERMAL_CARRY":
         return legacy_specs("UGKP_THERMAL_PARTICLES_SCHEMA7_T64_BIN") + [("pThermalEnthalpyResidual", "<f8", 1)]
-    if marker not in (CHT_MARKER, SINGLE_STATE_CHT_MARKER, FSH_MARKER):
-        return legacy_specs(marker)
-    specs = [(name, "<f4" if marker in (CHT_MARKER, SINGLE_STATE_CHT_MARKER) and name in PROFILES else
+    float_profiles = set()
+    if owner == "CHT" and layout in ("FLOAT_COLD_PROFILES", "FP32_SINGLE_STATE", "NATIVE32_RAW_COLD"):
+        float_profiles = PROFILES
+    elif owner == "CHT" and layout == "NATIVE64_RAW_COLD":
+        float_profiles = {"pCold2DNodeSpecificEnthalpy"}
+    elif owner != "FSH" or layout != "FP64_FIELDS":
+        raise ValueError(f"cannot decode particle field layout {marker}")
+    specs = [(name, "<f4" if name in float_profiles else
               "<f8" if dtype in ("<f4", "<f8") else dtype, width)
              for name, dtype, width in legacy_specs("UGKP_THERMAL_PARTICLES_SCHEMA7_T64_BIN")]
-    if marker == CHT_MARKER:
+    if layout in ("FLOAT_COLD_PROFILES", "NATIVE64_RAW_COLD"):
         specs.append(("pThermalEnthalpyResidual", "<f8", 1))
     return specs
 

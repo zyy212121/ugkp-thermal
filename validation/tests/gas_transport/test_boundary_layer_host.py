@@ -12,16 +12,16 @@ def test_profile_preflight_reuse_rk_and_trial_invalidation(tmp_path):
 struct Host{ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;int solves=0;};
 struct Policy{static int prepareBoundaryLayer(Host*s,double,double){++s->solves;return 0;}};
 int main(){Host s;s.gasBoundaryLayer.enabled=true;
-ugkwp::invalidateGasBoundaryLayerPreparation(s); // new trial / post-chemistry state
+ugkwp::invalidateGasBoundaryLayerPreparation(s);
 assert(ugkwp::prepareGasBoundaryLayerStage<Policy>(&s,.1,2.,true)==0&&s.solves==1);
-assert(ugkwp::prepareGasBoundaryLayerStage<Policy>(&s,.1,2.,false)==0&&s.solves==1); // first Euler reuses
-assert(ugkwp::prepareGasBoundaryLayerStage<Policy>(&s,.1,2.1,false)==0&&s.solves==2); // RK fresh
-ugkwp::invalidateGasBoundaryLayerPreparation(s); // rollback and retry
+assert(ugkwp::prepareGasBoundaryLayerStage<Policy>(&s,.1,2.,false)==0&&s.solves==1);
+assert(ugkwp::prepareGasBoundaryLayerStage<Policy>(&s,.1,2.1,false)==0&&s.solves==2);
+ugkwp::invalidateGasBoundaryLayerPreparation(s);
 assert(ugkwp::prepareGasBoundaryLayerStage<Policy>(&s,.05,2.,true)==0&&s.solves==3);
-ugkwp::invalidateGasBoundaryLayerPreparation(s); // material input changed after prepare
+ugkwp::invalidateGasBoundaryLayerPreparation(s);
 assert(ugkwp::prepareGasBoundaryLayerStage<Policy>(&s,.05,2.,false)==0&&s.solves==4);
 assert(ugkwp::prepareGasBoundaryLayerStage<Policy>(&s,.05,2.,true)==0&&s.solves==5);
-assert(ugkwp::prepareGasBoundaryLayerStage<Policy>(&s,.025,2.,false)==0&&s.solves==6); // different interval
+assert(ugkwp::prepareGasBoundaryLayerStage<Policy>(&s,.025,2.,false)==0&&s.solves==6);
 s.gasBoundaryLayer.enabled=false;assert(ugkwp::prepareGasBoundaryLayerStage<Policy>(&s,.1,2.,false)==0&&s.solves==6);
 }
 '''
@@ -76,7 +76,7 @@ h.hostGasTimeIntegrator=1;Policy::limit=true;Policy::attempts=Policy::rollbacks=
 GasRequestedIntervalControls<double> controls;controls.minimumSubstep=1e-8;
 if(advanceGasRequestedInterval<Policy>(&h,.1,2.,controls))return 7;
 if(Policy::rollbacks<1||Policy::attempts>12||std::abs(Policy::covered-.1)>1e-12)return 8;
-if(count("profile")!=Policy::attempts)return 9; // every rejected/retried state has a fresh prepare
+if(count("profile")!=Policy::attempts)return 9;
 }
 '''
     cpp=tmp_path/'stage.cpp';binary=tmp_path/'stage';cpp.write_text(pre+extras+source+main)

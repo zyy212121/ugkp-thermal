@@ -1,6 +1,6 @@
 #pragma once
-// The gas pruned tree and thermal full tree retain their original arithmetic,
-// full-warp contract, barriers and precision. Policy selection is compile-time.
+
+
 template<int NumComponents>
 __device__ void blockReduceComponentSums
 (
@@ -13,7 +13,7 @@ __device__ void blockReduceComponentSums
     const int warpCount = (blockDim.x + 31)/32;
     constexpr unsigned int fullWarpMask = 0xffffffffu;
 
-    // All threads participate; both strategies require full warps.
+
     if ((blockDim.x & 31) != 0)
     {
         asm("trap;");

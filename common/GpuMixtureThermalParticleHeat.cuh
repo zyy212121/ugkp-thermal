@@ -3,9 +3,9 @@
 #include "gasTransport/MixtureParticleDirectory.cuh"
 #include "gasTransport/MixtureCouplingTeam.cuh"
 #include "gasTransport/MixtureParticleResponse.cuh"
-// Caloric adaptation of the shared frozen-mixture finite-bath source. Free
-// parcels alone participate; contact/profile heat has its own accepted ledger.
-// One cell owns all candidate evaluations and all publication for its parcels.
+
+
+
 namespace mixtureThermalParticles {
 template<class State>
 __device__ bool member(const State& s,int i,int c) {
@@ -57,9 +57,9 @@ __device__ ugkwp::ParticleCaloricHeatResponse cachedResponse(const State& s,int 
 }
 #include "GpuParticleCaloricResponseSum.cuh"
 }
-// Freeze only quantities independent of the gas root. Parcel enthalpy and its
-// derivative retain the original piecewise law at every trial temperature.
-// Repeated trials inside the same open segment reuse its aggregate polynomial.
+
+
+
 
 
 template<class State>

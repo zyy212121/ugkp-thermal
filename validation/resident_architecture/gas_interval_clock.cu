@@ -1,5 +1,5 @@
-// Native resident-clock regression: header republication, graph reuse, changing
-// intervals, frozen clocks, and rounding-edge timestamps. FP64 throughout.
+
+
 #include <cuda_runtime.h>
 #include "../../common/gasTransport/GasResidentInterval.H"
 #include <cstdio>
@@ -29,10 +29,10 @@ int main(){
         else{
             next.begin=previous.end;
             if(i==512)next.dt=0.03;
-            if(i==768)next.begin=0.0; // discontinuous restart clock
+            if(i==768)next.begin=0.0;
             if(i>=1024&&i<1152){next.begin=3.5;next.frozen=true;}
             else next.frozen=false;
-            if(i==1280){next.begin=1.e20;next.dt=0.1;} // rounded begin==end
+            if(i==1280){next.begin=1.e20;next.dt=0.1;}
             if(i==1536){next.begin=-0.0;next.dt=std::numeric_limits<double>::denorm_min();}
             if(i==1792){next.begin=2.0;next.dt=0.125;}
             next.end=next.begin+next.dt;next.middle=next.begin+next.dt*0.5;
@@ -42,7 +42,7 @@ int main(){
             void* args[]={&state,&clock,&next,&advance};params.kernelParams=args;params.extra=nullptr;
             checked(cudaGraphExecKernelNodeSetParams(exec,node,&params));++changes;mode=advance;
         }
-        // Capacity/geometry publication must not reset the graph-owned clock.
+
         checked(cudaMemsetAsync(state,0,sizeof(State),stream));
         checked(cudaGraphLaunch(exec,stream));
         State actual;GasResidentInterval actualClock;

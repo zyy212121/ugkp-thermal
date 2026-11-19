@@ -6,8 +6,8 @@
 using namespace chmt;
 void cudaCheck(cudaError_t e){if(e!=cudaSuccess){std::fprintf(stderr,"%s\n",cudaGetErrorString(e));std::exit(2);}}
 template<class T>T* allocate(int n){T* p=nullptr;cudaCheck(cudaMallocManaged(&p,n*sizeof(T)));for(int i=0;i<n;++i)new(p+i)T{};return p;}
-// Original adapter update retained here to distinguish the unchanged interior
-// from the explicitly improved common-extent exhaustion representation.
+
+
 bool originalStep(const SolidQ& base,double volume,const PhysicsConfig& p,
     const std::vector<dry::Reaction<Nc,Ns>>& network,double maximumStep,double cfl,
     SolidQ& output,double& step,bool& active,bool* numerical){
@@ -29,8 +29,8 @@ bool originalStep(const SolidQ& base,double volume,const PhysicsConfig& p,
     MaterialPrimitive endpoint;if(!recoverMaterial(output,volume,p,endpoint,nullptr,-1,numerical))return false;
     output.porosity=endpoint.porosity;return true;
 }
-// Frozen 88bc5434 CPU controller: independent loop, host vector mechanism,
-// and the original dry adapter. The production CPU/GPU controller is separate.
+
+
 MaterialReactionStatus originalCpu(const SolidQ& base,double volume,const PhysicsConfig& p,
     double interval,double maxStep,double cfl,int maximum,SolidQ& out){
     MaterialReactionStatus status;
@@ -75,8 +75,8 @@ using DryState=dry::MaterialState<Nc,Ns>;
 __global__ void extentBalanceKernel(DryState* state,const DryState* source,double* fraction){const int i=threadIdx.x;if(i<3)fraction[i]=dry::reactionEuler(state[i],source[i],1);}
 void checkExtentBalance(){
     auto* state=allocate<DryState>(3);auto* source=allocate<DryState>(3);auto* fraction=allocate<double>(3);
-    // A condensed/pore tie shares exactly one extent; an arbitrarily small
-    // nonlimiting inventory is retained. A separate interior case is unchanged.
+
+
     state[0].condensedMass[0]=.25;state[0].poreMass[0]=.5;state[0].poreMass[1]=1e-280;state[0].energy=17;
     source[0].condensedMass[0]=-2;source[0].poreMass[0]=-4;source[0].condensedMass[1]=6;
     state[1]=state[0];source[1].condensedMass[0]=-2;source[1].poreMass[0]=-1;source[1].condensedMass[1]=3;
@@ -109,7 +109,7 @@ int main(){std::setvbuf(stdout,nullptr,_IONBF,0);cudaCheck(cudaDeviceSetLimit(cu
         std::vector<SolidQ> expected(n);std::vector<MaterialReactionStatus> expectedStatus(n);
         for(int c=0;c<n;++c){q[c]={};volumes[c]=.001*(1+.001*c);
             q[c].condensed[0]=variant==4?.72:.8;q[c].condensed[1]=variant==4?.18:(variant==5?.1:(c%2?1e-15:0));q[c].pore[0]=.1;
-            // Alternating inactive cells exercise nonuniform independent clocks.
+
             if(variant==1&&c%7==0){q[c].condensed[0]=q[c].condensed[1]=0;q[c].pore[0]=.9;}
             const double temperature=variant==4?650:700;
             for(int k=0;k<Nc;++k)q[c].energy+=q[c].condensed[k]*condensedE(p->condensed[k],temperature);

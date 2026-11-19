@@ -27,13 +27,13 @@ def scalar(directory, name):
 def prepare(directory, kind, steady):
     native.failure.prepare(directory, .175, .001, 2, 100)
     native.control(directory, 2, steady=steady, write=1)
-    # No inlet source: initial boundary velocity is zero on both open faces.
+
     native.set_entry(directory / 'constant/particleProperties',
                      'particleGasHeatTransferModel', 'none')
     particle = directory / '0/gpuResidentStrictParticles.dat'
     if kind == 'empty':
         particle.write_bytes(b'UGKP_PARTICLES_SCHEMA1_BIN 0 1\n')
-        # Initial moments must also describe an empty state.
+
         p = directory / '0/epsilonS'
         native.set_entry(p, 'internalField', 'uniform 0')
     else:
@@ -105,8 +105,8 @@ def main():
                 row['comparison'] = native.compare(final, actual, 1)
                 assert abs(eps_prev(final) - eps_prev(actual)) < 1e-15
             if kind == 'exit':
-                # Uniform one-cell open gas: paired boundary fluxes cancel.
-                # Independently evaluate the existing explicit porosity source.
+
+
                 scale = 1. - (1. - history) * 2e-5 / (2e-5 + sys.float_info.epsilon)
                 expected = {name: scalar(checkpoint, name)*scale
                             for name in ['rho', 'rhoY_A', 'rhoY_B']}

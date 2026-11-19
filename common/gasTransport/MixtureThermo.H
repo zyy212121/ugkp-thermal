@@ -8,8 +8,8 @@
 namespace ugkwp
 {
 
-// These utilities use no application scalar aliases, allocation, exceptions, or
-// I/O and compile identically in a host test and a CUDA translation unit.
+
+
 template<class Real>
 UGKWP_GAS_HD inline bool gasFinite(const Real x) noexcept
 {
@@ -17,8 +17,8 @@ UGKWP_GAS_HD inline bool gasFinite(const Real x) noexcept
         && x >= -(std::numeric_limits<Real>::max)();
 }
 
-// Fractions preserve independently transported species inventories. A closure
-// residual is diagnostic only; finite component clipping never renormalizes Y.
+
+
 template<class Real,int Ns>
 UGKWP_GAS_HD inline bool mixtureMassFractionsFromDensities(
     const Real* partial,Real density,Real closureTolerance,Real* fractions,
@@ -40,7 +40,7 @@ UGKWP_GAS_HD inline bool mixtureMassFractionsFromDensities(
         total+=value;
         if(!gasFinite(total)) {
             recordWarning(diagnostics,makeRecord(Code::ConservationResidual,10001,0,0,EntityKind::Species,k,k,total,1,total,Quantity::Conservation));
-            // Preserve bounded fractions; total is only a closure diagnostic.
+
         }
         const Real clipped=value<Real(0)?Real(0):(value>Real(1)?Real(1):value);
         if(clipped!=value)recordWarning(diagnostics,makeRecord(Code::FiniteYClip,10002,0,0,EntityKind::Species,k,k,value,0,clipped,Quantity::MassFraction));
@@ -86,8 +86,8 @@ struct SpeciesValues
     Real cp, cv, h, e, entropy;
 };
 
-// POD failures propagate to the owning host/device operation. Optional context
-// records the same failure immediately; no alternate property evaluation occurs.
+
+
 UGKWP_GAS_HD inline ThermoStatus failure(ugkp::diagnostics::DeviceContext* ctx,
     ThermoStatus status,ugkp::diagnostics::Code code,int species,double value,
     unsigned quantity=ugkp::diagnostics::Quantity::Unspecified) noexcept
@@ -147,8 +147,8 @@ UGKWP_GAS_HD inline ThermoStatus evaluateSpecies
     local.cv=local.cp-R;local.e=local.h-R*temperature;
     if(!gasFinite(local.cp) || !gasFinite(local.cv) || (CompleteEnthalpy && !gasFinite(local.h)) || (CompleteEntropy && !gasFinite(local.entropy))) {
         const Real observed=!gasFinite(local.cp)?local.cp:(!gasFinite(local.cv)?local.cv:((CompleteEnthalpy && !gasFinite(local.h))?local.h:local.entropy));
-        // A face producer can retain the actual property fault while supplying
-        // its own entity/operator context; failed output remains unpublished.
+
+
         if(nonfiniteValue)*nonfiniteValue=observed;
         return failure(view.diagnostics,ThermoStatus::NonFiniteInput,Code::NonFinite,species,observed);
     }
@@ -156,7 +156,7 @@ UGKWP_GAS_HD inline ThermoStatus evaluateSpecies
     return ThermoStatus::Success;
 }
 
-} // namespace gasThermoDetail
+}
 
 
 template<class Real, int Ns>
@@ -189,9 +189,9 @@ UGKWP_DEFINE_SPECIES_PROPERTY(speciesE,e,true,false)
 UGKWP_DEFINE_SPECIES_PROPERTY(speciesEntropyStandard,entropy,false,true)
 #undef UGKWP_DEFINE_SPECIES_PROPERTY
 
-// Joint channels use exactly the same evaluator and arithmetic as speciesH/Cp.
-// A failed H channel still evaluates Cp as before, retaining the first fatal
-// record and the Cp value consumed by the caller's contextual diagnostic.
+
+
+
 template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline void speciesCpH(int species,Real temperature,
  const SpeciesThermoView<TableReal,Ns>& view,Real& cp,Real& h) noexcept {
@@ -214,10 +214,10 @@ UGKWP_GAS_HD inline Real speciesGibbsStandard
     return gasFinite(gibbs)?gibbs:gasThermoDetail::invalidValue<Real>();
 }
 
-// Legacy Refinement/Complete template switches remain source-compatible only;
-// they never select an alternate evaluator or change result acceptance.
-// The arrays contain masses [kg], not mass fractions or molar concentrations.
-// Supplying mass fractions is valid only when intentionally evaluating one kg.
+
+
+
+
 template<bool Refinement=false,class Real,int Ns,class TableReal,bool Complete=!Refinement,bool CompleteEnthalpy=false>
 UGKWP_GAS_HD inline ThermoStatus evaluateMixtureEnergy
 (
@@ -296,7 +296,7 @@ UGKWP_GAS_HD inline Real mixtureHeatCapacity
     return gasFinite(capacity)?capacity:gasThermoDetail::invalidValue<Real>();
 }
 
-// Mass-specific mixture R. Input may contain masses or mass fractions; total
+
 
 template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline Real mixtureGasConstant
@@ -323,9 +323,9 @@ UGKWP_GAS_HD inline Real mixtureGasConstant
     return result;
 }
 
-// p/T/Y initialization has one common EOS owner. Y must already be admissible;
-// this routine never repairs species or silently accepts arbitrary mass units.
-// All species (including zero-mass products) must share the supplied T range.
+
+
+
 template<bool Refinement=false,class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline ThermoStatus mixtureDensityFromPressureTemperatureImpl
 (
@@ -368,9 +368,9 @@ UGKWP_GAS_HD inline ThermoStatus mixtureDensityFromPressureTemperature
     return mixtureDensityFromPressureTemperatureImpl<false>(pressure,temperature,massFractions,view,density,compositionTolerance);
 }
 
-// Generic caloric inversion permits independent condensed/film calorics to
-// share the same safeguarded solve without representing condensed matter as gas.
-// Evaluators must validate their full operating interval before this call.
+
+
+
 
 
 template<bool Refinement=false,class Real,class Evaluator,bool Complete=!Refinement>
@@ -441,7 +441,7 @@ UGKWP_GAS_HD inline ThermoStatus invertCaloricEnergy
         if(iteration+1==iterations)break;
         if(bracket){if((residual<Real(0))==(elo<internalEnergy)){lo=trial;elo=energy;}else{hi=trial;ehi=energy;}}
         Real next=trial-correction;
-        // Safeguarded mathematical root iteration, not a failed physical-step retry.
+
         if(bracket && (!gasFinite(next)||!(next>lo && next<hi)))next=lo+Real(.5)*(hi-lo);
         if(!gasFinite(next))return failure(diagnostics,ThermoStatus::NonFiniteInput,Code::NonFinite,-1,next,Quantity::Temperature);
         if(next==trial)break;
@@ -461,7 +461,7 @@ struct MixtureEnergyEvaluator
     { return evaluateMixtureEnergy<Refinement,Real,Ns,TableReal,false>(speciesMass,T,thermo,energy,capacity); }
 };
 
-// Shared intersection of species validity ranges and optional tighter controls.
+
 template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline void mixtureTemperatureBounds
 (const SpeciesThermoView<TableReal,Ns>& view,
@@ -494,5 +494,5 @@ UGKWP_GAS_HD inline ThermoStatus invertMixtureEnergy
     return invertCaloricEnergy<Refinement>(evaluator,internalEnergy,lo,hi,controls,temperature,evaluatedTemperature,view.diagnostics);
 }
 
-} // namespace ugkwp
+}
 #endif

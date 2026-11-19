@@ -67,7 +67,7 @@ int main(){
                 std::fprintf(stderr,"mode %d iterations %d repeat %d: %d != %d\n",mode,iterations,repeat,actual.value,expected);return 3;
             }
         }
-        // The ordinary uncaptured owner remains a valid caller of the same API.
+
         reset<<<1,1>>>(host.deviceState);toggle<<<1,1>>>(host.deviceState);active=1-active;
         if(launchCsrConditional(&host,0,64,0,0,[&](cudaStream_t branch,bool heavy){
             add<<<1,1,0,branch>>>(host.deviceState,heavy?2:7);return int(cudaGetLastError()!=cudaSuccess);

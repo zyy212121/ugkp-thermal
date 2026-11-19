@@ -1,5 +1,5 @@
-// Reuse the production-entry fixtures and independent quadrature without
-// maintaining a second copy of the existing small-geometry regression suite.
+
+
 #define main inheritedSweepRegressionMain
 #include "test_sweep_constraints.cpp"
 #undef main
@@ -16,8 +16,8 @@ struct LargeFixture {
     std::vector<unsigned char> fixed;
 };
 
-// Disconnected valid finite-volume blocks isolate each former dense cap.
-// The targets come from a real harmonic trajectory, not fabricated equations.
+
+
 LargeFixture largeFixture(bool tetra,int blocks,int activeBlocks) {
     const HostMesh unit=tetra?tetrahedralBulk():twoHexahedra(0);
     LargeFixture x; x.mesh.faceOffsets.push_back(0);
@@ -46,7 +46,7 @@ LargeFixture largeFixture(bool tetra,int blocks,int activeBlocks) {
     }
     std::string error; require(rebuildGeometry(x.mesh,error),error);
     std::vector<Vec3> known; require(harmonicPointMotion(x.mesh,displacement,x.fixed,known,error),error);
-    // Five-point quadrature is independent of the production sweep polynomial.
+
     for (int face:x.faces) x.targets.push_back(quadratureSweep(x.mesh,known,face));
     x.zero.resize(x.mesh.points.size());
     return x;
@@ -81,8 +81,8 @@ void checkRejectedOutputs(const LargeFixture& x,const SolveResult& result) {
         "rejected correction preserves mesh geometry/topology");
 }
 
-// Check all three nonconstant coefficients of the trajectory's signed
-// tetrahedron volume. Endpoint-only planarity could miss cancellations.
+
+
 void checkPlanarTrajectory(const HostMesh& old,const HostMesh& endpoint) {
     for (std::size_t f=0;f<old.owner.size();++f) {
         const int begin=old.faceOffsets[f],end=old.faceOffsets[f+1];
@@ -309,8 +309,8 @@ void checkOriginalTrajectoryPolynomials() {
     LargeFixture x; x.mesh=twoHexahedra(0);
     x.fixed.assign(x.mesh.points.size(),1); x.directions.resize(x.mesh.points.size());
     std::vector<Vec3> endpoint;
-    // A projective map leaves every endpoint face planar and convex, but the
-    // straight vertex paths between old and new faces are generally not planar.
+
+
     for (Vec3 point:x.mesh.points) {
         const Vec3 next=point/(1+dot(Vec3{.09,.13,.17},point));
         endpoint.push_back(next); x.zero.push_back(next-point);
@@ -356,8 +356,8 @@ bool samePointBits(const Vec3& a,const Vec3& b) {
 
 void checkHarmonicOutputRounding() {
     HostMesh mesh=tetrahedralBulk();
-    // Preserve the existing graph, but make sub-ULP motion disappear in the
-    // required (old + displacement) - old arithmetic at the interior point.
+
+
     const Real offset=std::ldexp(Real(1),40);
     for (Vec3& point:mesh.points) point+=Vec3{offset,-offset,offset};
     std::vector<unsigned char> fixed(mesh.points.size(),1); fixed[4]=0;
@@ -373,8 +373,8 @@ void checkHarmonicOutputRounding() {
         prescribed[1].z=boundary[1].z=-Real(0);
         std::vector<Vec3> expected; std::string error;
         require(harmonicPointMotion(mesh,prescribed,fixed,expected,error),error);
-        // Keep the previous separate subtraction and fixed-overwrite passes
-        // as the independent reference for the effective output mode.
+
+
         for (std::size_t p=0;p<expected.size();++p) expected[p]-=mesh.points[p];
         for (std::size_t p=0;p<expected.size();++p) if(fixed[p]) expected[p]=prescribed[p];
         require(modes.solve(boundary,actual),"rounding-sensitive harmonic graph converges");

@@ -31,15 +31,15 @@ def test_rounded_endpoint_and_supplied_history_are_not_refused(tmp_path):
 #include <cassert>
 using namespace chmt;
 int main(){std::string e;double origin=1099511627776.;CouplingControls controls;controls.interval=1e-6;
- CouplingWindowController c;assert(c.begin(origin,origin+1,1,controls,e));assert(c.interval().end==origin);
- controls.interval=1;assert(c.begin(origin,origin+1,1,controls,e));assert(c.shorten(1e-6,e));assert(c.interval().end==origin);
- // Only admission and the original addition are exercised: no falsely progressing evolution loop.
+ CouplingWindowController c;controls.scheduleOrigin=origin;assert(!c.begin(origin,origin+1,1,controls,e));
+ controls.interval=std::nextafter(origin,INFINITY)-origin;assert(c.begin(origin,origin+1,1,controls,e));assert(c.interval().end==origin+controls.interval);
+
  IntervalHistory h;CouplingInterval w;w.begin=w.end=origin;assert(h.begin(w,e));GasIntervalRecord r;r.begin=r.end=origin;r.gasTrace.resize(1);r.gasGradient.resize(2);r.radiationEnergy={2};
  ExchangePacket p;p.kind=ExchangeKind::SolidFilm;p.mass=9;p.consumerMask=0;r.packets={p};assert(h.appendAccepted(r,e));
  HostState state;state.time=-1;state.ledger={p};assert(finalizeIntervalLedger(h,state,e));assert(state.ledger.size()==2&&state.ledger[0].mass==9&&state.ledger[0].consumerMask==0);
  std::vector<SolidQ> solid(1);MaterialDonorReserve reserve;assert(reserve.reset(solid,{},0,e));MaterialDonorPlan plan;plan.interval.begin=7;plan.interval.end=8;
  MaterialReserveKnot a,b;a.time=8;b.time=7;a.cumulativeSolid.resize(1);b.cumulativeSolid.resize(1);plan.knots={a,b};assert(reserve.setPlan(plan,e));
- // Do not execute intentionally unordered interpolation or missing receiver indexing.
+
 }
 '''
  src=tmp_path/'interval.cpp';src.write_text(code);exe=tmp_path/'interval'

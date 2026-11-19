@@ -42,7 +42,7 @@ int main(){
  assert(v.gasBoundaryLayerModel.input[0].temperature==600);assert(v.gasBoundaryLayerModel.input[0].matching.temperature==900);
  assert(v.gasBoundaryLayer.speciesFlux[0]==-.01);assert(v.gasBoundaryLayer.exchange[0].mass==-.01);
  assert(v.gasBoundaryLayerModel.output[0].reactionIntegral[0]==0);
- // A moving-geometry rebuild retains certified volume but no point allocation/upload.
+
  ++m.geometryVersion;for(auto& point:m.points)point.z*=1.01;for(auto& centre:m.cellCentres)centre.z*=1.01;for(auto& volume:m.volumes)volume*=1.01;
  assert(storage.prepareWallGeometry(m));const auto& q=v.gasBoundaryLayerModel.input[0].quadrature;
  assert(q.count==0&&!q.distance&&!q.volumeWeight&&near(q.volume,1.01)&&near(q.firstMoment,.51005));
@@ -72,7 +72,7 @@ def test_completed_numeric_wall_download_and_real_copy_failures(tmp_path):
  assert(!v.gasBoundaryLayer.exchange[0].ready&&v.gasBoundaryLayer.status[0]!=0);
  std::vector<ugkwp::gaswall::WallOutput<chmt::Real,chmt::Ns>> outputs;std::vector<chmt::GasWallMatchingSample> matching;
  assert(!storage.downloadWallOutputs(outputs,matching));assert(storage.wallModelFailed());
- // An independent valid evaluation supplies the download/copy-failure fixture.
+
  assert(storage.clearTrialStatus());v.Tgas[1]=900;
  assert(ugkwp::evaluateGasBoundaryLayerSlot(v,0,0));
  reads=0;assert(storage.downloadWallOutputs(outputs,matching));assert(reads==3);
@@ -80,7 +80,7 @@ def test_completed_numeric_wall_download_and_real_copy_failures(tmp_path):
  assert(matching[0].state.temperature==900&&matching[0].pressure==100000&&matching[0].mechanicalPressure==0);
  for(int failed=0;failed<3;++failed){failRead=failed;assert(!storage.downloadWallOutputs(outputs,matching));}
  failRead=-1;v.gasBoundaryLayerModel.input[0].model.thermo.coefficients=nullptr;
- // evaluateSlot samples the actual current tables again; remove the true source.
+
  auto table=v.gasSpecies.thermo.coefficients;v.gasSpecies.thermo.coefficients=nullptr;
  assert(!ugkwp::evaluateGasBoundaryLayerSlot(v,0,0));assert(!v.gasBoundaryLayer.exchange[0].ready);
  assert(!storage.downloadWallOutputs(outputs,matching));assert(storage.wallModelFailed());

@@ -11,7 +11,7 @@ def run(args,log,env=None):
         subprocess.run([str(x) for x in args],stdout=f,stderr=subprocess.STDOUT,check=True,env=env)
 run(['/usr/local/cuda/bin/nvcc','-std=c++17','-O2','--fmad=false','-arch=sm_89','-I'+str(R/'common'),R/'validation/shared_boundary/total_pressure.cu','-o',B/'total-pressure'],'device-build.log')
 run(['/usr/local/cuda/bin/compute-sanitizer','--tool','memcheck','--leak-check','full','--error-exitcode','9',B/'total-pressure'],'device.log')
-# Build the native reference within the output directory, not an external application bin.
+
 shutil.copytree(R/'validation/shared_boundary/native_reference',B/'reference',ignore=shutil.ignore_patterns('linux*'))
 run(['wmake',B/'reference'],'reference-build.log',dict(os.environ,FOAM_USER_APPBIN=str(B)))
 rows={int(x[0]):list(map(float,x[1:])) for x in re.findall(r'^DEVICE (.*)$',(O/'device.log').read_text(),re.M) for x in [x.split()]}

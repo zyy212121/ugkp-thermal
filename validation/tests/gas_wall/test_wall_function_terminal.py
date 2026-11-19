@@ -11,7 +11,7 @@ def test_root_failure_is_not_a_successful_zero(tmp_path):
 #include <cmath>
 #include <limits>
 int main(){
- // A finite model with no matching root must not become a plausible zero.
+
  assert(std::isnan(ugkpwall::jayatillekeThermalYPlus(1.,.41,.01)));
  assert(std::isnan(ugkpwall::jayatillekeThermalYPlus(0.)));
  auto heat=ugkpwall::jayatillekeWallHeatFluxPrecomputed(1,1000,.7,.9,.41,9.8,0,10,1,0,300,500);

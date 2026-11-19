@@ -6,8 +6,8 @@ namespace detail {
 template<class R> UGKWP_GAS_HD inline R scaledExponentialIntegral(R x){
     const R a=abs(x);return a==0?R(1):-::expm1(-a)/a;
 }
-// Integral of exp(2*a*x) times the thermal Green function, multiplied by
-// expRatio(a)^2. Exponential factors are combined before evaluation.
+
+
 template<class R> UGKWP_GAS_HD inline bool constantWallHeatingEvaluation(R a,R b,R& value,bool normalizeConductance,bool logarithmic){
     const R aa=abs(a);
     if(abs(b)>=R(.01)){
@@ -21,16 +21,16 @@ template<class R> UGKWP_GAS_HD inline bool constantWallHeatingEvaluation(R a,R b
         const R f1=scaledExponentialIntegral(b>0?R(2)*a:R(2)*a-b);
         const R integral=(::exp(e0-e)*f0-::exp(e1-e)*f1)/db;
         if(!(integral>0))return false;
-        // For an adiabatic wall, form F/expRatio(b) before exponentiation.
-        // F and expRatio(b) can both underflow although their ratio is finite.
+
+
         const R normalization=normalizeConductance?::log(abs(b)/db):R(0);
         value=e+R(2)*::log(ratio)+::log(integral)-normalization;
         if(!logarithmic)value=::exp(value);
         return gasFinite(value);
     }
-    // Near b=0 the closed-form difference loses digits. Integrate in the
-    // exponential boundary-layer coordinate, with an explicit refinement test.
-    // The omitted exp(-80) tail is below double precision relative accuracy.
+
+
+
     const R scale=max(R(1),R(2)*aa),end=min(scale,R(80));
     const R ratio=aa==0?R(1):aa/(-::expm1(-aa));
     R previous=-1;
@@ -61,13 +61,13 @@ template<class R> UGKWP_GAS_HD inline bool constantWallHeatingEvaluation(R a,R b
 template<class R> UGKWP_GAS_HD inline bool constantWallHeatingLogFactor(R a,R b,R& value,bool normalizeConductance=false){
     return constantWallHeatingEvaluation(a,b,value,normalizeConductance,true);
 }
-// Keep the existing fixed-temperature factor arithmetic. Only adiabatic
-// temperature needs the logarithmic interface to combine all scales first.
+
+
 template<class R> UGKWP_GAS_HD inline bool constantWallHeatingFactor(R a,R b,R& value,bool normalizeConductance=false){
     return constantWallHeatingEvaluation(a,b,value,normalizeConductance,false);
 }
 }
-// Analytic frozen-composition constant-cp/transport limit, not the reacting SST model.
+
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstantTransportWallImpl(
  const WallInput<R,N,TableReal>& originalInput,const WallModelConfig<R>& c,WallOutput<R,N>& output,WallStatus& status){
     auto in=originalInput;in.model.thermo.diagnostics=in.diagnostics;
@@ -89,8 +89,8 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstan
     if(in.adiabatic&&speedScale>0){
         R logFactor=0,scaledSpeed2=0;
         for(int d=0;d<3;++d){const R component=du[d]/speedScale;scaledSpeed2+=component*component;}
-        if(!detail::constantWallHeatingLogFactor(a,b,logFactor,in.adiabatic))return detail::fail(status,WallCode::NonConvergence);
-        // Do not square tiny velocities or materialize an overflowing factor.
+        if(!detail::constantWallHeatingLogFactor(a,b,logFactor,in.adiabatic))return detail::fail(status,WallCode::InadmissibleState);
+
         const R logSpeed2=R(2)*::log(speedScale)+::log(scaledSpeed2);
         const R value=::exp(logFactor+logSpeed2+::log(mu)-::log(in.adiabatic?lambda:length));
         if(!gasFinite(value))return detail::fail(status,WallCode::InadmissibleState);
@@ -99,7 +99,7 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstan
         R speed2=0;for(int d=0;d<3;++d)speed2+=du[d]*du[d];
         if(speed2>0){
             R factor=0;
-            if(!detail::constantWallHeatingFactor(a,b,factor))return detail::fail(status,WallCode::NonConvergence);
+            if(!detail::constantWallHeatingFactor(a,b,factor))return detail::fail(status,WallCode::InadmissibleState);
             heating=mu*speed2/length*factor;
         }
     }
@@ -115,7 +115,7 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstan
     if(!gasFinite(out.conductiveHeatFlux)||!gasFinite(out.traceDensity)){detail::fail(status,WallCode::InadmissibleState);return detail::wallFatal(in,ugkp::diagnostics::Code::NonFinite,2431,out.conductiveHeatFlux);}
     status.residual=0;output=out;return true;
 }
-// Keep the original <R,N> entry-point spelling while deducing borrowed tables.
+
 template<class R,int N,class TableReal=R> UGKWP_GAS_HD inline typename std::enable_if<std::is_same<R,WallReal>::value,bool>::type evaluateConstantTransportWall(
  const WallInput<R,N,TableReal>& input,const WallModelConfig<R>& config,
  WallOutput<R,N>& output,WallStatus& status){
@@ -130,4 +130,4 @@ template<class S,int N> UGKWP_GAS_HD inline typename std::enable_if<!std::is_sam
  if(!detail::publishWallPrecision(input,result,output))return detail::fail(status,WallCode::InadmissibleState);
  return true;
 }
-}} // namespace
+}}

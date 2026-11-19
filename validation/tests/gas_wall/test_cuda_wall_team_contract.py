@@ -41,7 +41,7 @@ int main(){using ugkwp::gaswall::detail::CudaWallTeam;static_assert(CudaWallTeam
    assert(team.all(phase%2==0||lane!=7)==(phase%2==0));
    for(int j=0;j<32;++j)assert(workspace[j]==phase*32+j);
    assert(team.broadcast(lane==0?(phase%2==0):(phase%2!=0))==(phase%2==0));
-   // Signed zero and quiet NaN payloads must survive the register broadcast.
+
    std::uint64_t expected=phase%2?0x8000000000000000ULL:0x7ff8000000000123ULL;
    std::uint64_t supplied=lane==0?expected:0x3ff0000000000000ULL;double value;
    std::memcpy(&value,&supplied,sizeof(value));value=team.broadcast(value);
@@ -64,7 +64,7 @@ def test_actual_warp_team_contract_with_cpu_intrinsic_adapter(tmp_path):
     'sync();return __shfl_sync(mask,value,0);',
 ])
 def test_adapter_rejects_missing_workspace_ordering(tmp_path,primitive):
-    # Fault injection is confined to a private header copy; production is read-only.
+
     root=tmp_path/'mutant'
     for name in ['common/gasWall/WallCudaTeam.cuh','common/gasWall/WallExecution.H','common/gasTransport/GasModel.H','common/Diagnostics.H']:
         target=root/name;target.parent.mkdir(parents=True,exist_ok=True)

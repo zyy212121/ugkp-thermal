@@ -8,9 +8,9 @@ struct MaterialRecessionStatus {
     MaterialRecessionError error=MaterialRecessionError::None;
     std::size_t packet=0;
 };
-// Each face traverses the accepted producer's fixed slots in record order.
-// No atomics or copied/compacted packet history are needed. The consumer checks
-// the slice status before this node and all face statuses before accepting it.
+
+
+
 __global__ void prepareResidentMaterialRecession(ResidentMaterialSlice slice,
     const ResidentMaterialState* state,const ResidentMaterialStep* step,
     const PhysicsConfig* physics,const int* gasFaces,const int* solidFaces,

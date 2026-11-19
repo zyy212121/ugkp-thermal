@@ -62,7 +62,7 @@ int main(){
   if(kind==0)assert(acquired==fault-1);if(kind==1)assert(acquired==fault);if(kind==2)assert(acquired==(fault==1?0:2));
   if(kind==1)assert(s.particleWallEnergyRestoreProgress&(fault==1?1:2));
   if(kind==2&&fault==2)assert(s.particleWallEnergyRestoreProgress==4);
-  // Old disabled zero restore cannot consume/reset pending work or retained data.
+
   unsigned char pending=s.particleWallEnergyRestoreProgress;double zero=-0.;counters();assert(ugkwpGpuResidentStrictUploadWallEnergyLedgerRange(&s,1,1,&g,&zero,&zero)==0);assert(h2d==1&&allocations==0&&memsets==0&&s.particleWallEnergyRestoreProgress==pending);
   counters();assert(ugkwpGpuResidentStrictUploadWallEnergyLedgerRange(&s,1,1,&g,&dep,&ref)==0);
   assert(allocations==2-acquired);if(saved)assert(s.particleWallDepositedEnergy==saved);assert(s.particleWallEnergyRestoreProgress==0&&live.size()==2);

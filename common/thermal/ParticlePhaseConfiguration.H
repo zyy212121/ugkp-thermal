@@ -1,10 +1,10 @@
 #pragma once
 #include <cstdint>
 namespace ugkp { namespace thermal {
-// Physical/scheduling inputs to the existing shared thermal particle owner.
-// Ordinary thermal particles use its alumina caloric law; cold-wall models
-// retain their existing phase-change profile law. No application identity is
-// used to choose numerical operators.
+
+
+
+
 struct ParticlePhaseConfiguration {
     int capacity=0,maxFaceWalkHops=32;
     std::uint64_t randomSeed=1;
@@ -20,8 +20,8 @@ struct ParticlePhaseConfiguration {
     int particleBlockThreads=128,reductionBlockThreads=128,warpAggregatedBinning=0;
 };
 struct ParticleContactConfiguration {
-    // Same public interaction codes as the shared wall library:
-    // 1 reboundContact, 3 solidifyingDeposition/coldWall1D, 4 coldWall2D.
+
+
     int model=3,heatTransfer=1,wallTransientResistance=1,nonlinearIterations=4;
     double sommerfeldThreshold=20,maximumCoverage=.63;
     double depositionHeatTransferEfficiency=1,reflectionHeatTransferEfficiency=1;
@@ -30,9 +30,9 @@ struct ParticleContactConfiguration {
     double solidDensity=3990,solidSpecificHeat=1273,solidThermalConductivity=5.9;
     double pinningThicknessFraction=.2,interfaceResistance=0;
 };
-// Allocation and launch choices do not change the physical restart model.
-// Keep them in the saved configuration for reproducibility, but permit tuning
-// them when restoring the same physical particle state.
+
+
+
 inline ParticlePhaseConfiguration particleModelIdentity(ParticlePhaseConfiguration c) {
     const ParticlePhaseConfiguration defaults;
     c.capacity=defaults.capacity;

@@ -8,10 +8,10 @@
 #define UGKP_WIDE_HD
 #endif
 namespace ugkp { namespace gpu { namespace geometry { namespace extended {
-// Scaled double-double arithmetic keeps the original extended-range geometry
-// formulas on CUDA without narrowing intermediate determinants to FP64. The
-// mantissa has approximately 106 bits; a separate exponent covers all products
-// of finite input coordinates. Final distances retain the public FP64 format.
+
+
+
+
 constexpr double invalidDistance=std::numeric_limits<double>::quiet_NaN();
 struct Wide {
     double high=0,low=0;int exponent=0;
@@ -40,8 +40,8 @@ UGKP_WIDE_HD inline Wide operator*(Wide a,Wide b){
     return normalized(product,error,a.exponent+b.exponent);
 }
 UGKP_WIDE_HD inline double value(Wide x){
-    // Scale through the half value near the FP64 overflow boundary so a low
-    // negative mantissa part can still produce the largest finite distance.
+
+
     if(x.exponent==1025)return (::ldexp(x.high,1024)+::ldexp(x.low,1024))*2;
     return ::ldexp(x.high,x.exponent)+::ldexp(x.low,x.exponent);
 }

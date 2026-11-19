@@ -41,9 +41,9 @@ int main(){std::vector<materialStepProbe::Test> tests;
         assert(dt==out.dt);
         const long double clockError=std::abs(windowDifference(native(out.end),elapsed+dt));
         maximumClockError=std::max(maximumClockError,clockError);
-        // The oracle uses two binary80 components; the resident clock uses two
-        // FP64 components. Require exact chosen dt and unchanged endpoint
-        // classification, with only double-double roundoff in the clock tail.
+
+
+
         const long double clockBound=std::numeric_limits<double>::epsilon()*std::numeric_limits<double>::epsilon()
             *std::max(1.,std::abs(t.begin.value())+std::abs(dt));
         assert(clockError<=clockBound);assert(windowAbsolute(0,native(out.end))==windowAbsolute(0,elapsed+dt));

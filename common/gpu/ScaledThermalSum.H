@@ -7,8 +7,8 @@
 #define UGKP_SUM_HD
 #endif
 namespace ugkp { namespace gpu {
-// FP64 compensated mantissas with an independent exponent. This preserves
-// finite sums/products beyond binary64 range without relying on GPU long double.
+
+
 struct ScaledThermalSum {
     double value=0,correction=0;int exponent=0;bool populated=false;
     UGKP_SUM_HD void addScaled(double term,int power){
@@ -17,8 +17,8 @@ struct ScaledThermalSum {
         if(power>exponent){value=ldexp(value,exponent-power);correction=ldexp(correction,exponent-power);exponent=power;}
         const double x=ldexp(term,power-exponent),next=value+x;
         correction+=fabs(value)>=fabs(x)?(value-next)+x:(x-next)+value;value=next;
-        // Re-centre after cancellation: otherwise a zero sum retains the old
-        // huge exponent and a subsequent finite small term can underflow.
+
+
         const double combined=value+correction;
         const double tail=fabs(value)>=fabs(correction)?(value-combined)+correction:(correction-combined)+value;
         value=combined;correction=tail;

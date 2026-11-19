@@ -16,8 +16,8 @@ def demangle(names):
 def sass(t):
     parts=re.split(r'Function : (\S+)',t);names=parts[1::2];maps=demangle(names);result={}
     for n,b in zip(names,parts[2::2]):
-        # Offsets in instruction annotations are relative to each function.
-        # Retain instructions, registers, branch targets and scheduling words.
+
+
         instructions=[]
         for m in re.finditer(r'/\*([0-9a-f]+)\*/\s*(.*?)\s*;\s*/\* (0x[0-9a-f]+) \*/\s*/\* (0x[0-9a-f]+) \*/',b,re.S):
             instructions.append([m[1],re.sub(r'\s+',' ',m[2]).strip(),m[3],m[4]])

@@ -153,7 +153,8 @@ public:
     bool mapGeometry(const HostMesh& previous,const HostMesh& next,SharedGasDeviceStorage& gas,
         cudaStream_t stream,std::string& error){
         if(!owner_)return true;
-        if(previous.topologyHash!=next.topologyHash||previous.points.size()!=next.points.size()){
+        if(previous.points.size()!=next.points.size()||previous.faceOffsets!=next.faceOffsets
+            ||previous.facePoints!=next.facePoints||previous.owner!=next.owner||previous.neighbour!=next.neighbour){
             error="attached particle mapping requires topology-preserving mesh motion";return false;}
         if(!faceOffsets_.size()){
             if(!faceOffsets_.resize(previous.faceOffsets.size(),fault_)||!facePoints_.resize(previous.facePoints.size(),fault_)
@@ -172,6 +173,7 @@ public:
         auto endpoint=old;endpoint.points=nextPoints_.data();
         return result(ugkp::thermal::mapAttachedParticles(owner_,old,endpoint,nullptr,stream),error);
     }
+    static ParticleQ adaptSnapshot(const ugkp::thermal::ParticleState<>& p) { return ugkp::thermal::adaptParticleState<Vec3,PhysicalVec3>(p); }
     bool download(HostState& state,std::string& error){
         if(!owner_)return true;
         std::vector<ugkp::thermal::ParticleState<>> particles;
@@ -184,7 +186,7 @@ public:
             state.particleSourceFaces.data(),wireMass.data()),error))return false;
         state.particleSourceResidualMass.assign(wireMass.begin(),wireMass.end());
         state.particles.clear();state.particles.reserve(particles.size());
-        for(const auto& p:particles)state.particles.push_back(ugkp::thermal::adaptParticleState<Vec3,PhysicalVec3>(p));
+        for(const auto& p:particles)state.particles.push_back(adaptSnapshot(p));
         return true;
     }
 };

@@ -1,5 +1,6 @@
 #pragma once
 #include "PrecisionBuild.H"
+#include "DiagnosticsHost.H"
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
@@ -50,24 +51,15 @@ inline bool checkRestartPrecision(const std::string& directory, std::string& err
     const auto saved = readRestartPrecision(directory);
     if (!saved.known)
     {
-        std::cerr << "Warning: input state precision is unknown at " << directory
-                  << " (missing or unrecognized ugkpPrecision metadata); "
-                  << "continuing with the existing reader at precision " << compiledBits
-                  << ". Legacy wire widths do not prove the producer precision.\n";
+        diagnostics::hostWarning(diagnostics::Code::RestartMetadata,
+            {36001,__FILE__,__func__,__LINE__,"unknown producer precision at "+directory
+                +"; field layouts select decoding; continuing at selected precision"},0,compiledBits);
     }
-    else if (saved.restartBits < compiledBits)
+    else if (saved.restartBits != compiledBits)
     {
-        error = "restart precision " + std::to_string(saved.restartBits)
-            + " is lower than selected precision " + std::to_string(compiledBits)
-            + " at " + directory + "; restart stopped.";
-        return false;
-    }
-    else if (saved.restartBits > compiledBits)
-    {
-        std::cerr << "Warning: restart precision " << saved.restartBits
-                  << " is higher than selected precision " << compiledBits
-                  << " at " << directory << "; continuing at precision "
-                  << compiledBits << ".\n";
+        diagnostics::hostWarning(diagnostics::Code::RestartMetadata,
+            {36001,__FILE__,__func__,__LINE__,"precision conversion at "+directory
+                +"; conversion does not recover previously lost precision"},saved.restartBits,compiledBits);
     }
     error.clear();
     return true;
@@ -79,8 +71,8 @@ inline void beginPrecisionWrite(const std::string& directory)
 {
     const auto target = metadataPath(directory);
     if (std::remove(target.c_str()) != 0 && errno != ENOENT)
-        std::cerr << "Warning: could not invalidate precision metadata " << target
-                  << ": " << std::strerror(errno) << '\n';
+        diagnostics::hostWarning(diagnostics::Code::RestartMetadata,
+            {36002,__FILE__,__func__,__LINE__,"could not invalidate "+target+": "+std::strerror(errno)});
 }
 
 
@@ -99,8 +91,8 @@ inline void writeRestartPrecision(const std::string& directory)
     output.close();
     if (!output || std::rename(temporary.c_str(), target.c_str()) != 0)
     {
-        std::cerr << "Warning: could not publish precision metadata; "
-                  << "stale metadata may remain at " << target << ".\n";
+        diagnostics::hostWarning(diagnostics::Code::RestartMetadata,
+            {36002,__FILE__,__func__,__LINE__,"could not publish precision metadata at "+target});
         std::remove(temporary.c_str());
     }
 }

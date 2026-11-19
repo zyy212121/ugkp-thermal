@@ -1,4 +1,4 @@
-// Offline prescribed-temperature benchmark, not a production material configuration.
+
 #include "materials/dry/BulkResponse.H"
 #include <algorithm>
 #include <cmath>
@@ -35,7 +35,7 @@ int main(int argc,char**argv) {
     for(int output=0;output<=351;++output) {
         while(t<output-1e-12) {
             double next=std::min(t+dt,double(output));
-            // Split known material onset discontinuities; no production gate.
+
             if(!endpointTemperature)for(double threshold:onset) {
                 const double event=(threshold-300)/3.1;
                 if(event>t+1e-12&&event<next)next=event;

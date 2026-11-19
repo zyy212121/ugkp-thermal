@@ -29,8 +29,8 @@ int main(){
  b.facePoints=reorder;
  auto mapped=mapAttachedParticleGeometry(a,b,0,1,{.2,.7,-1e-9});
  assert(mapped.valid&&mapped.face==1&&mapped.cell==9);near(mapped.position,{.2,.7,-.400000001});
- // Changed vertex membership and collapsed geometry are explicit mapping
- // failures; the caller cannot publish a fabricated old attachment as success.
+
+
  assert(!mapAttachedParticleGeometry(a,b,0,0,{.2,.7,0}).valid);
  b.facePoints=indices;for(int k=0;k<8;++k)next[k]={};
  assert(!mapAttachedParticleGeometry(a,b,0,0,{.2,.7,0}).valid);

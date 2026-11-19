@@ -1,6 +1,6 @@
 #pragma once
 #include <cstddef>
-// Allocation ownership only; closure mathematics belongs to the shared core.
+
 template<class State> int releaseBoundaryLayerStorage(State& s)
 {
     int result=0;
@@ -66,12 +66,12 @@ inline void discardBoundaryLayerCandidate(DeviceState* s,BoundaryLayerAllocation
     }
 }
 
-// Configure-only publication. Uploading initial fields deliberately scrubs the
-// host calculation scalars, so copying the complete DeviceState here would
-// destroy valid device physics/numerics. Publish only this extension's fields.
 
 
-// failure the caller poisons the resident and retains ownership until destroy.
+
+
+
+
 inline int syncBoundaryLayerConfiguration(DeviceState* state)
 {
     if(!state || !state->deviceState)

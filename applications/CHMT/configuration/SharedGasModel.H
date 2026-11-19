@@ -3,11 +3,11 @@
 #include "core/Configuration.H"
 #include "../../../common/gasTransport/GasModelIO.H"
 namespace chmt {
-// Canonical host tables are copied into checkpoint-safe CHMT POD metadata. All
-// evaluations still call common MixtureThermo; no caloric formulas live here.
+
+
 inline bool bindSharedGasModel(const ugkwp::GasModelConfiguration& shared,
     ModelConfig& model,std::string& error) {
-    // Validate owning tables before any indexed access or model mutation.
+
     if(shared.species.size()!=Ns||shared.speciesNames.size()!=Ns
         ||shared.diffusionCoefficients.size()!=Ns){
         error="shared gas species tables must match compiled CHMT species count";return false;
@@ -66,8 +66,8 @@ inline bool bindSharedGasModel(const ugkwp::GasModelConfiguration& shared,
     }
     error.clear();return true;
 }
-// Single transport retains all real material species metadata but transports
-// exactly one active gas. There is no padded or silently collapsed mixture.
+
+
 inline bool bindSingleGasModel(const ugkwp::GasModelConfiguration& materialGas,
     const std::string& activeName,ModelConfig& model,std::string& error) {
     ModelConfig candidate=model;

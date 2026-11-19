@@ -19,7 +19,7 @@ def main():
         for mode,options in [('constant',[]),('variable',['-variable-properties']),('variable-aitken',['-variable-properties','-aitken'])]:
             case=a.work/(seed.name+'-'+mode);shutil.copytree(seed,case)
             for folder in ('system','constant','0'):shutil.copytree(case/folder/'solid',case/folder/'auxiliary')
-            # Preserve the original native discretization and tolerances.
+
             solution='FoamFile {version 2.0; format ascii; class dictionary; object fvSolution;}\nsolvers {".*" {solver PCG; preconditioner DIC; tolerance 1e-13; relTol 0; maxIter 1000;}}\n'
             for region in ('solid','auxiliary'):(case/'system'/region/'fvSolution').write_text(solution)
             parsed=[]

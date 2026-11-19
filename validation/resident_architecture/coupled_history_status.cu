@@ -10,8 +10,8 @@ __global__ void validateFixtures(Fixture* data,int count){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=count)return;auto& f=data[i];
     beginOperation(f.context,7,19,.25);
     reportCoupledRecordFailure(f.first,2,f.records,f.walls,f.faces,3,5,&f.context);
-    // A later operation, including another failing transaction, cannot replace
-    // the original provenance. No CPU observation occurs between these calls.
+
+
     if(hasFatal(&f.context)){beginOperation(f.context,8,20,.5);
         reportCoupledRecordFailure(f.first,2,f.records,f.walls,f.faces,3,5,&f.context);}
 }

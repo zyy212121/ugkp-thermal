@@ -1,5 +1,5 @@
-// Statistical steady state uses the complete original physical gas/particle
-// step. Particle flight, collision, drag and heat exchange NEVER use gas LTS.
+
+
 SteadyRestartState samplingRestart;
 const bool samplingRestartLoaded=readSteadyRestartState
     ((runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),samplingRestart);
@@ -22,7 +22,6 @@ for(label component=0;component<14;++component)samplingNames[component]=baseSamp
 for(label species=0;species<ugkwp::compiledGasSpecies;++species)
     samplingNames[14+species]="rhoY"+Foam::name(species);
 resident.configureSteadySampling(samplingBoundaryTime,samplingRestart.sampleCount);
-resident.beginSamplingWindow();
 Info<< "Particle statistical steady sampling: physical dt=" << samplingDeltaT
     << ", fixed external boundary time=" << samplingBoundaryTime
     << ", samples/window=" << windowSamples << nl
@@ -35,31 +34,49 @@ Info<< "Steady restart metadata loaded=" << samplingRestartLoaded
     << "; samplingTime=" << samplingTime << "; samples=" << totalSamples
     << "; statistics windows start afresh (no convergence history reused)." << nl;
 bool haveSamplingMean=false, samplingConverged=false;
+ugkp::gpu::AdvanceState advanceInitial;
+advanceInitial.clock=ugkp::gpu::AdvanceClock::sampling;
+advanceInitial.time=runTime.value();advanceInitial.dt=samplingDeltaT;advanceInitial.clockDt=runTime.deltaTValue();
+advanceInitial.steps=runTime.timeIndex();advanceInitial.initialSteps=advanceInitial.steps;
+advanceInitial.acceptedSequence=advanceInitial.steps;
+advanceInitial.boundaryFrozen=true;advanceInitial.boundaryTime=samplingBoundaryTime;
+advanceInitial.samplingTime=samplingTime;advanceInitial.positionSequence=totalSamples;
+resident.configureAdvance(advanceInitial,false);
+ugkp::gpu::SteadyAdvanceControls deviceSteadyControls;
+deviceSteadyControls.windowSamples=windowSamples;deviceSteadyControls.minimumWindows=minimumWindows;
+deviceSteadyControls.stableWindows=requiredStableWindows;
+deviceSteadyControls.meanTolerance=meanTolerance;deviceSteadyControls.inventoryTolerance=inventoryTolerance;
+resident.configureSteadyAdvance(deviceSteadyControls);
+auto enqueueSteadyBoundary=[&]{
+    auto request=ugkp::gpu::foamAdvanceBoundary(runTime,{},progressLogInterval,ugkp::gpu::AdvanceClock::sampling);
+    request.maximumSteps=std::min(request.maximumSteps,std::uint64_t(windowSamples-samplesInWindow%windowSamples));
+    resident.enqueueAdvance(request);
+};
+bool advancePending=false;
 while(runTime.run())
 {
-    resident.advanceOneStep(samplingDeltaT,samplingBoundaryTime);
-    resident.accumulateSamplingWindow(samplingDeltaT);
-    samplingTime+=samplingDeltaT;windowDuration+=samplingDeltaT;
-    ++samplesInWindow;++totalSamples;
-    runTime.setDeltaT(1);runTime++;
-    bool converged=false;
+    if(!advancePending)enqueueSteadyBoundary();
+    const auto completed=resident.collectAdvance(&runTime);advancePending=false;
+    ugkp::gpu::publishFoamAdvance(runTime,completed);
+    samplesInWindow=completed.windowSamples;windows=completed.windows;stableWindows=completed.stableWindows;
+    totalSamples=completed.positionSequence;samplingTime=completed.samplingTime;windowDuration=completed.windowDuration;
+    const bool converged=completed.stop==ugkp::gpu::AdvanceStop::converged;
     const bool windowComplete=samplesInWindow==windowSamples;
-    if(windowComplete || !runTime.run())
+    if(completed.windowReady)
     {
-        const GpuSteadySamplingReport report=resident.finishSamplingWindow(windowDuration);
-        ++windows;haveSamplingMean=true;
-        bool stationary=windows>=minimumWindows && windowComplete;
-        scalar maxChange=0,maxDrift=0;
+        const GpuSteadySamplingReport report=resident.collectSteadyWindow();
+        haveSamplingMean=true;
+        const bool stationary=completed.stationary;
+        const scalar maxChange=completed.maximumMeanChange,maxDrift=completed.maximumInventoryDrift;
         Info<< "Steady sampling window " << windows << " physicalDuration=" << windowDuration
             << " totalSamplingTime=" << samplingTime << nl;
         for(label component=0;component<GpuSteadySamplingReport::fields;++component)
         {
-            const scalar scale=report.characteristicInventory[component];
-            const scalar drift=mag(report.inventoryChange[component])/max(scale,scalar(1e-300));
-            stationary=stationary && std::isfinite(report.meanChange[component])
-                && std::isfinite(drift) && report.meanChange[component]<=meanTolerance
-                && drift<=inventoryTolerance;
-            maxChange=max(maxChange,report.meanChange[component]);maxDrift=max(maxDrift,drift);
+            const SteadyReal scale=SteadyReal(report.characteristicInventory[component]);
+            constexpr SteadyReal inventoryFloor=ugkp::precision::compiledBits==32
+                ?std::numeric_limits<SteadyReal>::min():SteadyReal(1e-300);
+            const SteadyReal drift=std::fabs(SteadyReal(report.inventoryChange[component]))
+                /max(scale,inventoryFloor);
             Info<< "  " << samplingNames[component]
                 << " meanChange=" << report.meanChange[component]
                 << " relativeRms=" << report.fluctuation[component]
@@ -75,11 +92,9 @@ while(runTime.run())
         for(label k=0;k<6;++k)Info<< ' ' << report.particleTrackingExchange[k];
         Info<< nl << "  particleInventoryMinusBoundaryExchange (coupling/collision/internal effects):";
         const label particleBudgetFields[6]={7,8,9,10,11,12};
-        for(label k=0;k<6;++k)Info<< ' ' << report.inventoryChange[particleBudgetFields[k]]
-            -report.particleInjection[k]-report.particleTrackingExchange[k];
+        for(label k=0;k<6;++k)Info<< ' ' << SteadyReal(report.inventoryChange[particleBudgetFields[k]])
+            -SteadyReal(report.particleInjection[k])-SteadyReal(report.particleTrackingExchange[k]);
         Info<< nl;
-        stableWindows=stationary?stableWindows+1:0;
-        converged=stableWindows>=requiredStableWindows;
         Info<< "  windowStationary=" << stationary << " consecutive=" << stableWindows
             << " maxMeanChange=" << maxChange << " maxInventoryDrift=" << maxDrift << nl;
     }
@@ -87,26 +102,24 @@ while(runTime.run())
         ugkwp::logging::writeProgressLog(runTime);
     if(runTime.writeTime() || converged || !runTime.run())
     {
-        ugkp::precision::ScopedRestartWritePrecision writePrecision;
-        ugkp::precision::beginPrecisionWrite(runTime.timePath().c_str());
-        resident.downloadToHostMirror(runTime,rho,rhoU,rhoE,U,p,Tgas,epsS,rhoUs,rhoEs,rhoDs,rhoHp,Us,theta,Tp,dMeanCell);
-        resident.downloadSharedGasSpecies(sharedGasModel,rho);
-        if(gasTurbulenceModel==3)resident.downloadSstToHostMirror(runTime,k,omega,nut);
-        else resident.downloadNutToHostMirror(runTime,nut);
-        const bool fieldsWritten = (converged || !runTime.run())
-            ? runTime.writeNow() : runTime.write();
-        const bool heatWritten = rhoHp.write(); // Export the actual downloaded material-heat moment.
-        (void)resident.writeParticleRestartMirror(runTime);
-        const SteadyRestartState checkpoint{samplingBoundaryTime,samplingTime,std::uint64_t(totalSamples),samplingDeltaT};
-        const bool clockWritten = writeSteadyRestartState(
-            (runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),checkpoint);
-        if(!clockWritten)
-            WarningInFunction<<"Could not write steady clock metadata; retain explicit boundaryTime on restart."<<nl;
-        if(fieldsWritten && heatWritten && clockWritten)
-            ugkp::precision::writeRestartPrecision(runTime.timePath().c_str());
-        if(haveSamplingMean && (windowComplete || converged || !runTime.run()))
+        const bool force=converged || !runTime.run();
+        scalarField means;
+        const bool writeMean=haveSamplingMean && (windowComplete || force);
+        ugkp::gpu::writeGasOutput(runTime,force,[&]{
+            resident.downloadToHostMirror(runTime,rho,rhoU,rhoE,U,p,Tgas,epsS,rhoUs,rhoEs,rhoDs,rhoHp,Us,theta,Tp,dMeanCell);
+            resident.downloadSharedGasSpecies(sharedGasModel,rho);
+            ugkp::gpu::mirrorGasTurbulence(resident,runTime,gasTurbulenceModel,k,omega,nut);
+            if(writeMean)resident.downloadSamplingMean(means);
+            return resident.prepareParticleRestartMirror(runTime);
+        },[&]{enqueueSteadyBoundary();advancePending=true;},[&]{
+            const bool heatWritten=rhoHp.write();
+            const SteadyRestartState checkpoint{samplingBoundaryTime,samplingTime,std::uint64_t(totalSamples),samplingDeltaT};
+            const bool clockWritten = writeSteadyRestartState(
+                (runTime.path()/runTime.timeName()/"steadyState.dat").c_str(),checkpoint);
+            return heatWritten && clockWritten;
+        });
+        if(writeMean)
         {
-            scalarField means;resident.downloadSamplingMean(means);
             std::ofstream meanOutput((runTime.path()/runTime.timeName()/"steadyWindowMean.csv").c_str());
             meanOutput.precision(17);meanOutput<<"cell";
             for(label component=0;component<GpuSteadySamplingReport::fields;++component)meanOutput<<','<<samplingNames[component];
@@ -128,7 +141,7 @@ while(runTime.run())
     }
     if(windowComplete)
     {
-        samplesInWindow=0;windowDuration=0;resident.beginSamplingWindow();
+        samplesInWindow=0;windowDuration=0;
     }
 }
 

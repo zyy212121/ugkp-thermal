@@ -74,8 +74,8 @@ def main():
     for row in order:
         case = a.cohort / row['case']; path = case / 'audit.json'
         if not path.exists():
-            # Audits are isolated from one another and from the original timers.
-            # Preserve failed audit logs; rerunning this command never reruns a solver.
+
+
             attempt = len(list(case.glob('audit-attempt-*.log'))) + 1
             with (case / f'audit-attempt-{attempt}.log').open('w') as log:
                 completed = subprocess.run([sys.executable, __file__, '--cohort', str(a.cohort),

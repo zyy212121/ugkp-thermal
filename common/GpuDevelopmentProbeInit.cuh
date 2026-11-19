@@ -1,5 +1,5 @@
 #pragma once
-// Shared probe option parsing, event allocation and initialization.
+
 int initialiseDevelopmentProbe(DeviceState* owner)
 {
     if (developmentProbe.owner != nullptr)

@@ -1,5 +1,5 @@
-// Intentionally no include guard: field manifest for declarations and binding.
-// Gas-only dependencies of the common transport, boundary and SST operators.
+
+
 UGKWP_GAS_STATE_FIELD(ugkp::gasNumerics::ScalarSolverControls<Real>, gasScalarSolvers)
 UGKWP_GAS_STATE_FIELD(Real*, Cx)
 UGKWP_GAS_STATE_FIELD(Real*, Cy)

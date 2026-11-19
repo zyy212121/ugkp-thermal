@@ -48,7 +48,7 @@ int main(){for(int fault=0;fault<4;++fault){DeviceState s,d;s.deviceState=&d;dou
 def test_l3_failed_initialisation_and_publication_then_patch_restore(tmp_path):
     h.run_cpp(tmp_path,partial(code())+r'''
 int main(){unsigned char mask[]={0,1,0,0};
- // Discover the actual successful sequence, then inject every failure after effusivity acquisition.
+
  DeviceState baseline,dev;baseline.deviceState=&dev;counters();assert(configure(baseline,mask)==0);int nAlloc=allocations,nZero=memsets,nCopy=copies;cleanup(baseline);
  int cases=0;for(int kind=0;kind<3;++kind){int total=kind==0?nAlloc:kind==1?nZero:nCopy;for(int at=1;at<=total;++at){DeviceState s,d;s.deviceState=&d;counters();if(kind==0)failAlloc=at;if(kind==1)failMemset=at;if(kind==2)failCopy=at;assert(configure(s,mask)!=0);
  auto*p=s.particleWallEffusivityByFace;if(p){++cases;double x[]={91,-0.};counters();assert(upload(s,1,2,x)==0);assert(s.particleWallEffusivityByFace==p&&d.particleWallEffusivityByFace==p&&std::memcmp(p+1,x,16)==0);assert(allocations==0);

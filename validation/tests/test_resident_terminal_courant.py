@@ -1,55 +1,52 @@
-"""Acoustic-only resident wrapper/API coverage (runtime kernel tests live separately)."""
+import subprocess
 from validation.tools.paths import SOURCE_ROOT
-import pytest
 
-@pytest.mark.parametrize("app", ["gasUGKP", "FSH", "CHT"])
-def test_courant_abi_has_no_nonacoustic_target(app):
-    base = SOURCE_ROOT / "applications" / app
-    api = (base / "gpu/GpuBackendApi.H").read_text()
-    signature = api.split("ugkwpGpuResidentStrictComputeGasCourant", 1)[1].split(";", 1)[0]
-    assert "dt" in signature and "scheduleTime" in signature
-    assert "targetMaxCo" not in signature
-    backend = base / ("gpu/GpuResidentStrict.cu" if app == "CHT" else "private_backend/GpuResidentStrict.cu")
-    source = backend.read_text()
-    assert "computeGasDiffusionNumberKernel" not in source
-    assert "computeSstStabilityNumberKernel" not in source
-    assert "gasDiffusionNumber" not in source
-    assert "sstSourceNumber" not in source
 
-@pytest.mark.parametrize("app", ["gasUGKP", "FSH", "CHT"])
-def test_outer_growth_and_maximum_step_controls_remain(app):
-    source = (SOURCE_ROOT / "applications" / app / "diluteUgkwpFoam.C").read_text()
-    assert "oldDt*maxCo/max(lastMeasuredCo, SMALL)" in source
-    assert "min(requestedDt, oldDt*gpuResidentMaxDeltaTGrowth)" in source
-    assert "runTime.setDeltaT(min(growthLimitedDt, maxDeltaT))" in source
-    assert "adjustTimeStep" in source
+def test_native_owners_share_acoustic_query_and_schedule():
+    owners = ('applications/gasUGKP/private_backend/GpuResidentStrict.cu',
+              'common/thermal/GpuResidentStrict.cu')
+    for base in (SOURCE_ROOT, SOURCE_ROOT / 'precision/fp32'):
+        for path in owners:
+            text = (base / path).read_text()
+            assert text.count('#include "gasTransport/ResidentCourant.inl"') == 1
+            resident = text.split('struct DeviceState\n{', 1)[1].split('\n};', 1)[0]
+            assert resident.rstrip().endswith('#include "gpu/AdvanceOwnerFields.inl"')
+            assert 'extern "C" int ugkwpGpuResidentStrictComputeGasCourant' not in text
+    for api in ('applications/gasUGKP/gpu/GpuBackendApi.H', 'common/thermal/GpuBackendApi.H'):
+        signature = (SOURCE_ROOT / api).read_text().split('ugkwpGpuResidentStrictComputeGasCourant', 1)[1].split(';', 1)[0]
+        assert 'scheduleTime' in signature and 'targetMaxCo' not in signature
+    for path in ('common/GpuGasCourant.cuh', 'common/GpuGasCourantReduction.cuh',
+                 'common/gasTransport/ResidentCourant.inl'):
+        assert not (SOURCE_ROOT / 'precision/fp32' / path).exists()
+    kernel = (SOURCE_ROOT / 'common/GpuGasCourant.cuh').read_text()
+    assert 'computeGasDiffusionNumberKernel' not in kernel and 'computeSstStabilityNumberKernel' not in kernel
+    assert 'gasFluxPositivityScale' in kernel and 'computeGasConvectiveCourantByCellKernel' in kernel
+    steady = SOURCE_ROOT / 'applications/gasUGKPSteady/private_backend/GpuSteadyBackend.cu'
+    assert 'gasUGKP/private_backend/GpuResidentStrict.cu' in steady.read_text()
 
-def test_outer_timestep_formula_numerically_preserves_caps(tmp_path):
-    """Execute the unchanged production formula, rather than reimplement it."""
-    import re
-    import subprocess
-    source = (SOURCE_ROOT / 'applications/gasUGKP/diluteUgkwpFoam.C').read_text()
-    formula = re.search(r'const scalar requestedDt =\s*oldDt\*maxCo/max\(lastMeasuredCo, SMALL\);\s*const scalar growthLimitedDt =\s*min\(requestedDt, oldDt\*gpuResidentMaxDeltaTGrowth\);\s*runTime.setDeltaT\(min\(growthLimitedDt, maxDeltaT\)\);', source).group()
-    code = r'''
-#include <algorithm>
+
+def test_transient_and_chmt_share_growth_and_step_caps(tmp_path):
+    transient = (SOURCE_ROOT / 'common/gpu/AdvanceState.cuh').read_text()
+    assert 'selectCourantTimeStep(state->dt,proposed,request->growthLimit,request->maximumDt,true)' in transient
+    source = tmp_path / 'caps.cpp'
+    source.write_text(r"""
+#include "applications/CHMT/gpu/GasTimeStepControl.H"
 #include <cassert>
-#include <cmath>
-using scalar=double;using std::min;using std::max;
-struct Clock{double value;void setDeltaT(double x){value=x;}};
-double step(double oldDt,double maxCo,double lastMeasuredCo,double gpuResidentMaxDeltaTGrowth,double maxDeltaT,bool adjustTimeStep=true){
- Clock runTime{oldDt};constexpr double SMALL=1e-15;
- if(adjustTimeStep&&lastMeasuredCo>SMALL){FORMULA}
- return runTime.value;
+int main() {
+    assert(ugkwp::selectCourantTimeStep(1.,.25,1.2,10.,true)==.25);
+    assert(ugkwp::selectCourantTimeStep(1.,50.,1.2,10.,true)==1.2);
+    assert(ugkwp::selectCourantTimeStep(1.,50.,1.2,1.1,true)==1.1);
+    assert(ugkwp::selectCourantTimeStep(1.,.25,1.2,10.,false)==1.);
+    const auto fixed=chmt::selectGasMicrostep(false,1.,.75,.25,1.2,10.,true);
+    assert(fixed.accepted==.75&&fixed.next==1.);
+    for(double remaining:{.125,.75,2.})for(double stable:{.25,1.,1.3,50.})
+    for(double maximum:{.2,1.1,10.})for(bool refreshed:{true,false}) {
+        const double next=ugkwp::selectCourantTimeStep(1.,stable,1.2,maximum,refreshed);
+        const auto step=chmt::selectGasMicrostep(true,1.,remaining,stable,1.2,maximum,refreshed);
+        assert(step.next==next&&step.accepted==std::min(remaining,next));
+    }
 }
-int main(){
- auto equal=[](double a,double b){assert(std::abs(a-b)<1e-13);};
- equal(step(1.,.5,2.,1.2,10.),.25); // Acoustic CFL limits.
- equal(step(1.,.5,.01,1.2,10.),1.2); // Growth limits.
- equal(step(1.,.5,.01,1.2,1.1),1.1); // Maximum dt limits.
- equal(step(1.,.5,2.,1.2,10.,false),1.); // Fixed dt unchanged.
- equal(step(1.,.5,0.,1.2,10.),1.); // Existing zero-Co behavior.
-}
-'''.replace('FORMULA',formula)
-    path=tmp_path/'outer.cpp';path.write_text(code);exe=tmp_path/'outer'
-    subprocess.run(['g++','-std=c++17',str(path),'-o',str(exe)],check=True)
-    subprocess.run([str(exe)],check=True)
+""")
+    binary = tmp_path / 'caps'
+    subprocess.run(['g++', '-std=c++17', '-O2', '-I'+str(SOURCE_ROOT), str(source), '-o', str(binary)], check=True)
+    subprocess.run([str(binary)], check=True)

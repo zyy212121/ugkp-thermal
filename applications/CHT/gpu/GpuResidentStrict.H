@@ -1,3 +1,5 @@
+#include "../../../common/gpu/AdvanceApi.H"
+#include "FoamAdvanceProgress.H"
 #include "FoamParticleSolverControls.H"
 #include "FoamSolverScheme.H"
 #include "FoamSommerfeldConfiguration.H"
@@ -546,6 +548,23 @@ protected:
     bool particleStateCellLocalPacked_;
 
 public:
+    void configureAdvance(const ugkp::gpu::AdvanceState& state,bool pureGas){
+        requireInitialised("configureAdvance");
+        check(ugkwpGpuResidentStrictConfigureAdvance(handle_,&state,pureGas),"configure device advance");
+    }
+    void bindAdvanceExtension(std::shared_ptr<ugkp::gpu::AdvanceExtension> extension){
+        requireInitialised("bindAdvanceExtension");
+        check(ugkp::gpu::bindAdvanceExtension(handle_,std::move(extension)),"bind device advance dependencies");
+    }
+    void enqueueAdvance(const ugkp::gpu::AdvanceRequest& request){
+        requireInitialised("enqueueAdvance");
+        check(ugkwpGpuResidentStrictEnqueueAdvance(handle_,&request),"submit device advance");
+    }
+    ugkp::gpu::AdvanceState collectAdvance(const Foam::Time* time=nullptr){
+        ugkp::gpu::AdvanceState report;
+        check(ugkp::gpu::collectFoamAdvance(handle_,report,time),"collect device advance");return report;
+    }
+
     void configureBoundaryLayer(BoundaryLayerInput& input,const Time& time,
         const fvMesh& mesh,const volScalarField& temperature)
     {
@@ -1194,8 +1213,8 @@ public:
         check(ugkwpGpuResidentStrictApplyParticleRadiationEnergy
             (handle_,mesh.nCells(),deltaParticleRadiationEnergyJ.begin(),accepted.begin()),
             "apply caloric particle-radiation energy");
-        // Source and publication now use the same resident caloric response.
-        // The legacy capacity arguments remain only for source compatibility.
+
+
         (void)particleHeatFactorJkgK;
     }
 
@@ -1575,47 +1594,9 @@ protected:
             if (hasParticleRestart)
             {
                 std::ifstream restartHeaderStream(restartPath.c_str());
-                string restartHeader;
-                if (!(restartHeaderStream >> restartHeader))
-                {
-                    FatalErrorInFunction
-                        << "Invalid GPU resident particle restart mirror: "
-                        << restartPath << exit(FatalError);
-                }
-                if
-                (
-                    gpuFshRestart::nativeRestartSupported(restartHeader)
-                 || (restartHeader == gpuFshRestart::formatName || restartHeader == gpuFshRestart::schema5FormatName)
-                 || restartHeader == gpuFshRestart::schema7FormatName
-                 || restartHeader == gpuFshRestart::schema8FormatName
-                 || restartHeader == gpuFshRestart::schema4FormatName
-                 || restartHeader == gpuFshRestart::schema3FormatName
-                 || restartHeader == gpuFshRestart::schema2FormatName
-                 || restartHeader == gpuFshRestart::legacyFormatName
-                 || restartHeader == "UGKP_PARTICLES_SCHEMA2"
-                 || restartHeader == "UGKP_PARTICLES_SCHEMA3"
-                )
-                {
-                    if (!(restartHeaderStream >> restartParticleCount))
-                    {
-                        FatalErrorInFunction
-                            << "Invalid versioned GPU resident particle restart count: "
-                            << restartPath << exit(FatalError);
-                    }
-                }
-                else
-                {
-                    std::istringstream countStream(restartHeader);
-                    if
-                    (
-                        !(countStream >> restartParticleCount)
-                     || !countStream.eof()
-                    )
-                    {
-                        FatalErrorInFunction
-                            << "Invalid legacy GPU resident particle restart "
-                            << "count: " << restartPath << exit(FatalError);
-                    }
+                try {restartParticleCount=gpuFshRestart::readHeader<label>(restartHeaderStream).count;}
+                catch(const std::exception& failure){
+                    failParticleRestartInput(restartPath,failure.what());
                 }
             }
 
@@ -2713,6 +2694,13 @@ protected:
         }
     }
 
+    static void failParticleRestartInput(const fileName& path,const char* reason)
+    {
+        const auto message=ugkp::diagnostics::inputError({36005,__FILE__,__func__,__LINE__,
+            std::string("CHT particle restart ")+path.c_str()+": "+reason});
+        FatalErrorInFunction<<message.c_str()<<exit(FatalError);
+    }
+
     void readParticleRestartMirrorIfPresent(const Time& runTime)
     {
         const fileName restartFile = particleRestartFile(runTime);
@@ -2722,127 +2710,14 @@ protected:
         }
 
         std::ifstream is(restartFile.c_str(), std::ios::binary);
-        string restartHeader;
-        label nParticles = 0;
-        label maximumChunk = 0;
-        bool weightedFshV1 = false;
-        bool weightedFshV2 = false;
-        bool weightedFshV3 = false;
-        bool weightedFshV4 = false;
-        bool weightedFshV5 = false;
-        bool weightedV7 = false;
-        bool currentLayout = false;
-        bool weightedV8 = false;
-        bool version3 = false;
-        bool version2 = false;
-        if (!(is >> restartHeader))
-        {
-            FatalErrorInFunction
-                << "Invalid GPU resident particle restart mirror: "
-                << restartFile << exit(FatalError);
+        gpuFshRestart::ParticleHeader<label> header;
+        try {header=gpuFshRestart::readHeader<label>(is);}
+        catch(const std::exception& failure){
+            failParticleRestartInput(restartFile,failure.what());
         }
-        if(!gpuFshRestart::nativeRestartSupported(restartHeader))
-            FatalErrorInFunction << "Unsupported old or higher-required-precision CHT particle checkpoint: " << restartHeader
-                << "; use a new native raw-cold checkpoint, no legacy payload adaptation is performed" << exit(FatalError);
-        if (gpuFshRestart::nativeRestartSupported(restartHeader))
-        {
-            currentLayout = true;
-            if (!(is >> nParticles >> maximumChunk))
-                FatalErrorInFunction << "Invalid current particle restart header" << exit(FatalError);
-        }
-        else if (restartHeader == gpuFshRestart::schema8FormatName)
-        {
-            weightedV8 = true;
-            if (!(is >> nParticles >> maximumChunk))
-                FatalErrorInFunction << "Invalid schema8 restart header" << exit(FatalError);
-        }
-        else if (restartHeader == gpuFshRestart::schema7FormatName)
-        {
-            weightedV7=true;
-            if (!(is >> nParticles >> maximumChunk))
-                FatalErrorInFunction << "Invalid schema7 restart header" << exit(FatalError);
-        }
-        else if ((restartHeader == gpuFshRestart::formatName || restartHeader == gpuFshRestart::schema5FormatName))
-        {
-            weightedFshV5 = true;
-            if (!(is >> nParticles >> maximumChunk))
-            {
-                FatalErrorInFunction
-                    << "Invalid UGKP FSH weighted restart header: "
-                    << restartFile << exit(FatalError);
-            }
-        }
-        else if (restartHeader == gpuFshRestart::schema4FormatName)
-        {
-            weightedFshV4 = true;
-            if (!(is >> nParticles >> maximumChunk))
-            {
-                FatalErrorInFunction
-                    << "Invalid UGKP FSH schema-4 weighted restart header: "
-                    << restartFile << exit(FatalError);
-            }
-        }
-        else if (restartHeader == gpuFshRestart::schema3FormatName)
-        {
-            weightedFshV3 = true;
-            if (!(is >> nParticles >> maximumChunk))
-            {
-                FatalErrorInFunction
-                    << "Invalid UGKP FSH schema-3 weighted restart header: "
-                    << restartFile << exit(FatalError);
-            }
-        }
-        else if (restartHeader == gpuFshRestart::schema2FormatName)
-        {
-            weightedFshV2 = true;
-            if (!(is >> nParticles >> maximumChunk))
-            {
-                FatalErrorInFunction
-                    << "Invalid UGKP FSH schema-2 weighted restart header: "
-                    << restartFile << exit(FatalError);
-            }
-        }
-        else if (restartHeader == gpuFshRestart::legacyFormatName)
-        {
-            weightedFshV1 = true;
-            if (!(is >> nParticles >> maximumChunk))
-            {
-                FatalErrorInFunction
-                    << "Invalid legacy UGKP FSH weighted restart header: "
-                    << restartFile << exit(FatalError);
-            }
-        }
-        else if (restartHeader == "UGKP_PARTICLES_SCHEMA3")
-        {
-            version3 = true;
-            if (!(is >> nParticles))
-            {
-                FatalErrorInFunction
-                    << "Invalid V3 GPU resident particle restart count: "
-                    << restartFile << exit(FatalError);
-            }
-        }
-        else if (restartHeader == "UGKP_PARTICLES_SCHEMA2")
-        {
-            version2 = true;
-            if (!(is >> nParticles))
-            {
-                FatalErrorInFunction
-                    << "Invalid V2 GPU resident particle restart count: "
-                    << restartFile << exit(FatalError);
-            }
-        }
-        else
-        {
-            std::istringstream countStream(restartHeader);
-            if (!(countStream >> nParticles))
-            {
-                FatalErrorInFunction
-                    << "Invalid legacy GPU resident particle restart count: "
-                    << restartFile << exit(FatalError);
-            }
-        }
-
+        const label nParticles=header.count;
+        const bool version2=header.encoding==gpuFshRestart::Encoding::text2;
+        const bool version3=header.encoding==gpuFshRestart::Encoding::text3;
 
         scalarField px(nParticles);
         scalarField py(nParticles);
@@ -2891,11 +2766,7 @@ protected:
         List<unsigned long long> pRng(nParticles);
         List<unsigned long long> pOrigId(nParticles);
 
-        if
-        (
-            currentLayout || weightedFshV1 || weightedFshV2 || weightedFshV3
-         || weightedFshV4 || weightedFshV5 || weightedV7 || weightedV8
-        )
+        if(header.binary())
         {
             const gpuFshRestart::MutableView restartView
             {
@@ -2925,69 +2796,11 @@ protected:
             };
             try
             {
-                if (currentLayout)
-                {
-                    gpuFshRestart::readNativePayload(is,static_cast<std::uint32_t>(maximumChunk),restartView,restartHeader);
-                }
-                else if (weightedV8)
-                {
-                    gpuFshRestart::readV8Payload(is,static_cast<std::uint32_t>(maximumChunk),restartView);
-                }
-                else if (weightedV7)
-                {
-                    gpuFshRestart::readV7Payload(is,static_cast<std::uint32_t>(maximumChunk),restartView);
-                }
-                else if (weightedFshV5)
-                {
-                    (restartHeader == gpuFshRestart::formatName ? gpuFshRestart::readV6Payload : gpuFshRestart::readV5Payload)
-                    (
-                        is,
-                        static_cast<std::uint32_t>(maximumChunk),
-                        restartView
-                    );
-                }
-                else if (weightedFshV4)
-                {
-                    gpuFshRestart::readV4Payload
-                    (
-                        is,
-                        static_cast<std::uint32_t>(maximumChunk),
-                        restartView
-                    );
-                }
-                else if (weightedFshV3)
-                {
-                    gpuFshRestart::readV3Payload
-                    (
-                        is,
-                        static_cast<std::uint32_t>(maximumChunk),
-                        restartView
-                    );
-                }
-                else if (weightedFshV2)
-                {
-                    gpuFshRestart::readV2Payload
-                    (
-                        is,
-                        static_cast<std::uint32_t>(maximumChunk),
-                        restartView
-                    );
-                }
-                else
-                {
-                    gpuFshRestart::readV1Payload
-                    (
-                        is,
-                        static_cast<std::uint32_t>(maximumChunk),
-                        restartView
-                    );
-                }
+                gpuFshRestart::readBinaryPayload(is,header.chunk,restartView,header.encoding);
             }
             catch (const std::exception& error)
             {
-                FatalErrorInFunction
-                    << "Failed reading UGKP FSH weighted restart: "
-                    << error.what() << exit(FatalError);
+                failParticleRestartInput(restartFile,error.what());
             }
 
 
@@ -2996,8 +2809,7 @@ protected:
         string line;
         if
         (
-            !currentLayout && !weightedFshV1 && !weightedFshV2
-         && !weightedFshV3 && !weightedFshV4 && !weightedFshV5 && !weightedV7 && !weightedV8
+            !header.binary()
         )
         {
           std::getline(is, line);
@@ -3084,10 +2896,7 @@ protected:
 
             if (!ok14)
             {
-                FatalErrorInFunction
-                    << "Failed reading GPU resident particle restart mirror "
-                    << restartFile << " at particle " << i
-                    << exit(FatalError);
+                failParticleRestartInput(restartFile,"incomplete text particle record");
             }
 
             px[i] = values[0];
@@ -4365,6 +4174,9 @@ class GpuParticleResidentSolver
     public GpuResidentStrictBase
 {
 public:
+
+    void* thermalOwnerHandle()const{return handle_;}
+    void releaseAdvance()noexcept{ugkwpGpuResidentStrictReleaseAdvance(handle_);}
     void initialise
     (
         const Time& runTime,

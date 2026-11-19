@@ -2,7 +2,7 @@
 #define CHMT_MATERIALS_STENCILMATH_H
 #include "core/Types.H"
 namespace chmt {
-// Material/film-only reconstruction; gas gradients use common/operators.
+
     struct Symmetric3 {
         Real xx = 0, xy = 0, xz = 0, yy = 0, yz = 0, zz = 0;
     };
@@ -20,9 +20,9 @@ namespace chmt {
         b += dx*(w*difference);
     }
     CHMT_HD inline Vec3 solveLeastSquares(const Symmetric3& m, Vec3 rhs,int maximumIterations=32) {
-        // Symmetric Jacobi eigensolve gives the Moore-Penrose solution in the
-        // resolved subspace. Cofactor inversion is unstable on oblique 1-D/2-D
-        // stencils even when an epsilon is added to the diagonal.
+
+
+
         Real a[3][3] = {{m.xx, m.xy, m.xz}, {m.xy, m.yy, m.yz}, {m.xz, m.yz, m.zz}};
         Real vectors[3][3] = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
         const Real scale = maxValue(m.xx, maxValue(m.yy, m.zz));

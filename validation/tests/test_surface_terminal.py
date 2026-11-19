@@ -83,7 +83,7 @@ int main(){using namespace chmt;WallClosureHost owner;
  config.model=ugkwp::gaswall::BoundaryLayerModel::ReactingSst;
  for(int nodes:{-7,129}){config.nodes=nodes;assert(!owner.contexts(samples,{},config,out,error,&numerical)&&numerical);
   assert(owner.contexts<true>(samples,{},config,out,error,&numerical));assert(out[0].workspace&&out[0].workspaceCapacity==(nodes<24?24:128));}
- // No wall solver is run with a deliberately out-of-range node count.
+
  samples.clear();assert(owner.contexts<true>(samples,{},config,out,error,&numerical)&&out.empty());
  samples.resize(1);owner.cache_.descriptors.clear();assert(!owner.contexts<true>(samples,{},config,out,error,&numerical)&&!numerical);
 }

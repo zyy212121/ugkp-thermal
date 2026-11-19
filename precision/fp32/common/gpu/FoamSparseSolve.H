@@ -1,6 +1,7 @@
 #ifndef UGKP_GPU_FOAM_SPARSE_SOLVE_H
 #define UGKP_GPU_FOAM_SPARSE_SOLVE_H
 #include "SparseConjugateGradient.H"
+#include "../DiagnosticsFoam.H"
 #include "fvMatrices.H"
 #include "cyclicFvPatchFields.H"
 #include "jumpCyclicFvPatchFields.H"
@@ -96,6 +97,14 @@ inline Foam::solverPerformance solveFoamScalarMatrix(
         return resident?solver.solveResidentLdu(matrix,*resident,deviceSolution,controls,communication)
             :solver.solveLdu(matrix,temperature.primitiveFieldRef().begin(),controls,communication);
     });
+    if(report.preconditionerFallbackBlocks>0){
+        using namespace ugkp::diagnostics;
+        const auto record=withOperation(makeRecord(Code::MethodFallback,36010,0,0,EntityKind::None,-1,-1,
+            report.preconditionerFallbackBlocks,0,0,Quantity::LinearSystem),0,
+            temperature.time().timeIndex(),temperature.time().value());
+        reportFoamDiagnostic(record,{36010,__FILE__,__func__,__LINE__,
+            "AMG construction used diagonal Jacobi; region="+std::string(temperature.mesh().name().c_str())});
+    }
     solverPerformance performance("CudaPCG",temperature.name(),report.initialResidual,
         report.finalResidual,report.iterations,report.converged,report.singular);
     if(!resident)temperature.correctBoundaryConditions();

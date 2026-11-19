@@ -1,4 +1,4 @@
-// Included after ResidentStageGeometry.cuh.
+
 #include "LocalFrameStageGeometry.H"
 #include "ExecutionGraph.cuh"
 namespace ugkp { namespace gpu { namespace geometry { namespace {
@@ -6,8 +6,8 @@ __global__ void localFrameStageCoordinates(int count,const LocalFrameStageInput*
     const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p>=count)return;
     const Point origin=input->worldOld[p],displacement=input->localEndpoint[p]-input->localOld[p];
     old[p]=origin;
-    // Preserve all three additions, including signed-zero rounding, when any
-    // component moves. An unchanged point retains its exact original bits.
+
+
     endpoint[p]=(displacement.x!=0||displacement.y!=0||displacement.z!=0)?origin+displacement:origin;
 }
 __global__ void initializeLocalFrameStage(const LocalFrameStageInput* input,StageGeometryControls* controls,ugkp::diagnostics::DeviceContext* diagnostics){
@@ -49,10 +49,21 @@ void LocalFrameStageGeometry::prepare(const LocalFrameStageInput* input,void* ra
     auto& d=*data_;const auto stream=static_cast<cudaStream_t>(rawStream);
     copyLocalFrameStageInput<<<1,1,0,stream>>>(input,d.input.pointer);checked(cudaGetLastError());checked(cudaGraphLaunch(d.executable,stream));
 }
+ExecutionGraphNode LocalFrameStageGeometry::appendBorrowed(ExecutionGraph graph,ExecutionGraphNode dependency,
+    const Point* endpoint,StageGeometryControls controls){
+    auto& d=*data_;
+    auto bound=executionGraphDetail::appendCaptured(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},
+        d.stream,[&]{bindLocalFrameStage<<<1,1,0,d.stream>>>(d.referenceWorld.pointer,d.referenceLocal.pointer,endpoint,controls,d.input.pointer);});
+    return appendTo(graph,bound,d.input.pointer);
+}
 LocalFrameStageResult LocalFrameStageGeometry::solveBorrowed(const Point* endpoint,StageGeometryControls controls){
     auto& d=*data_;PinnedTransferQueue::Operation pending(d.transfer);
     bindLocalFrameStage<<<1,1,0,d.stream>>>(d.referenceWorld.pointer,d.referenceLocal.pointer,endpoint,controls,d.input.pointer);
     checked(cudaGetLastError());checked(cudaGraphLaunch(d.executable,d.stream));
+    return collect();
+}
+LocalFrameStageResult LocalFrameStageGeometry::collect(){
+    auto& d=*data_;PinnedTransferQueue::Operation pending(d.transfer);
     const auto v=view();const int faces=v.geometry.endpointGeometry.faces,cells=v.geometry.endpointGeometry.cells;
     LocalFrameStageResult result;const auto read=[&](auto& values,const auto* source,int count){values.resize(count);d.transfer.download(values.data(),source,std::size_t(count)*sizeof(*source));};
     d.transfer.download(&result.status,v.geometry.status,sizeof(result.status));d.transfer.download(&result.diagnostics,v.diagnostics,sizeof(result.diagnostics));

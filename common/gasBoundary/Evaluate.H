@@ -2,9 +2,9 @@
 #include "Definition.H"
 namespace ugkp { namespace boundary {
 struct Primitive {double rho,ux,uy,uz,p,T;};
-// Eliminate boundary psi=1/(R*T) and rho=p/(R*T) algebraically. This
-// satisfies the selected OpenFOAM total-condition equations simultaneously,
-// without a lagged host psi field or an extra boundary iteration.
+
+
+
 UGKP_RESIDENT_BOUNDARY_HD inline bool totalState(const Face& f,const double* values,
     const Primitive& owner,double R,double nx,double ny,double nz,double meshNormal,Primitive& out) {
     out=owner;
@@ -19,9 +19,9 @@ UGKP_RESIDENT_BOUNDARY_HD inline bool totalState(const Face& f,const double* val
         out.uz=un*nz+values[Uz]-tangentNormal*nz;
     }
     const double kinetic=inflow?.5*(out.ux*out.ux+out.uy*out.uy+out.uz*out.uz):0;
-    // OpenFOAM totalPressure subtracts the prescribed tangentialVelocity's
-    // kinetic energy (the supplied vector, before normal projection). Total
-    // temperature still uses the complete boundary velocity.
+
+
+
     const double pressureKinetic=kinetic-(inflow&&f.uMode==int(Velocity::PressureInletOutlet)
         ?.5*(values[Ux]*values[Ux]+values[Uy]*values[Uy]+values[Uz]*values[Uz]):0);
     if(f.tMode==int(Scalar::Fixed))out.T=values[Temperature];

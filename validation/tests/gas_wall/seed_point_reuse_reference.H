@@ -1,5 +1,5 @@
-// Test-only uncached seed policy from abe202ad. Earlier 677adfe8 seed
-// predates the directed cross diffusion and consistent face conductances.
+
+
 namespace ugkwp { namespace gaswall { namespace detail {
 template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GAS_HD inline bool seedSstLayerReference(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,const Team& team=Team{}){
@@ -18,23 +18,23 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
     if(team.leader())w.state[c.nodes-1][Z]=R(1)/::sqrt(in.matching.omega);
     team.sync();
     bool reuseThermo=false;
-    // A finite blowing wall omega depends nonlinearly on the shear.
-    // Establish that positive shear branch with the local destruction seed,
-    // then continue on the same profile with dual-volume destruction. Starting
-    // the latter from the bare linear profile can instead converge the Picard
-    // surrogate to a nearly shear-free basin that Newton cannot leave.
-    // With no blowing the singular-wall seed needs only the consistent phase.
+
+
+
+
+
+
     for(int phase=ctx.mass>0?0:1;phase<2;++phase){
     for(int iteration=0;iteration<200;++iteration){
         bool valid=true,reusable=true;
         const SeedThermoRows<R,N,decltype(w.state)> base(w.state,w.lower,false);
         for(int i=team.rank();i<c.nodes;i+=team.size()){LayerPoint<R,N> p;if(!evaluatePoint(in,c,ctx,base,w.y,i,p)){valid=false;break;}
-            // Once readers use the cache, never rewrite a neighbour's data
-            // in this sweep (also across the blowing continuation phases).
+
+
             if(iteration==0&&!reuseThermo){
                 storeSeedThermo(p,w.lower[i]);
                 R sum=0;for(int j=0;j<N-1;++j){const R v=w.state[i][3+j];reusable=reusable&&v>=0&&v<=1;sum+=v;}
-                // Clipping warnings must retain their original multiplicity.
+
                 reusable=reusable&&sum<=1;
             }
             w.seed[i][0]=p.mu+p.rho*p.nut;
@@ -47,9 +47,9 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
             const bool integratedOmega=phase==1&&i>1&&i+1<c.nodes;
             R omegaSquareMean=0;
             if(integratedOmega){
-                // Phase 1 seeds the same directed CD as the Newton residual.
-                // Only k/omega enter this integral; reuse the current nodal
-                // states without another thermodynamic or SST evaluation.
+
+
+
                 LayerPoint<R,N> a,b;
                 const R za=w.state[i-1][Z],zb=w.state[i+1][Z];
                 a.k=w.state[i-1][K]*w.state[i-1][K];a.omega=R(1)/(za*za);
@@ -65,8 +65,8 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
             w.seed[i][5]=max(R(0),omegaRest);
             w.seed[i][6]=p.rho*sstBeta(p.f1,coefficients)*p.omega+(p.omega>0?max(R(0),-omegaRest)/p.omega:R(0));
 
-            // The omega equation integrates destruction over its dual cell;
-            // retaining pointwise omega^2 here changes its near-wall balance.
+
+
             if(integratedOmega){
                 w.seed[i][6]+=p.rho*sstBeta(p.f1,coefficients)*(omegaSquareMean/p.omega-p.omega);
             }
@@ -75,11 +75,11 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
         if(!team.all(valid))return false;
         if(iteration==0)reuseThermo=team.all(reusable);
         const SeedThermoRows<R,N,decltype(w.state)> faceBase(w.state,w.lower,false);
-        // Newton's diagonal scratch is idle during initialization. Freeze
-        // the same face diffusivities used by the physical residual, including
-        // the first k interval and the positive geometry-only omega conductance.
-        // A nodal arithmetic approximation seeds a different discrete problem
-        // and leaves Newton to repair its mesh-dependent near-wall defect.
+
+
+
+
+
         for(int face=team.rank();face<c.nodes-1;face+=team.size()){
             LayerPoint<R,N> a,b;
             if(!loadBasePoint(in,c,ctx,faceBase[face],a)||!loadBasePoint(in,c,ctx,faceBase[face+1],b)){valid=false;break;}
@@ -95,8 +95,8 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
             faceD[2]*=omegaGradientFit(ya,yb);
         }
         if(!team.all(valid))return false;
-        // Boundary physics is uniform for this wall: evaluate it once, then
-        // broadcast only the value needed by the independent omega recurrence.
+
+
         R wallZ=0,firstZ=0,firstOmega=0;bool boundaryValid=false;
         if(team.leader()){
             LayerFlux<R,N> first;boundaryValid=base.ready?intervalFlux(in,c,ctx,base[0],base[1],w.y[0],w.y[1],first):intervalFlux(in,c,ctx,w.state[0],w.state[1],w.y[0],w.y[1],first);
@@ -110,9 +110,9 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
         }
         if(!team.broadcast(boundaryValid))return false;
         firstOmega=team.broadcast(firstOmega);
-        // Keep the scalar recurrence callsites and their FMA arithmetic.
-        // Node thermochemistry/SST work is parallel; velocity RHS recurrences
-        // share a factorization and retain the scalar arithmetic/scratch row.
+
+
+
         bool systems=false;
         if(team.leader())systems=solveSeedSystemsWithTeam(c,w,ctx.mass,ctx.edgeU[0],ctx.edgeU[1],
             in.matching.k,firstOmega,in.matching.omega,SerialWallTeam{});
@@ -122,10 +122,10 @@ template<class R,int N,int M,class TableReal,class Team=SerialWallTeam> UGKWP_GA
         for(int i=1;i<c.nodes-1;++i){for(int d=0;d<2;++d){change=max(change,abs(w.delta[i][d]-w.state[i][d])/max(R(1),abs(ctx.edgeU[d])));w.state[i][d]=(w.state[i][d]+w.delta[i][d])/R(2);}
             if(w.delta[i][K]<0||w.delta[i][Z]<=0){updated=false;break;}
             const R oldK=w.state[i][K]*w.state[i][K],oldOmega=w.seed[i][7];
-            // A tiny k is not a converged k. With max(1,k_match), an
-            // exponentially growing positive Picard mode was discarded after
-            // 11-13 sweeps while its omega/F1 coupling remained unresolved.
-            // Zero/zero has exactly zero change; no physical floor is added.
+
+
+
+
             const R kScale=max(oldK,max(w.delta[i][K],in.matching.k));
             if(kScale>0)change=max(change,abs(w.delta[i][K]-oldK)/kScale);
             change=max(change,abs(w.delta[i][Z]-oldOmega)/oldOmega);

@@ -1,5 +1,5 @@
-// Host-only mathematical verification of the actual production transport operator.
-// Fixed manufactured states, not an OpenFOAM/transient coupled simulation.
+
+
 #include "materials/MaterialTransport.H"
 #include "materials/DarcyGradient.H"
 #include "materials/MaterialReconstruction.H"
@@ -92,8 +92,8 @@ void ale(int n,int order){auto m=cube(n,.4);auto p=physics(order);p.permeability
  double mr,er;conservation(m,out,mr,er);require(maximum<2e-13,"ALE uniform state/GCL balance");std::cout<<"ale_freestream,"<<n<<','<<order<<",0.4,limited,"<<maximum<<",0,0,"<<mr<<','<<er<<','<<out.dtLimit<<'\n';
 }
 }
-// These are operator derivatives of independently prepared isothermal states,
-// not an isothermal transient obtained by resetting evolved temperatures.
+
+
 void pressureJacobian(int n,int order,double shear) {
     auto p=physics(order);auto m=cube(n,shear,true);auto q=state(m,Field::Uniform,p);
     MaterialTransportResult base;std::string error;
@@ -125,7 +125,7 @@ void pressureJacobian(int n,int order,double shear) {
     }
     require(maxAsymmetry<1e-6*maxEntry,"periodic pressure Jacobian symmetry");
     require(base.dtLimit*maxAbsoluteRow<=.8*(1+2e-6),"corrected pressure stencil timestep row bound");
-    // Every Fourier mode diagonalizes this uniform periodic 3-D stencil.
+
     double maxAmplification=0,minEigenvalue=0,maxEigenvalue=0,maxImaginary=0;
     for(int kz=0;kz<n;++kz)for(int ky=0;ky<n;++ky)for(int kx=0;kx<n;++kx){
         double real=0,imaginary=0;

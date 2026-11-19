@@ -1,5 +1,5 @@
-// Offline inspection only: compile against the frozen source used by the run.
-// The production codec supplies field layout/validation, not numerical answers.
+
+
 #include "restart/Checkpoint.C"
 #include <iostream>
 #include <iomanip>

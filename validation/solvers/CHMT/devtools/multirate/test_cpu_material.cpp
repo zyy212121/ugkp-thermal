@@ -20,7 +20,7 @@ int main() {
     assert(std::abs((caloric.energy(t1)-caloric.energy(t0))-caloric.secant(t1,t0)*(t1-t0))<1e-7);
     q.condensed[0]=.4; q.condensed[1]=.5;
     assert(materialCaloric(q,p,caloric,error));
-    assert(caloric.energy(600)<0); // Formation-inclusive U need not be positive.
+    assert(caloric.energy(600)<0);
     const double expected=.4*condensedE(p.condensed[0],600)+.5*condensedE(p.condensed[1],600)+q.pore[0]*speciesE(p.species[0],600);
     assert(caloric.energy(600)==expected);
     q.condensed[0]=-1; assert(!materialCaloric(q,p,caloric,error));

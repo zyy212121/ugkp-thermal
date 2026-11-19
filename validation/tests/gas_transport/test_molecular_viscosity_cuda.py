@@ -28,7 +28,7 @@ def test_production_cuda_viscosity_and_wall(tmp_path):
     ma,mb=reference(300,[.2,.3,.5]),reference(900,[.6,.1,.3])
     assert float(a)==pytest.approx(ma,rel=3e-14)
     assert float(b)==pytest.approx(mb,rel=3e-14)
-    # Existing positive linear-coefficient integral: logarithmic mean.
+
     conductance=(mb-ma)/math.log(mb/ma)
     assert float(traction)==pytest.approx(conductance*10/.01,rel=3e-13)
     cp=sum(y*c for y,c in zip([.4,.2,.4],[1000,1400,1800]))

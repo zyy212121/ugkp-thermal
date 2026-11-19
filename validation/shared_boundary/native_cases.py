@@ -43,7 +43,7 @@ else:
     patch(c,'U','right','type pressureInletOutletVelocity; value uniform (-1 0 0);')
     p=c/'0/U';s=re.sub(r'internalField\s+uniform\s+\([^)]*\);','internalField uniform (-1 0 0);',p.read_text());p.write_text(s)
     T=600 if solver=='CHMT' else 300
-    # Model-specific reference pressure only affects the verification input.
+
     pressure=170000 if solver=='CHMT' else 101325
     if not (c/'0/p').exists():
      (c/'0/p').write_text('FoamFile {version 2.0;format ascii;class volScalarField;object p;}\ndimensions [1 -1 -2 0 0 0 0];\ninternalField uniform '+str(pressure)+';\nboundaryField {left {type zeroGradient;} right {type zeroGradient;} sides {type zeroGradient;}}\n')

@@ -1,4 +1,4 @@
-// Select the untouched native boundary policies through the frozen include root.
+
 #define main unused_polyhedral_geometry_main
 #include "../gpu_coupled_pipeline/polyhedral_geometry_cuda.cpp"
 #undef main
@@ -36,9 +36,9 @@ void emptyCase(HostMesh old,const std::vector<Vec3>& end){
         }
         assert(status.index==first);
     }else{
-        // With a valid fixed extrusion and its unchanged paired trajectory,
-        // duplicate tangential coordinates are the remaining coordinate-level
-        // constraint. The native implementation re-derives its complete map.
+
+
+
         auto candidate=old;candidate.points=end;chmt::empty_detail::Extrusion next;
         const bool valid=chmt::empty_detail::build(candidate,next,error);
         assert(valid==(result.unique.failure==device::GeometryBoundaryFailure::None));

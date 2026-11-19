@@ -4,14 +4,14 @@
 #include "EquilibriumOdeWallLayer.H"
 #include "WallPrecision.H"
 namespace ugkwp { namespace gaswall {
-// Valid after a successful ReactingSst solve, for 0 <= node < config.nodes.
-// Workspace temperature is compensated relative to the prescribed wall value.
+
+
 template<class R,int N,int M> UGKWP_GAS_HD inline R reactingWallProfileTemperature(
  const WallInput<R,N>& input,const WallWorkspace<R,N,M>& workspace,int node){
     if(node<0||node>=M){detail::wallFatal(input,ugkp::diagnostics::Code::InvalidIndex,10023,node,ugkp::diagnostics::Quantity::Index);return std::numeric_limits<R>::quiet_NaN();}
     return input.temperature+workspace.state[node][2];
 }
-// Values decoded directly from the solved workspace, in mechanism species order.
+
 template<class R,int N> struct WallProfileNode {
     R y=0,velocity[3]{},temperature=0,massFraction[N]{},k=0,omega=0;
 };
@@ -28,7 +28,7 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool reactingWallProfileNode(
         +context.tangent[0][d]*point.u[0]+context.tangent[1][d]*point.u[1]
         +input.normal[d]*(point.normalVelocity-context.wallNormal);
     result.k=point.k;
-    // omega is singular at a no-injection wall (the solved inverse root is 0).
+
     result.omega=config.enableSst?(point.z==0?std::numeric_limits<R>::infinity():point.omega):R(0);
     return true;
 }
@@ -48,10 +48,10 @@ template<class R,int N,int M> UGKWP_GAS_HD inline bool evaluateWallModel(
     detail::fail(status,WallCode::Unsupported);
     return detail::wallFatal(input,ugkp::diagnostics::Code::MissingOperator,10025);
 }
-// The execution team owns one workspace and one output. Cooperative callers
-// supply team-shared output storage; only the leader publishes it, and the
-// return collective makes that publication visible to the other members.
-// Serial callers use the same mathematical router without extra storage.
+
+
+
+
 template<class R,int N,int M,class Team>
 UGKWP_GAS_HD inline bool evaluateWallModelWithTeam(
  const WallInput<R,N>& input,const WallModelConfig<R>& config,WallWorkspace<R,N,M>& workspace,

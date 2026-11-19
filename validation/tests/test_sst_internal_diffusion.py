@@ -16,8 +16,8 @@ ROOT = (SOURCE_ROOT / 'common')
 def test_sst_internal_diffusion_and_stability(tmp_path):
     W = tmp_path
     src = (ROOT / 'operators/computeSstFaceFluxKernel.cuh').read_text()
-    # Extract the production diffusion helper itself, not unrelated preflight
-    # kernels which now precede it in the same shared operator header.
+
+
     helpers=src[src.index('template<class GasState>\n__device__ void sstInternalRhoDiffusivities'):
                 src.index('template<class GasState>\n__global__ void computeSstFaceFluxKernel')]
     flux=src[src.index('    const GPU_OPERATOR_REAL rhoFace'):src.index('    GPU_OPERATOR_REAL snGradK')]

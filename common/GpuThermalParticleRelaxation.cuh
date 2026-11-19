@@ -1,8 +1,9 @@
 #pragma once
+#include "wall/ParticleWallFaceInteraction.H"
 #include "wall/GpuColdWall1DHandles.cuh"
 #include "GpuParticleGasHeatRelaxation.cuh"
 #include "GpuParticleThermalConsumerDevice.cuh"
-// Shared thermal relaxation; preserve native ordering of independent loads and stuck-state writes.
+
 template<class DragModel>
 __device__ void relaxOneParticleToResidentGas
 (
@@ -43,7 +44,7 @@ __device__ void relaxOneParticleToResidentGas
     const int wallFaceAtStepStart = stuck ? s.pStuckFaceId[i] : -1;
     const unsigned char wallInteractionType =
         wallFaceAtStepStart >= 0 && wallFaceAtStepStart < s.nFaces
-      ? s.particleStuckCandidateMask[wallFaceAtStepStart]
+      ? particleWallFaceInteraction(s,wallFaceAtStepStart)
       : Foam::gpuThermal::particleWallInteractionNone;
     if
     (
@@ -146,8 +147,8 @@ __device__ void relaxOneParticleToResidentGas
      && !coldWallContact
     )
     {
-        // With both particle/gas models disabled, no temperature snapshot exists.
-        // Only this heat law needs Reynolds here; drag evaluates its own mu.
+
+
         const GPU_OPERATOR_REAL mu = clampMin(s.couplingGasViscosity[c], GPU_OPERATOR_R(1.0e-30));
         const GPU_OPERATOR_REAL re = rhoG*dPart*relMag/mu;
         const GPU_OPERATOR_REAL tpOld = clampRange(s.pT[i], s.TpMin, s.TpMax);

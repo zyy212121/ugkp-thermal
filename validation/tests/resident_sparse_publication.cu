@@ -12,8 +12,8 @@ extern "C" cudaError_t CUDARTAPI cudaProfilerStop(void);
 #include <stdexcept>
 using namespace ugkp::gpu;
 static void check(cudaError_t error){if(error!=cudaSuccess)throw std::runtime_error(cudaGetErrorString(error));}
-// The exact solution of [3 -1; -1 3] x = scale*[2 4] is
-// scale*[5/4 7/4]. Source updates and result consumption stay on device.
+
+
 __global__ void source(double* rhs,int iteration){if(!threadIdx.x){rhs[0]=2*(iteration+1);rhs[1]=4*(iteration+1);}}
 __global__ void consume(const double* x,const ConjugateGradientReport* report,int iteration,int* failure){
     if(threadIdx.x)return;
@@ -61,7 +61,7 @@ int main(){
     for(int iteration=0;iteration<8;++iteration){
         source<<<1,1>>>(rhs,iteration);
         const auto view=solver.enqueueResidentLocalLdu(x);
-        // enqueue orders publication back to values.readyStream (default here).
+
         consume<<<1,1>>>(x,view.report,iteration,failure);
     }
     check(cudaEventRecord(outerReady,nullptr));check(cudaStreamWaitEvent(outerStream,outerReady,0));
@@ -71,7 +71,7 @@ int main(){
     const auto last=solver.enqueueResidentLocalLdu(x);
     consumeInitiallySolved<<<1,1>>>(last.report,failure);
     check(cudaProfilerStop());
-    // Explicit terminal publication is outside the profiled advance interval.
+
     check(cudaDeviceSynchronize());int failed=-1;double result[2];
     check(cudaMemcpy(&failed,failure,sizeof(failed),cudaMemcpyDeviceToHost));
     check(cudaMemcpy(result,x,sizeof(result),cudaMemcpyDeviceToHost));

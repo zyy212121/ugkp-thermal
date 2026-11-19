@@ -136,8 +136,8 @@ for(int i=0;i<3;++i){closeValue(a.pux[i],b.pux[i]-boost,3e-11,"boosted parcel ve
 def test_split_directory_full_scan_includes_retained_base(tmp_path,injection_only):
     compile_probe(tmp_path,paired_fixture()+r'''
 int main(){PairedState full,split;setup(full);setup(split);
-// Split directory contains no retained base. Its CSR is either empty or only
-// one injected parcel; caller selects the complete active-parcel traversal.
+
+
 split.cellParticleOffset[0]=0;split.cellParticleOffset[1]=INJECT?1:0;split.cellParticleOffset[2]=INJECT?1:0;split.sortedParticleIndex[0]=1;
 for(int c=0;c<2;++c){threadIdx.x=c;mixtureParticleCouplingKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag>(&full,.03,true,true);mixtureParticleCouplingKernel<ugkwpGpuDrag::SchillerNaumannDeviceDrag>(&split,.03,true,false);}
 for(int c=0;c<2;++c){closeValue(full.rhoUx[c],split.rhoUx[c],1e-14,"split base gas momentum missing");closeValue(full.rhoE[c],split.rhoE[c],1e-10,"split base gas energy missing");}

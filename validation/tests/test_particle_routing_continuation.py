@@ -97,8 +97,8 @@ struct DeviceState{int nCells=1,csrHeavyReductionEnabled=1,csrCellTaskCount[1]={
 double clampMin(double x,double y){return max(x,y);}
 template<int N>void blockReduceComponentSums(double(&)[N],double*){}
 double poissonCollisionProbabilityForCell(DeviceState&s,int,double){return s.probability;}
-// Only the numerical per-task accumulation hook is isolated. The actual
-// producer, clear, partial store, finalizer and complete publishers execute.
+
+
 template<bool B>void accumulateCsrHeavyMomentTask(DeviceState&s,int,int begin,int,double(&out)[8],double*){++s.calls;for(int j=0;j<8;++j)out[j]=begin+j;}
 template<bool B>void accumulateCsrHeavyPoolTask(DeviceState&s,int,int begin,int,bool,double,double(&out)[8],double*){++s.calls;for(int j=0;j<8;++j)out[j]=begin+j;}
 template<bool B>void accumulateCsrSplitLogicalPoolTask(DeviceState&s,int,int begin,int,double,double(&out)[8],double*){++s.calls;for(int j=0;j<8;++j)out[j]=begin+j;}
@@ -202,7 +202,7 @@ struct DeviceState{int particleCapacity=1,nCells=1,pStatus[1]={2},pCellId[1]={0}
  unsigned long long pRng[1]={41};double poolThermalSumUx[1]={},poolThermalSumUy[1]={},poolThermalSumUz[1]={},poolThermalSumU2[1]={};};
 void appendSelectedStuckParticleIndex(DeviceState&,int){}
 '''+r'''
-// The production Box-Muller operator uses the production uniform generator below.
+
 '''+function(body('operators/snapshotParticleGasCouplingStateKernel.cuh'),'mixSeed')+body('operators/uniform01Device.cuh')+rng+code+r'''
 int main(){for(double mass:{-2.,0.,2.,GPU_OPERATOR_THERMAL?1.1e300:2.}){DeviceState s;s.pm[0]=mass;
  unsigned long long rng=s.pRng[0];double z0,z1,z2,z3;normalPairDevice(rng,z0,z1);normalPairDevice(rng,z2,z3);

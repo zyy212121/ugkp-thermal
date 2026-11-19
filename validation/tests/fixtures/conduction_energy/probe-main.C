@@ -40,8 +40,8 @@ int main(int argc,char** argv){
  if(Foam::Pstream::master())std::cout<<"CASE "<<id++<<' '<<cp1<<' '<<dt<<' '<<tol<<'\n';
  bool ok=nativeConduction(mesh,base,next,p,dt,controls,report,error);
 
- // Independent per-cell balance from returned inventories and Cartesian
- // Fourier face fluxes, not the nonlinear solver's reported global residual.
+
+
  Foam::wordList types(mesh.boundary().size(),Foam::fixedValueFvPatchScalarField::typeName);
  forAll(mesh.boundary(),patch)if(mesh.boundary()[patch].coupled())types[patch]=mesh.boundary()[patch].type();
  Foam::volScalarField checkT(Foam::IOobject("probeCheckT",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,Foam::dimensionedScalar("T",Foam::dimTemperature,900),types);

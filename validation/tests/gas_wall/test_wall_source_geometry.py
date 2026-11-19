@@ -30,8 +30,8 @@ def test_actual_cube_source_matches_profile_interval_gauss32(tmp_path):
   m.in.matchingDistance=descriptor.matchingDistance;c.nodes=n;
   assert(evaluateWallModel(m.in,c,work,result,status));const double geometryIntegral=result.integratedKSource;
   std::vector<double> distance,weight;
-  // Independent one-dimensional quadrature uses the cube's exact constant
-  // section area; it never calls tetra section construction.
+
+
   for(int i=0;i<n-1&&work.y[i]<.008;++i){
    const double lo=work.y[i],hi=std::min(work.y[i+1],.008);
    for(int q=0;q<32;++q){double y,w;
@@ -44,8 +44,8 @@ def test_actual_cube_source_matches_profile_interval_gauss32(tmp_path):
   const double reference=result.integratedKSource;
   std::cout<<"mass="<<mass<<" nodes="<<n<<" profile_geometry="<<geometryIntegral<<" independent_gauss32="<<reference<<" points="<<descriptor.distance.size()<<"\n";
   assert(std::abs(geometryIntegral-reference)<1e-6*std::max(std::abs(reference),1e-12));
-  // The reconstructed source is not the exact point constitutive field. Report
-  // its remaining finite-grid boundary-flux defect on an absolute-source scale.
+
+
   double absoluteIntegral=0;
   for(size_t q=0;q<distance.size();++q){const double y=distance[q];int l=0;
    while(l+1<n-1&&work.y[l+1]<y)++l;
@@ -69,8 +69,8 @@ def test_actual_cube_source_matches_profile_interval_gauss32(tmp_path):
   assert(std::isfinite(defect)&&absoluteIntegral>0);
   std::cout<<"source_abs_integral="<<absoluteIntegral<<" boundary_flux_integral="<<fluxIntegral
            <<" finite_grid_defect="<<defect<<" defect_over_abs_source="<<std::abs(defect)/absoluteIntegral<<"\n";
-  // In contrast, the discrete nodal FV source telescopes exactly to its shared
-  // face fluxes. Do not conflate that algebraic identity with reconstruction.
+
+
   double nodalIntegral=0;
   for(int i=1;i<=lastNode;++i){detail::LayerPoint<double,2> node;
    assert(detail::evaluatePoint(m.in,c,ctx,work.state,work.y,i,node));

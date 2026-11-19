@@ -1,5 +1,5 @@
-// Shared assembly, nonlinear enthalpy update and publication.
-// Precision policies retain the existing cache and stable PCR path.
+
+
 
 
     const bool inputValid =
@@ -150,9 +150,9 @@
           + (GPU_R(1.0) - solidFraction)*Foam::gpuThermal::aluminaThermalConductivityWmK;
         const ColdWallThermalReal bottomConductivity =
             __shfl_sync(mask, conductivity, 0, 8);
-        // Geometry, ages, wall properties and dt are fixed during this
-        // nonlinear solve. Re-evaluate the resistance integral only if its
-        // sole changing input (bottom conductivity) actually changes.
+
+
+
         if (iteration == 0 || bottomConductivity != previousBottomConductivity)
         {
             const ColdWallThermalReal particleResistance =
@@ -198,7 +198,7 @@
           + (lane > 0 ? leftFaceConductance : GPU_R(0.0))
           + (lane + 1 < 8 ? faceConductance : GPU_R(0.0));
         ColdWallThermalReal upper = lane + 1 < 8 ? -faceConductance : GPU_R(0.0);
-        // candidateEnthalpy is H_guess, not another physical time step.
+
         ColdWallThermalReal rightHandSide = capacity*guessedTemperature
           + nodeMass*(oldEnthalpy - candidateEnthalpy)
            /(deltaTSeconds + GPU_REAL_MIN)

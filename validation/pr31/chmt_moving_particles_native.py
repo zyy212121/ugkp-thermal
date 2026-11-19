@@ -41,7 +41,7 @@ def main():
   m.entry(case/'system/controlDict','endTime',2e-6)
   boundary=(case/'constant/polyMesh/boundary').read_text()
   wall=re.search(r'\bwall\s*\{([^}]+)',boundary)[1];face=int(re.search(r'startFace\s+(\d+)',wall)[1])
-  # Existing cold law at 2500 K; retain a nonuniform internal profile.
+
   cp=lambda t:(153.5+.0031*(t-2327.))/.101961276
   h=1273.*2317.+(.5*(1273.+cp(2327.))+1.16e6/20.)*20.+.5*(cp(2337.)+cp(2500.))*163.
   profiles=''
@@ -75,9 +75,9 @@ specificEnthalpyResidual {0 if model=='coldWall1D' else .125}; {profiles}}}
    with (restart/'checkpoint-comparison.log').open('w') as log:
     subprocess.run([str(args.restart_comparator.resolve()),str(output/f'checkpoint-{last}'),str(restart/'chmtOutput'/f'checkpoint-{last}')],stdout=log,stderr=subprocess.STDOUT,check=True)
   else:assert final==resumed,(final,resumed)
-  # The wall heat counters restart at zero. Differencing their cumulative J
-  # can change a ledger value by one ulp; all accepted physical histories must
-  # still be bit-identical, including every cold-profile node.
+
+
+
   ledger_delta=0.
   ledger_scale=0.
   for left,right in zip(table(output/f'exchange-{last}.csv'),table(restart/'chmtOutput'/f'exchange-{last}.csv')):

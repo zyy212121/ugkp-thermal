@@ -1,5 +1,5 @@
 #include "gpu/NormalHeightMotion.H"
-#include "mesh/Geometry.C" // separately selected frozen native scalar operators
+#include "mesh/Geometry.C"
 #include <algorithm>
 #include <map>
 #include <cstring>
@@ -47,8 +47,8 @@ int main(){int cases=0,composed=0;
         double minimum=std::numeric_limits<double>::infinity(),sharedMinimum=minimum;
         const g::TopologyView topology{t.faceOffsets.data(),t.facePoints.data(),nullptr,nullptr,nullptr,t.vertexOffsets.data(),t.vertices.data()};
         for(int f:walls)if(f>=0){
-            // Literal original buildGas relative-height calculation; independent
-            // of the new helper and transposed device incidence traversal.
+
+
             chmt::Vec3 c0{},c1{},a0{},a1{};const int lo=t.faceOffsets[f],hi=t.faceOffsets[f+1];
             for(int k=lo;k<hi;++k){const int v=t.facePoints[k];c0+=point(reference[v]);c1+=point(points[v])+point(displacement[v]);}
             c0=c0/double(hi-lo);c1=c1/double(hi-lo);

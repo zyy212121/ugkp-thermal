@@ -1,4 +1,4 @@
-// Standalone material FV validation only: no gas-flow solver or production adapter.
+
 void coupledCase(Time& runTime,fvMesh& mesh,volScalarField& T,scalar dt,scalar end,std::ofstream& out) {
  using State=dry::MaterialState<1,2>;
  Gas gas;
@@ -30,7 +30,7 @@ void coupledCase(Time& runTime,fvMesh& mesh,volScalarField& T,scalar dt,scalar e
  runTime.setDeltaT(dt);label steps=label(std::lround(end/dt));
  for(label step=0;step<steps;++step){
   ++runTime;
-  // Conservative local chemistry at fixed extensive formation-inclusive E.
+
   forAll(T,i){auto source=dry::reactionSource(q[i],network,mesh.V()[i],solid,T[i]);dry::reactionEuler(q[i],source,dt);
    T[i]=dry::recoverTemperature(q[i],solid,gas,T[i]).temperature;
    prim[i]=dry::primitive(q[i],mesh.V()[i],T[i],solid,gas,0);
@@ -59,7 +59,7 @@ void coupledCase(Time& runTime,fvMesh& mesh,volScalarField& T,scalar dt,scalar e
    minMass=min(minMass,min(q[i].poreMass[0],q[i].poreMass[1]));
   }
   scalarField before(T.primitiveField());
-  // Linear cp: exact caloric storage and implicit native OF conduction.
+
   solve(fvm::Sp(C/dimensionedScalar("dt",dimTime,dt),T)-fvm::laplacian(heatK,T)==rhs);
   forAll(T,i)q[i].energy+=C[i]*mesh.V()[i]*(T[i]-before[i]);
   surfaceScalarField qh(-heatK*fvc::snGrad(T)*mesh.magSf());

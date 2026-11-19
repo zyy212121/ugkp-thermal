@@ -40,7 +40,7 @@ public:
     virtual const labelList& fluidPatchIds() const = 0;
     virtual const labelList& solidPatchIds() const = 0;
 
-    // Local solid destination for each fluid face, in fluid face order.
+
     virtual labelList solidFaceForFluidFace(label pairI) const = 0;
 
     virtual scalarField mapIntegratedFaceEnergyToSolid

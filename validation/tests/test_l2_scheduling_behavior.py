@@ -101,10 +101,10 @@ def actual_common_function_adapter(name):
         if '#include "GpuPoolParticleContribution.inl"' in body:
             body=body.replace('#include "GpuPoolParticleContribution.inl"',(ROOT/'common/GpuPoolParticleContribution.inl').read_text())
         return macros+body.replace('asm("trap;");','throw std::runtime_error("trap");')
-    # Extract using the same original helper after providing actual ownership text.
+
     result=_original_function(body,name)
     if name=='finalizeCsrSegmentedPoolCellsKernel':
-        # Original dependency assembly supplies queue and finalize operation.
+
         if 'reducePoolMoments<' in result or 'publishPoolCell<' in result:
             if not (ROOT/'common/GpuPoolMomentOperations.cuh').exists():raise RuntimeError('Native pool helper owner missing')
             result='#include "'+str(ROOT/'common/GpuPoolMomentOperations.cuh')+'"\n'+result
@@ -211,8 +211,8 @@ int main() {
   blockIdx.x=threadIdx.x=0;configureDynamicCsrHeavyPolicyKernel(&s,kind);
   int expectedTile=b*std::max(1,(population+b*workers-1)/(b*workers));
   assert(s.csrHeavyTileParticles==expectedTile);
-  // Count must initialize policy/counter itself: the production path no longer
-  // launches configure/reset separately. Poison them to catch stale reads.
+
+
   s.csrHeavyTileParticles=-1;s.csrHeavyCellThreshold=-1;nheavy=123;ntask=-1;
   blockDim.x=1;gridDim.x=nc+1;
   for(int c=0;c<=nc;++c) {blockIdx.x=c;countCsrReductionTasksKernel(&s,kind);}

@@ -19,8 +19,8 @@ int main(){PhysicsConfig p;p.enableReactions=true;p.nReactions=1;
  for(int c=0;c<Nc;++c)assert(out.condensed[c]==expected.condensed[c]);
  for(int r=0;r<Nr;++r)assert(out.progress[r]==expected.progress[r]);
  assert(out.energy==expected.energy&&out.porosity==expected.porosity);
- // Inconsistent computed reaction state reaches the real packet sum; no clip
- // replaces a significant negative inventory on the terminal route.
+
+
  q.condensed[0]=-2;std::vector<SolidQ> batch;
  assert(!applyMaterialPacketBatch({q},{},batch,error,&numerical)&&numerical);
  assert(detail::completeMaterialPacketBatch({q},{},batch,error,&numerical));

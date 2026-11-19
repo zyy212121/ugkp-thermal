@@ -10,8 +10,8 @@ struct ConstrainedPressureOperation
     __device__ static __forceinline__ void prepare
     (DeviceState& s,int c,PressureTime dt,Shared& w,PressureParameters& q)
     {
-        // Retain the established block parameter layout and inactive-cell
-        // loads while sharing the mathematical preparation and traversal.
+
+
         __shared__ PressureReal scaledDelta[4];
         __shared__ PressureReal pressureParameters[13];
         __shared__ int pressureParameterActive;
@@ -26,8 +26,8 @@ struct ConstrainedPressureOperation
                 scaledDelta[3] = finiteOr(s.pressureDeltaEnergy[c], PressureReal(0));
             }
             else pressureDeltaFromLimitedFaces(s, c, dt, scaledDelta);
-            // Bind the common formula directly to the established shared
-            // parameter storage, without an intermediate parameter object.
+
+
             struct ParameterStorage
             {
                 PressureReal &px1,&py1,&pz1,&e1,&ux0,&uy0,&uz0,&ux1,&uy1,&uz1,&theta1,&thermalScale,&thetaScale;

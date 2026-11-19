@@ -22,7 +22,7 @@ int main(int argc,char** argv) {
     assert(epsilonStartupSnapshot(.25,0)==0);
     assert(epsilonStartupSnapshot(.25,1)==.25);
     Definition check;check.faces.resize(1);check.faces[0].value[SolidFraction]=.25;
-    check.functions.push_back(Function{}); // unrelated gas program survives rollback
+    check.functions.push_back(Function{});
     Function bad;bad.constant=std::numeric_limits<decltype(bad.constant)>::infinity();
     check.functions.push_back(bad);check.faces[0].function[SolidFraction]=1;
     assert(!retainFiniteEpsilonProgram(check,1,0,0,1));

@@ -1,5 +1,5 @@
-// Execute shared production pool selection, accumulation, sampling, correction
-// and wall finalization. Host adapters and CUDA kernels use the same fixture.
+
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -69,8 +69,8 @@ struct DeviceState {
 #include "thermal/ParticleSurfaceState.H"
 #include "GpuFrozenParticleRelease.cuh"
 #include "operators/clearColdWallParticleState.cuh"
-// Extracted verbatim from current owner by run_frozen_pool_release.py:
-// RNG mixer, 2D profile clear, mobile publication. No physics replacements.
+
+
 #include "owner_functions.inc"
 #include "operators/uniform01Device.cuh"
 #include "operators/normalDevice.cuh"
@@ -87,8 +87,8 @@ struct DeviceState {
 __global__ void setup(DeviceState*s){if(threadIdx.x==0){s->particleCountDevice=&s->count;s->compactCountDevice=&s->selected;}}
 __global__ void correct(DeviceState*s,bool witness){
  if(threadIdx.x!=0)return;
- // The deposit twin bypasses ONLY the new frozen-rebound zeroing branch.
- // Both finite states have exactly the same adhesion/reflection calculation.
+
+
  if(witness)s->pStuck[0]=Foam::gpuThermal::particleWallTransientDeposit;
  for(int i=0;i<2;++i)correctOnePoissonThermalizedParticlePath<false>(*s,i,false);
  for(int i=0;i<2;++i)correctOnePoissonThermalizedParticlePath<true>(*s,i,false);

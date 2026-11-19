@@ -22,7 +22,7 @@ int main(){
         for(auto p:{&v.keys,&v.sortedKeys,&v.inputIndices,&v.indices})check(cudaMalloc(p,std::max(items,1)*sizeof(int)));
         check(cudaMalloc(&v.counts,(rows+1)*sizeof(int)));check(cudaMalloc(&v.offsets,(rows+1)*sizeof(int)));
         std::size_t bytes=0;check(stableRowIndexWorkspace(items,rows,v,bytes,stream));void* scratch;check(cudaMalloc(&scratch,bytes));
-        // The same buffers must support repeated overwrite, not accumulated counts.
+
         for(int repeat=0;repeat<3;++repeat){
             check(buildStableRowIndex(items,rows,Row{input},v,scratch,bytes,stream));
             std::vector<int> actualOffsets(rows+1),actual(expected.size());

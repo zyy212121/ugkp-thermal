@@ -17,7 +17,7 @@ def test_physical_fault_preserves_optional_coarse_status(tmp_path, context, faul
 int main(){State s;initialise(s);threadIdx.x=0;blockIdx.x=0;
  ugkp::diagnostics::DeviceContext detailed{};
  s.diagnostics=CONTEXT?&detailed:nullptr;
- // Stage inventories are legitimate copies; only ACTION introduces a fault.
+
  for(int c=0;c<s.nCells;++c){s.rhoNext[c]=s.rho[c];s.rhoUxNext[c]=s.rhoUx[c];s.rhoUyNext[c]=s.rhoUy[c];s.rhoUzNext[c]=s.rhoUz[c];s.rhoENext[c]=s.rhoE[c];}
  for(int k=0;k<2;++k)for(int c=0;c<s.nCells;++c)s.gasSpecies.initial[k*s.nCells+c]=s.gasSpecies.rho[k*s.nCells+c];
  const auto oldTemperature=s.Tgas[0],oldPressure=s.p[0];

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 HERE=$(cd "$(dirname "$0")" && pwd)
-# Source an official OF10 environment or set OF10_ENV to an installation wrapper.
+
 if [ -n "${OF10_ENV:-}" ]; then source "$OF10_ENV" || exit $?; fi
 : "${WM_PROJECT_DIR:?Source OpenFOAM10 or set OF10_ENV}"
 export DRY_CORE_ROOT="${DRY_CORE_ROOT:-$(cd "$HERE/../.." && pwd)}"

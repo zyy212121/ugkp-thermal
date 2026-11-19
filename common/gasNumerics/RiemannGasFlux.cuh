@@ -465,7 +465,7 @@ UGKP_RIEMANN_HD RoeAverage makeRoeAverage
     return average;
 }
 
-// The same dissipative component formula is used by bulk and species fields.
+
 UGKP_RIEMANN_HD GpuReal rusanovConservativeComponentFlux
 (
     const GpuReal leftFlux, const GpuReal rightFlux,
@@ -998,9 +998,9 @@ UGKP_RIEMANN_HD FluxResult hllemFluxUnitNormal
                                                                            
                                                                             
    
-// SLAU2 split mass/pressure flux with caller-supplied general-EOS energy
-// and acoustic speeds. No gamma-law energy reconstruction or backup solver.
-// The standard SLAU2 Mach/pressure splitting constants are unchanged.
+
+
+
 UGKP_RIEMANN_HD FluxResult slau2FluxUnitNormal
 (
     const Primitive& left, const Conservative& leftConserved,
@@ -1382,15 +1382,15 @@ UGKP_RIEMANN_HD bool makeHllcStarState
     return finiteFive(starState.q);
 }
 
-// HLLC for a calorically general ideal mixture. The caller supplies EOS
-// pressure, acoustic speed and the *complete* conservative energy, including
-// species formation energy. No constant-gamma energy reconstruction or Roe
-// enthalpy subtraction is valid for these inputs.
-//
-// Davis outer waves bound both input acoustic fans. Contact velocity and
-// pressure follow the normal momentum Rankine-Hugoniot relations; tangential
-// velocity and composition are unchanged across each acoustic wave. This is
-// one selected three-wave solver, with no failure-driven substitute flux.
+
+
+
+
+
+
+
+
+
 UGKP_RIEMANN_HD FluxResult hllcFluxUnitNormal
 (
     const Primitive& left, const Conservative& leftConserved,
@@ -1427,9 +1427,9 @@ UGKP_RIEMANN_HD FluxResult hllcFluxUnitNormal
     if(!makeHllcStarState(takeLeft?left:right,
         takeLeft?leftConserved:rightConserved,takeLeft?leftSpeed:rightSpeed,
         middleSpeed,starPressure,nx,ny,nz,star))return result;
-    // The star pressure is a Riemann-fan auxiliary quantity, not a temperature
-    // recovered from its averaged energy. In particular do not apply the
-    // constant-gamma physicalConservative() check to formation-bearing energy.
+
+
+
     result.flux[0]=middleSpeed*star.q[0];
     result.flux[1]=middleSpeed*star.q[1]+starPressure*nx;
     result.flux[2]=middleSpeed*star.q[2]+starPressure*ny;

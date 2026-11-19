@@ -39,14 +39,14 @@ def test_slip_fixed_temperature_conducts_without_mass_or_shear(tmp_path):
  v.gasFluxScheme=1;v.gasReconstruction=0;blockDim.x=1;threadIdx.x=0;
  transport::recoverGasPrimitivesKernel(&v);
  transport::updateLegacyGasBoundaryMirrorKernel(&v,0);transport::updateRiemannBoundaryMirrorKernel(&v);
- // Nonzero gradients ensure a no-slip mapping or accidental shear term is detected.
+
  v.gradUxX[0]=2;v.gradUyX[0]=3;v.gradUzX[0]=-4;
  double mass,mx,my,mz,energy;
  require(transport::computeRiemannGasFaceFluxDevice<false>(v,0,mass,mx,my,mz,energy),"slip face rejected");
  std::fprintf(stderr,"single=%d slip heat=%g W\n",single,energy);
  require(std::abs(energy-300)<1e-9,"fixed-temperature slip lost the 300 W conductive flux");
  require(mass==0&&std::abs(mx+v.p[0])<1e-9&&my==0&&mz==0,"slip gained penetration or viscous traction");
- // The unchanged adiabatic slip face still has exactly zero energy flux.
+
  require(transport::computeRiemannGasFaceFluxDevice<false>(v,1,mass,mx,my,mz,energy),"adiabatic face rejected");
  require(mass==0&&energy==0&&my==0&&mz==0,"adiabatic slip changed");
  ''')

@@ -1,4 +1,4 @@
-// Real production helper GPU test. Build twice with UGKWP_GAS_SPECIES=2 and 10.
+
 #include <cuda_runtime.h>
 #include "ablation/InterfaceMath.H"
 #include <random>

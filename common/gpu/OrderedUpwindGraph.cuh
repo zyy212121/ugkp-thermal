@@ -33,8 +33,6 @@ static __global__ void normalizationFaces(int cells,int faces,const int* owner,c
         if(f>0){value=f*values[owner[i]];present=true;}else if(f<0){value=f*values[neighbour[i]];present=true;}
         magnitude[cells+i]=fabs(value);valid[cells+i]=present;}
 }
-static __global__ void absoluteResidual(int count,RadiationReal* values){const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)values[i]=fabs(values[i]);}
-static __global__ void maximumResult(RadiationMaximum* maximum,RadiationReal initial,RadiationReal* output){if(!threadIdx.x)*output=applyRadiationMaximum(initial,*maximum);}
 static __global__ void setContinuation(const UpwindLinearReport* report,cudaGraphConditionalHandle handle){
     if(!threadIdx.x)cudaGraphSetConditional(handle,report->active?1:0);
 }
@@ -64,9 +62,9 @@ static __global__ void finishSweep(UpwindLinearReport* report,UpwindLinearContro
 }
 
 }
-// Immutable launch graph for the original sequential-cell linear iteration.
-// All pointers are device pointers and remain owned by the caller, except the
-// compact report and scratch storage owned here. Launches use the caller stream.
+
+
+
 class OrderedUpwindGraph {
     using Report=UpwindLinearReport;
     int cells_,faces_;
@@ -80,19 +78,17 @@ class OrderedUpwindGraph {
     cudaGraph_t graph_=nullptr,initializeGraph_=nullptr,solveGraph_=nullptr;
     cudaGraphExec_t executable_=nullptr,initializeExecutable_=nullptr,solveExecutable_=nullptr;
     Report* hostReport_=nullptr;
-    void maximum(int count,RadiationReal* values,unsigned char* valid,RadiationReal initial,RadiationReal* output,cudaStream_t stream){
-        int blocks=std::max(1,(count+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads);
-        radiationMaximumPartials<<<blocks,ugkp::gpu::workPlan().radiationBlockThreads,ugkp::gpu::workPlan().radiationBlockThreads*sizeof(RadiationMaximum),stream>>>(count,values,valid,partialA_.ptr);
-        auto* current=partialA_.ptr;auto* next=partialB_.ptr;
-        while(blocks>1){const int n=(blocks+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads;radiationMaximumMerge<<<n,ugkp::gpu::workPlan().radiationBlockThreads,ugkp::gpu::workPlan().radiationBlockThreads*sizeof(RadiationMaximum),stream>>>(blocks,current,next);std::swap(current,next);blocks=n;}
-        upwindGraphDetail::maximumResult<<<1,1,0,stream>>>(current,initial,output);
+    template<bool Absolute=false>
+    void maximum(int count,const RadiationReal* values,const unsigned char* valid,RadiationReal initial,
+        RadiationReal* output,cudaStream_t stream){
+        enqueueOrderedMaximum<Absolute>(count,values,valid,initial,output,partialA_.ptr,partialB_.ptr,
+            workPlan().radiationBlockThreads,stream);
     }
     void residual(OrderedUpwindDevice matrix,const int* owner,const int* neighbour,const RadiationReal* flux,
         const RadiationReal* diagonal,const RadiationReal* source,const RadiationReal* values,UpwindLinearControls controls,cudaStream_t stream){
         upwindResidual<<<std::max(1,(cells_+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads),ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(matrix,diagonal,source,values,residual_.ptr,magnitude_.ptr);
         upwindGraphDetail::normalizationFaces<<<std::max(1,(std::max(cells_,faces_)+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads),ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(cells_,faces_,owner,neighbour,flux,values,magnitude_.ptr,valid_.ptr);
-        upwindGraphDetail::absoluteResidual<<<std::max(1,(cells_+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads),ugkp::gpu::workPlan().radiationBlockThreads,0,stream>>>(cells_,residual_.ptr);
-        maximum(cells_,residual_.ptr,nullptr,0,&report_.ptr->maximumResidual,stream);
+        maximum<true>(cells_,residual_.ptr,nullptr,0,&report_.ptr->maximumResidual,stream);
         maximum(cells_+faces_,magnitude_.ptr,valid_.ptr,controls.small,&report_.ptr->maximumMagnitude,stream);
     }
 public:
@@ -104,7 +100,7 @@ public:
         partialA_(std::max(1,(cells_+faces_+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads)),partialB_(std::max(1,(cells_+faces_+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads)),
         failure_(1),levels_(plan.levelOffsets.size()),failures_(cells_),report_(1){
         if(!controls.controlsAlreadyResolved)controls.tolerance=radiationConvergenceTolerance(controls.tolerance);
-        (void)concurrentDirections; // Scheduling is independent of the angular iteration policy.
+        (void)concurrentDirections;
         using upwindGraphDetail::checkedCudaUpwind;cudaStream_t stream=nullptr;
         checkedCudaUpwind(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
         try {
@@ -157,16 +153,16 @@ public:
     }
     ~OrderedUpwindGraph(){release();}
     OrderedUpwindGraph(const OrderedUpwindGraph&)=delete;OrderedUpwindGraph& operator=(const OrderedUpwindGraph&)=delete;
-    // Batches are a scheduling choice only: the device active flag freezes
-    // the first converged/failed iterate, including within a queued batch.
+
+
     void begin(cudaStream_t stream){upwindGraphDetail::checkedCudaUpwind(cudaGraphLaunch(initializeExecutable_,stream));}
     void advance(cudaStream_t stream,int count=-1){if(count<0)count=8;for(int i=0;i<count;++i)upwindGraphDetail::checkedCudaUpwind(cudaGraphLaunch(executable_,stream));}
     const Report& collect(cudaStream_t stream){
         upwindGraphDetail::checkedCudaUpwind(cudaMemcpyAsync(hostReport_,report_.ptr,sizeof(Report),cudaMemcpyDeviceToHost,stream));
         upwindGraphDetail::checkedCudaUpwind(cudaStreamSynchronize(stream));return *hostReport_;
     }
-    // Embed the unchanged initial residual and ordered sweeps in a device
-    // controlled loop. The returned node completes exactly the accepted iterate.
+
+
     cudaGraphNode_t appendSolve(cudaGraph_t graph,const std::vector<cudaGraphNode_t>& dependencies,cudaStream_t stream){
         using namespace upwindGraphDetail;
         cudaGraphNode_t initialized=nullptr;

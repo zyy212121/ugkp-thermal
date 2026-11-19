@@ -1,14 +1,8 @@
 #include <cuda_runtime.h>
 #include "tests/TestSupport.H"
-#include "gasTransport/GasStateView.H"
-#include "gasTransport/GasBoundaryLayerModelState.H"
-#include "gasNumerics/GpuSstAlgebra.cuh"
-#include <chrono>
+#include "gpu/SharedGasDeviceStorage.cuh"
+#include "thermal/ParticleSurfaceState.H"
 #include <cstdio>
-namespace chmt { struct SharedGasDeviceView:ugkwp::GasStateView<Real,Real,ugkwp::SstCoefficients> {
- ugkwp::GasSpeciesState<Real,Ns> gasSpecies;
- ugkwp::GasBoundaryLayerModelState<Real,Ns> gasBoundaryLayerModel;
-}; }
 #include "gpu/CoupledSurfaceTransfer.cuh"
 #include "gpu/CoupledSurfacePipeline.cuh"
 using namespace chmt;
@@ -48,6 +42,7 @@ int main(){cudaCheck(cudaDeviceSetLimit(cudaLimitStackSize,65536));constexpr int
  v->magSf=alloc<double>(count);v->Sfx=alloc<double>(count);v->Sfy=v->Sfz=zero;
  v->gasPhiRho=alloc<double>(count);v->gasPhiRhoUx=alloc<double>(count);v->gasPhiRhoUy=alloc<double>(count);v->gasPhiRhoUz=alloc<double>(count);v->gasPhiRhoE=alloc<double>(count);v->gasSpecies.flux=alloc<double>(Ns*count);
  auto* faces=alloc<int>(count);auto* in=alloc<CoupledSurfaceInput>(count);auto* wallProgram=alloc<WallFaceSample>(2*count);auto* records=alloc<CoupledSurfaceRecord>(count);
+ auto* failure=alloc<CoupledRecordFailure>(1);auto* diagnostics=alloc<ugkp::diagnostics::DeviceContext>(1);
  auto* downloads=alloc<CoupledSurfaceDownload>(count);auto* wallDownloads=alloc<CoupledWallDownload>(count);
  auto* wallInputs=alloc<ugkwp::gaswall::WallInput<Real,Ns>>(count);auto* layers=alloc<ugkwp::gaswall::WallResidentOutput<Real,Ns>>(count);
  auto* exchanges=alloc<ugkwp::GasBoundaryLayerExchange<Real>>(count);auto* slots=alloc<int>(count);
@@ -118,7 +113,9 @@ int main(){cudaCheck(cudaDeviceSetLimit(cudaLimitStackSize,65536));constexpr int
    accountCoupledSurfaceKernel<<<(count+127)/128,128>>>(v,faces,count,in,wallProgram,position,p,dt,dt*weight,records);
    cudaCheck(cudaDeviceSynchronize());
   }
-  packCoupledSurfaceKernel<<<(count+127)/128,128>>>(records,count,faces,{},downloads,variant==2?wallDownloads:nullptr);
+  *diagnostics={};
+  enqueueCoupledSurfaceArchive(records,count,faces,{},{downloads,variant==2?wallDownloads:nullptr,nullptr},
+      failure,count,count,diagnostics,128,nullptr);
   cudaCheck(cudaDeviceSynchronize());
   for(int i=0;i<count;++i){packetNear(downloads[i].primary,primary[i]);packetNear(downloads[i].pore,pore[i]);chmt_test::check(!records[i].failed,"device closure completion");packetNear(records[i].primary,primary[i]);packetNear(records[i].pore,pore[i]);chmt_test::near(records[i].radiationEnergy,rad[i],"radiation ledger");
    const auto a=packetDelta(records[i].primary),b=packetDelta(records[i].pore);chmt_test::near(a.gas.energy+a.solid.energy+b.gas.energy+b.solid.energy,0,"energy closure");
@@ -128,7 +125,7 @@ int main(){cudaCheck(cudaDeviceSetLimit(cudaLimitStackSize,65536));constexpr int
   if(variant==2){
    exchanges[0].ready=false;wallStatuses[0]=37;modelStatuses[0].node=5;modelStatuses[0].iteration=11;modelStatuses[0].residual=.125;
    applyCoupledSurfaceKernel<<<(count+127)/128,128>>>(v,faces,count,in,wallProgram,GasWallProgramPosition{0,1,.5},p,dt,true,19,3,records);
-   packCoupledSurfaceKernel<<<(count+127)/128,128>>>(records,count,faces,{},downloads,wallDownloads);
+   enqueueCoupledSurfaceArchive(records,count,faces,{},{downloads,wallDownloads,nullptr},failure,count,count,diagnostics,128,nullptr);
    cudaCheck(cudaDeviceSynchronize());
    chmt_test::check(downloads[0].failed==2&&wallDownloads[0].transportCode==37
     &&wallDownloads[0].status.node==5&&wallDownloads[0].status.iteration==11&&wallDownloads[0].status.residual==.125,

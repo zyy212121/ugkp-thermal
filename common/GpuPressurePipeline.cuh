@@ -1,9 +1,9 @@
 
 #pragma once
 #include "GpuParticleExecutionContext.H"
-// Shared pressure launch protocol. LaunchBackend owns closure, precision selection,
-// sorted/unsorted projection and global or segmented launch policy; this function
-// owns face-flux/limit/scale/project order and its launch-error boundaries.
+
+
+
 template<class LaunchBackend>
 int launchCommonPressureKick(DeviceState* s,PressureTime dt,int block,
     int projectionBlock,bool split,bool compact)

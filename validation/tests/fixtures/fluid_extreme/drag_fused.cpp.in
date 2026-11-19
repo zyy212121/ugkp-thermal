@@ -189,7 +189,7 @@ template<class Model> void run(int model){
   const bool hostCache=model==1 && capacity>4096 && capacity>=32LL*cells;
   if(!hostCache)cached.dragHindranceCache=nullptr;
   int live=0;cached.particleCountDevice=&live;
-  // One state crosses both thresholds in both directions across time steps.
+
   for(int count:{0,4,4096,4097,4127,4128,8193,4096,4128,4,-1}){
    live=count;const int n=std::min(std::max(live,0),capacity);
    cached.solidEps[0]=live%2?.25:.1;cached.solidEps[1]=live%2?.05:.3;

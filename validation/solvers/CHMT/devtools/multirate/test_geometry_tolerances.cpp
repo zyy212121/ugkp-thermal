@@ -1,4 +1,4 @@
-// Numerical certificates from actual polyhedral trajectories, not mocked residuals.
+
 #define main existing_sweep_fixture_main
 #include "test_sweep_constraints.cpp"
 #undef main
@@ -57,7 +57,7 @@ void periodicThresholds() {
     old.periodicPartner[left]=right;old.periodicPartner[right]=left;
     std::string error;require(rebuildGeometry(old,error),error);
     auto points=old.points;for(auto& point:points)point.x=1.0000001*point.x+.125;
-    // Measure the same real face sweeps without enforcing periodic pairing.
+
     HostMesh open=old;open.boundaryKind[left]=open.boundaryKind[right]=BoundaryKind::Slip;
     require(rebuildGeometry(open,error),error);
     HostMesh measured;std::vector<Real> sweep;
@@ -73,10 +73,10 @@ void periodicThresholds() {
         require(ok==accepts,relativeOnly?"configured relative periodic threshold changes acceptance":"configured absolute periodic threshold changes acceptance");
         if(!accepts){require(error.find("periodic paired sweep mismatch")!=std::string::npos,error);
             require(endpoint.geometryVersion==91&&actual==std::vector<Real>{123},"periodic rejection preserves outputs");}
-        // Surface reconstruction independently certifies the periodic mesh too.
+
         SurfaceMesh surface;surface.area={123};const SurfaceMesh reference;
         const bool surfaceOk=rebuildTrajectorySurface(old,HostMesh{},reference,measured,HostMesh{},1,surface,error,tolerance);
-        // The endpoint must preserve the periodic topology, unlike the measuring mesh.
+
         require(!surfaceOk,"surface rejects endpoint boundary topology mismatch regardless of tolerance");
         HostMesh periodicEndpoint=old;periodicEndpoint.points=points;
         require(rebuildGeometry(periodicEndpoint,error),error);

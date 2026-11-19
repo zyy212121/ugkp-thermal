@@ -25,7 +25,7 @@ s=s.replace('CHECK(advanceResidentThermalParticles(s,dt,dt)==0);',r'''
  table.absorption.assign(4,absorption);table.scattering.assign(4,0);table.extinction=table.absorption;table.phase.assign(8,1);
  ParticleRadiationMaterial device(table);
  for(int directory=0;directory<(csr?3:1);++directory){
- // Borrow packed offsets, invalidate the directory, then rebuild and reuse it.
+
  s->preBaseDirectoryReady=csr&&directory!=1;
  if(directory==2)CHECK(copyToDevice(s->preBaseCellOffset,offsets,2,"rebuilt packed offsets")==0);
  CHECK(syncDeviceState(s,"directory transition")==0);
@@ -53,7 +53,7 @@ s=s.replace('CHECK(advanceResidentThermalParticles(s,dt,dt)==0);',r'''
   std::fprintf(stderr,"NATIVE_CALORIC csr=%d directory=%d heterogeneous=%d dt=%.17g meanT=%.17g accepted=%.17g residual=%.17g\n",csr,directory,heterogeneous,elapsed,mean,accepted,accepted-elapsed*power);
  }
  }
- // Real two-kernel publication must retain sub-ULP capacity at TpMax.
+
  s->TpMax=4000;CHECK(syncDeviceState(s,"carry limit")==0);
  const double edge[3]={4000,4000,3500},remainder[3]={-1e-10,-1e-10,0};
  CHECK(copyToDevice(s->pT,edge,3,"limit T")==0);

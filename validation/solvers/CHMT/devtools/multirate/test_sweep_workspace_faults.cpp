@@ -1,5 +1,5 @@
-// Test-only single-allocation fault injection; production has no global new hook.
-// Enumerates every allocation in successful default and legacy-cap streamed transactions.
+
+
 #include <cstdlib>
 #include <new>
 #include <cstdio>

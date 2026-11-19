@@ -1,5 +1,5 @@
 #pragma once
-// Thermal sample schema; retain each entry scalar cast before publishing double.
+
 int collectDevelopmentProbeSample
 (
     DeviceState* s,

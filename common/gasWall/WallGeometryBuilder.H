@@ -10,9 +10,9 @@
 #include <vector>
 
 namespace ugkwp { namespace gaswall {
-// Host-only, application-neutral mesh. Face winding is outward from owner.
-// All physical walls must be marked, including walls not using this model.
-// A version identifies immutable geometry AND wall/constraint classifications.
+
+
+
 template<class R> struct WallGeometryMesh {
     std::vector<std::array<R,3>> points,cellCentres;
     std::vector<R> volumes;
@@ -24,27 +24,27 @@ template<class R> struct WallGeometryOptions {
     ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
     R relativeTolerance=R(1e-9);
     int maxRayCells=32,quadratureRefinement=1;
-    bool reconstructMatching=false; // enabled by the gas FV-average adapter
-    bool constructQuadrature=true; // Optional direct diagnostics; production adapters disable.
-    // When requested, zero uses a purely geometric rule. Direct SST research
-    // supplies BVP nodes/stretch to integrate its source reconstruction.
+    bool reconstructMatching=false;
+    bool constructQuadrature=true;
+
+
     int profileNodes=0,firstSegmentGaussOrder=8;
     R profileStretch=R(defaultWallStretch);
 };
 template<class R> struct WallGeometryDescriptor {
     int ownerCell=-1,wallFace=-1;
-    // Highest resolved wall-normal polynomial degree. Tangential rank can be
-    // lower on a geometrically two-dimensional mesh.
+
+
     int samplingOrder=0;
-    R matchingDonorDistance=0; // |donor cell centre - matchingPoint|.
+    R matchingDonorDistance=0;
     std::uint64_t geometryVersion=0;
     std::array<R,3> origin{},normal{},tangent1{},tangent2{},matchingPoint{},firstMomentVector{};
     R ownerDistance=0,matchingDistance=0,maximumOwnerDistance=0;
     R volume=0,firstMoment=0,geometryVolume=0;
     std::vector<R> distance,volumeWeight,matchingWeights;
-    // Legacy tetra nodes are interior. Profile-aware nodes instead report the
-    // full section's area centroid for moment diagnostics: this can lie outside
-    // a concave/disconnected section. Core uses only its positive y measure.
+
+
+
     bool quadraturePointsAreInterior=true;
     std::vector<std::array<R,3>> quadraturePoints;
     std::vector<int> matchingCells;
@@ -65,8 +65,8 @@ template<class R> struct Context {
     std::vector<R> firstGaussPoint,firstGaussWeight;
 };
 inline bool invalid(WallStatus& s,int face=-1){s.code=WallCode::InvalidGeometry;s.node=face;return false;}
-// Ear clipping gives positive, non-overlapping triangles for a simple planar
-// polygon, including concave faces. No unsigned fan across a concavity.
+
+
 template<class R> bool triangulate(const WallGeometryMesh<R>&m,int f,Face<R>&out,const WallGeometryOptions<R>&){
     std::vector<int> ring(m.facePoints.begin()+m.faceOffsets[f],m.facePoints.begin()+m.faceOffsets[f+1]);
     return triangulateWallPolygon<R>(m,ring,out);
@@ -114,8 +114,8 @@ template<class R> bool prepare(const WallGeometryMesh<R>&m,Context<R>&ctx,WallSt
         if(!triangulate(m,static_cast<int>(f),ctx.faces[f],opt))return invalid(s,static_cast<int>(f));
         ctx.cellFaces[m.owner[f]].push_back(static_cast<int>(f));
         if(m.neighbour[f]>=0)ctx.cellFaces[m.neighbour[f]].push_back(static_cast<int>(f));
-        // Even an omitted or erroneous explicit mask cannot make a wall owner
-        // into a supposedly unconstrained matching donor.
+
+
         if(m.physicalWall[f])ctx.constrained[m.owner[f]]=1;
     }
     return true;
@@ -124,11 +124,11 @@ template<class R> bool cellSeed(const WallGeometryMesh<R>&m,const Context<R>&ctx
     (void)diagnostics;
     if(ctx.cellFaces[cell].size()<4)return false;
     scale=0;seed=m.cellCentres[cell];
-    // Intersect the closed inward half-spaces, rather than imposing a guessed
-    // positive margin on a possibly very narrow star kernel. Local anisotropic
-    // coordinates retain represented thin dimensions independently of cell size.
-    // Convex-polyhedron clipping has a finite number of face operations; it is
-    // not a projection iteration whose limit might publish an infeasible point.
+
+
+
+
+
     using P=std::array<long double,3>;using Polygon=std::vector<P>;
     P low{{0,0,0}},high{{0,0,0}};bool first=true;
     for(int f:ctx.cellFaces[cell])for(int k=m.faceOffsets[f];k<m.faceOffsets[f+1];++k){
@@ -142,15 +142,15 @@ template<class R> bool cellSeed(const WallGeometryMesh<R>&m,const Context<R>&ctx
     P width;for(int d=0;d<3;++d){width[d]=high[d]-low[d];if(!(width[d]>0))return false;}
     const auto coordinate=[&](const Vec<R>&x){P u;for(int d=0;d<3;++d)u[d]=(static_cast<long double>(x[d])-low[d])/width[d];return u;};
     struct Plane{P normal;long double bound;};std::vector<Plane> planes;
-    // Use the actual boundary triangles, including a warped polygon's pieces:
-    // these are precisely the oriented tetrahedra consumed by the quadrature.
+
+
     for(int f:ctx.cellFaces[cell])for(const auto&t:ctx.faces[f].triangles){
         const P a=coordinate(m.points[t.a]),b=coordinate(m.points[t.b]),c=coordinate(m.points[t.c]);
         P u,v;for(int d=0;d<3;++d){u[d]=b[d]-a[d];v[d]=c[d]-a[d];}
         const long double sign=m.owner[f]==cell?1.L:-1.L;
         P n{{sign*(u[1]*v[2]-u[2]*v[1]),sign*(u[2]*v[0]-u[0]*v[2]),sign*(u[0]*v[1]-u[1]*v[0])}};
         const long double normalScale=std::max(std::abs(n[0]),std::max(std::abs(n[1]),std::abs(n[2])));
-        if(normalScale==0)continue; // A zero-area piece adds the identity 0 <= 0.
+        if(normalScale==0)continue;
         if(!std::isfinite(normalScale))return false;
         long double bound=0;for(int d=0;d<3;++d){n[d]/=normalScale;bound+=n[d]*a[d];}
         planes.push_back({n,bound});
@@ -179,8 +179,8 @@ template<class R> bool cellSeed(const WallGeometryMesh<R>&m,const Context<R>&ctx
                 if(vx<=0)next.push_back(x);
                 if(vx==0)cap.push_back(x);
                 if((vx<0&&vy>0)||(vx>0&&vy<0)){
-                    // Shared edges use the same endpoint order and arithmetic,
-                    // so their intersection is represented identically.
+
+
                     if(y<x){std::swap(x,y);std::swap(vx,vy);}
                     const long double t=vx/(vx-vy);P cut;
                     for(int d=0;d<3;++d)cut[d]=x[d]+t*(y[d]-x[d]);
@@ -210,9 +210,9 @@ template<class R> bool cellSeed(const WallGeometryMesh<R>&m,const Context<R>&ctx
     if(vertices.empty())return false;
     P centre{{0,0,0}};for(const auto&x:vertices)for(int d=0;d<3;++d)centre[d]+=x[d]/vertices.size();
     for(int d=0;d<3;++d)seed[d]=static_cast<R>(low[d]+centre[d]*width[d]);
-    // A positive average of all kernel vertices is inside every kernel plane
-    // (strictly inside when its kernel has interior). Certify the stored point,
-    // not merely an extended-precision intermediate or a finite iterate.
+
+
+
     const P stored=coordinate(seed);
     for(const auto&plane:planes)if(value(plane,stored)>0)return false;
     return finite(seed);
@@ -227,15 +227,15 @@ template<class R> void tetraQuadrature(const std::array<Vec<R>,4>&p,R volume,int
     for(int i=0;i<4;++i){Vec<R> q{};for(int j=0;j<4;++j)q=add(q,mul(p[j],i==j?a:b));
         d.quadraturePoints.push_back(q);d.volumeWeight.push_back(volume/R(4));d.distance.push_back(dot(sub(q,d.origin),d.normal));}
 }
-// Actual tetrahedron/normal-plane intersection. Its triangle or quadrilateral
-// section is convex; the positive area centroid stays inside this tetrahedron,
-// including when the complete owner's section is disconnected or concave.
+
+
+
 template<class R> bool tetraSection(const std::array<Vec<R>,4>&p,const std::array<R,4>&height,
  R y,const WallGeometryDescriptor<R>&d,R&area,Vec<R>&centroid){
-    // Keep tiny near-tip sections out of absolute mesh coordinates. Adding a
-    // one-ulp-sized section to its world position can collapse or reverse its
-    // triangles. Interpolate from the nearer endpoint in a local frame, then
-    // restore the world origin only for the final diagnostic centroid.
+
+
+
+
     int anchor=0;
     for(int i=1;i<4;++i)if(std::abs(height[i]-y)<std::abs(height[anchor]-y))anchor=i;
     std::array<Vec<R>,4> local;
@@ -261,11 +261,11 @@ template<class R> bool tetraSection(const std::array<Vec<R>,4>&p,const std::arra
     if(!gasFinite(area)||area==0)return false;
     centroid=add(p[anchor],add(centre,mul(offset,R(1)/area)));return finite(centroid);
 }
-// The section area is quadratic between projected tetrahedron vertices.
-// Cutting again at every BVP node makes area * reconstructed source cubic,
-// integrated exactly by two positive Gauss points. The nonlinear first BVP
-// interval uses a higher-order rule in eta=sqrt(y/y1), never a singular wall
-// point. Geometry and xyz first moments remain polynomial-exact in eta.
+
+
+
+
+
 template<class R> bool profileOwnerQuadrature(const std::vector<std::array<Vec<R>,4>>&tetra,
  const std::vector<R>&profile,const Context<R>&ctx,WallGeometryDescriptor<R>&d){
     std::vector<std::array<R,4>> height(tetra.size());
@@ -278,9 +278,9 @@ template<class R> bool profileOwnerQuadrature(const std::vector<std::array<Vec<R
     std::sort(cut.begin(),cut.end());
     std::vector<R> vertices;
     for(R y:cut)if(vertices.empty()||y-vertices.back()>roundoff)vertices.push_back(y);
-    // Prefer an exact BVP knot when a geometric break differs only by
-    // coordinate roundoff. Otherwise a one-ulp interval has no interior Gauss
-    // point. Never move the physical wall at y=0 to a small positive knot.
+
+
+
     for(R& y:vertices)if(y>0){
         auto at=std::lower_bound(profile.begin(),profile.end(),y);
         if(at==profile.end()||(at!=profile.begin()&&std::abs(*(at-1)-y)<std::abs(*at-y)))--at;
@@ -327,8 +327,8 @@ template<class R> bool profileOwnerQuadrature(const std::vector<std::array<Vec<R
 }
 
 
-// Cell-average polynomial moments about the matching point. Signed tetrahedra
-// integrate arbitrary closed polyhedra; a star seed is not required here.
+
+
 template<class R> std::array<long double,10> matchingMoments(
  const WallGeometryMesh<R>&m,const Context<R>&ctx,int cell,const WallGeometryDescriptor<R>&d){
     using L=long double;using P=std::array<L,3>;
@@ -350,11 +350,11 @@ template<class R> std::array<long double,10> matchingMoments(
     for(auto&x:sum)x/=volume;
     return sum;
 }
-// A degree-two FV reconstruction on two face-neighbour rings. Rank revealing
-// orthogonalisation keeps only geometric modes resolved by this mesh (e.g. a
-// one-cell-thick extrusion has no independent normal-to-extrusion curvature).
-// The minimum correction to containing-cell sampling preserves constants and
-// all resolved volume moments, including the normal quadratic deconvolution.
+
+
+
+
+
 template<class R> void matchingReconstruction(const WallGeometryMesh<R>&m,
  const Context<R>&ctx,int anchor,WallGeometryDescriptor<R>&d){
     using L=long double;
@@ -374,9 +374,9 @@ template<class R> void matchingReconstruction(const WallGeometryMesh<R>&m,
     for(auto&a:moment){for(int k=0;k<3;++k)a[1+k]/=scale[k];
         const int left[6]={0,0,0,1,1,2},right[6]={0,1,2,1,2,2};
         for(int k=0;k<6;++k)a[4+k]/=scale[left[k]]*scale[right[k]];}
-    // Rank belongs to the complete dimensionless moment matrix. A mode that
-    // vanishes in an extrusion can contain coordinate roundoff; scaling its
-    // threshold by its own tiny norm would promote that noise to a new mode.
+
+
+
     L matrixNorm=0;
     for(int mode=0;mode<10;++mode){L norm2=0;
         for(int j=0;j<n;++j)norm2+=moment[j][mode]*moment[j][mode];
@@ -404,10 +404,10 @@ template<class R> void matchingReconstruction(const WallGeometryMesh<R>&m,
     d.matchingWeights[0]+=R(1)-sum;
 }
 
-// The projected interior source is constant per dual cell and its K/D
-// moments are linear per nodal interval. One positive moment node per
-// intersection integrates these quantities exactly. Keep every near-wall
-// node, where the analytic SST asymptote is nonlinear.
+
+
+
+
 template<class R> void compressProjectionQuadrature(WallGeometryDescriptor<R>&d,const std::vector<R>&profile){
     if(profile.size()<2)return;
     std::vector<R>cuts=profile;
@@ -448,8 +448,8 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
     WallGeometryDescriptor<R>d;d.wallFace=wallFace;d.ownerCell=m.owner[wallFace];d.geometryVersion=m.geometryVersion;
     if(std::size_t(d.ownerCell)>=m.volumes.size()||(!m.gasCell.empty()&&!m.gasCell[d.ownerCell]))return invalid(s,wallFace);
     initializeWallRayOrigin<R>(m,ctx,wallFace,d);
-    // Signed volume/first-moment identities need only a local reference point.
-    // A star-kernel point is required solely by the optional positive quadrature.
+
+
     Vec<R> seed=m.cellCentres[d.ownerCell];R scale=0;
     if(opt.constructQuadrature&&!cellSeed(m,ctx,d.ownerCell,seed,scale,opt.diagnostics))return invalid(s,wallFace);
     initializeWallRayFrame<R>(m,ctx,d);
@@ -494,9 +494,9 @@ template<class R> bool build(const WallGeometryMesh<R>&m,const Context<R>&ctx,in
     if(opt.reconstructMatching&&opt.profileNodes)compressProjectionQuadrature(d,profile);
     out=std::move(d);return true;
 }
-} // wallGeometryDetail
-// One-face convenience; production adapters should use the shared cache to
-// prepare connectivity and triangulation only once per geometry version.
+}
+
+
 template<class R> bool buildWallGeometry(const WallGeometryMesh<R>&mesh,int wallFace,WallGeometryDescriptor<R>&out,WallStatus&status,const WallGeometryOptions<R>&options=WallGeometryOptions<R>()){
     status=WallStatus{};wallGeometryDetail::Context<R> context;
     return wallGeometryDetail::prepare(mesh,context,status,options)&&wallGeometryDetail::build(mesh,context,wallFace,out,status,options);
@@ -526,4 +526,4 @@ public:
         descriptors.swap(candidate);wallFaces_=wallFaces;version_=mesh.geometryVersion;options_=options;ready_=true;return true;
     }
 };
-}} // namespace ugkwp::gaswall
+}}

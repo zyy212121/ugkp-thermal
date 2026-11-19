@@ -1,4 +1,4 @@
-// Full shared coupler -> native CUDA DO -> material root -> CHT publication.
+
 #include "fvCFD.H"
 #include "GpuResidentStrict.H"
 #include "GpuParticleRadiationCoupler.H"

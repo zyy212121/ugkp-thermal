@@ -18,7 +18,7 @@ def test_actual_injection_velocity_and_mass(tmp_path):
 int main(){
  using namespace ugkp::boundary;
  blockDim.x=1;
- // Independent expected values: fixed, interpolated table, gas-stage mirror (not post-drag owner).
+
  for(int mode=0;mode<3;++mode)for(int overrideMode=0;overrideMode<4;++overrideMode) {
   DeviceState s;Face face;Function functions[2];Term terms[4]={{0,.1},{1,.2},{0,.2},{1,.4}};
   face.solidMode=mode==2?0:1;face.uMode=mode==2?0:1;
@@ -85,7 +85,7 @@ bool excluded(const Patch&patch){return PREDICATE;}
 int main(){
  for(int kind=0;kind<=6;++kind){
   Patch patch{kind};int sources=0;
-  // Enrollment is geometric, not based on startup velocity or epsilonS.
+
   for(int startupFlow=0;startupFlow<2;++startupFlow)
    if(!excluded(patch))++sources;
   assert(sources==(kind==0?2:0));

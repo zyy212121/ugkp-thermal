@@ -33,7 +33,7 @@ for scheme in ['SSPRK3','Euler']:
  f=c/'system/fvSchemes';f.write_text(f.read_text().replace('default SSPRK2;','default '+scheme+';'))
  row=p.run(R/'bin/gasUGKP',c);assert row['exit']==0,row
  report[scheme]=row;save()
-# Short-case elapsed wall times include initialization and output. No speedup claim.
+
 for solver,source in [('gasUGKP',root/'smoke/legacy'),('CHT',root/'coupled/CHT-legacy'),('CHMT',root/'coupled/CHMT-legacy')]:
  if not (R/'build-evidence/shared-boundary/baseline-bin'/solver).exists():
   report['timing'][solver]={'skipped':'baseline binary unavailable'};save();continue

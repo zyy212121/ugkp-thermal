@@ -2,9 +2,9 @@
 #define CHMT_MATERIALS_DARCYGRADIENT_H
 #include "materials/StencilMath.H"
 namespace chmt {
-// Original-cell pressure differences supply the resolved normal derivative;
-// the least-squares gradients supply only the non-orthogonal correction.
-// A face reversal negates this derivative, preserving a single shared flux.
+
+
+
 template<bool Terminal=false>
 CHMT_HD inline bool darcyNormalPressureGradient(Vec3 displacement, Vec3 normal,
     Real pressureDifference, Vec3 gradientLeft, Vec3 gradientRight, Real& output) {
@@ -17,19 +17,19 @@ CHMT_HD inline bool darcyNormalPressureGradient(Vec3 displacement, Vec3 normal,
     output=value; return true;
 }
 
-// For grad(p)=sum_j w_j*(p_j-p_c), 2*sum_j |w_j| bounds the
-// vector-valued stencil's absolute pressure sensitivity, including p_c.
+
+
 CHMT_HD inline Real darcyGradientSensitivity(const Symmetric3& matrix, Vec3 displacement,int maximumIterations=32) {
     const Real squared=dot(displacement,displacement);
     if (!(squared>0)||!finite(squared)) return undefinedValue();
     return 2*mag(solveLeastSquares(matrix,displacement/squared,maximumIterations));
 }
 
-// Half an upper bound on the corrected face derivative's absolute row sum.
-// The orthogonal value is 1/dn. The extra term accounts for BOTH cell
-// gradient stencils; using |d| alone misses even the two-point stiffness.
-// This is a frozen-density pressure-relaxation estimate, not a claim of
-// monotonicity of an unlimited correction on an arbitrary distorted mesh.
+
+
+
+
+
 template<bool Terminal=false>
 CHMT_HD inline bool darcyPressureStencilInverseLength(Vec3 displacement, Vec3 normal,
     Real leftSensitivity, Real rightSensitivity, Real& output) {
@@ -42,5 +42,5 @@ CHMT_HD inline bool darcyPressureStencilInverseLength(Vec3 displacement, Vec3 no
     if (!Terminal&&(!finite(value)||value<=0)) return false;
     output=value; return true;
 }
-} // namespace chmt
+}
 #endif

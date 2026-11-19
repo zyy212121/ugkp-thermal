@@ -1,5 +1,5 @@
 #pragma once
-// One operator implementation; scalar/time adapters are compile-time only.
+
 __device__ void clearSolidCell(DeviceState& s, const int c)
 {
     s.epsS[c] = GPU_OPERATOR_R(0.0);

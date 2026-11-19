@@ -17,6 +17,8 @@ def source(p,rev=None):
 def native(app,rev=None):
     p=f'applications/{app}/'+('gpu' if app=='CHT' else 'private_backend')+'/GpuResidentStrict.cu'
     s=source(p,rev)
+    if app == 'CHT' and '#include "../../../common/thermal/GpuResidentStrict.cu"' in s:
+        s=source('common/thermal/GpuResidentStrict.cu',rev)
     names=['DownloadSst','DownloadSourceResidualMass']+(['UploadGasBoundaryTemperaturePatch','DownloadParticleWallOccupiedArea'] if app=='CHT' else ['DownloadAndResetParticleWallHeatLedgers'])
     bodies='\n'.join(h.block(s,'extern "C" int ugkwpGpuResidentStrict'+name) for name in names)
     return h.CUDA.replace('++copies;if(copies==failCopy)', '++copies;if((n&&(!d||!s))||copies==failCopy)')+r'''
@@ -24,13 +26,19 @@ using GpuReal=double;
 #define GPU_R(x) (x)
 int finiteChecks=0,areaPrepares=0;
 bool checkedFinite(double x){++finiteChecks;return std::isfinite(x);}
-struct DeviceState{DeviceState*deviceState=this;int nFaces=4,nInternalFaces=2,nCells=2,hostTurbulenceModel=3,sstConfigured=1,nBoundarySources=2,particleStuckModelConfigured=1,particleWorkGrid=1,reductionBlockThreads=1,particleWallHeatTransferEnabled=1;
+#include "common/Diagnostics.H"
+struct ReadbackDiagnostics {
+    ugkp::diagnostics::Record error{};
+    void recordHostFatal(const ugkp::diagnostics::Record& value){error=value;}
+    int completeReadback(int status,bool=true){return status;}
+};
+struct DeviceState{ReadbackDiagnostics diagnostics;ReadbackDiagnostics*diagnosticOwner=&diagnostics;DeviceState*deviceState=this;int nFaces=4,nInternalFaces=2,nCells=2,hostTurbulenceModel=3,sstConfigured=1,nBoundarySources=2,particleStuckModelConfigured=1,particleWorkGrid=1,reductionBlockThreads=1,particleWallHeatTransferEnabled=1;
  double TgasMin=200;double*k=nullptr,*omega=nullptr,*nut=nullptr,*sourceResidualMass=nullptr,*gasBoundaryT=nullptr,*riemannBoundaryT=nullptr,*particleWallRepresentedContactArea=nullptr,*particleWallContactAreaScale=nullptr,*particleWallDepositedEnergy=nullptr,*particleWallReflectedEnergy=nullptr;int*sourceFace=nullptr;};
 DeviceState*asState(void*p){return static_cast<DeviceState*>(p);}int validateState(DeviceState*s,const char*){return !s;}
 void setLastErrorText(const char*){}void setLastError(const char*,int){}
 template<class T>int copyToHost(T*d,const T*s,size_t n,const char*){return n?cudaMemcpy(d,s,n*sizeof(T),2):0;}
 template<class T>int copyToDevice(T*d,const T*s,size_t n,const char*){return n?cudaMemcpy(d,s,n*sizeof(T),1):0;}
-int prepareParticleWallContactAreaScale(DeviceState*,int){++areaPrepares;return 0;}
+int prepareParticleWallContactAreaScale(DeviceState*,int,void* = nullptr){++areaPrepares;return 0;}
 '''+bodies.replace('std::isfinite(', 'checkedFinite(')
 
 
@@ -54,7 +62,7 @@ int main(){DeviceState s;s.hostTurbulenceModel=0;s.sstConfigured=0;double k[]={-
  counters();assert(ugkwpGpuResidentStrictDownloadSst(&s,a,b,c)==0);assert(std::memcmp(a,k,16)==0&&std::memcmp(b,w,16)==0&&std::memcmp(c,n,16)==0&&d2h==3);
  for(int f=1;f<=3;++f){counters();failCopy=f;assert(ugkwpGpuResidentStrictDownloadSst(&s,a,b,c)!=0&&copies==3);}
  s.k=nullptr;counters();assert(ugkwpGpuResidentStrictDownloadSst(&s,a,b,c)!=0&&copies==3);
- int faces[]={1,3},out[2],count=0;s.sourceFace=faces;s.sourceResidualMass=k;counters();assert(ugkwpGpuResidentStrictDownloadSourceResidualMass(&s,&count,1,out,a)==0&&count==2&&d2h==2&&out[1]==3); // supplied backing is actually large enough despite metadata1
+ int faces[]={1,3},out[2],count=0;s.sourceFace=faces;s.sourceResidualMass=k;counters();assert(ugkwpGpuResidentStrictDownloadSourceResidualMass(&s,&count,2,out,a)==0&&count==2&&d2h==2&&out[1]==3);
  counters();assert(ugkwpGpuResidentStrictDownloadSourceResidualMass(&s,&count,0,nullptr,nullptr)==0&&count==2&&copies==0);
 }
 ''')
@@ -211,11 +219,11 @@ int main(){Resident r;Time t{DIR};std::filesystem::create_directories(t.path);t.
  r.downloadToHostMirror(t,rho,rhoU,e,U,p,T);std::cout<<"GAS ";print(rho);print(rhoU);print(e);print(U);print(p);print(T);std::cout<<"\n";
  r.writeParticleRestartMirror(t);assert(savedVelocityCalls==1&&boundaryCalls==2);assert(std::filesystem::exists(t.path+"/particles")&&std::filesystem::exists(t.path+"/eps")&&std::filesystem::exists(t.path+"/residual"));
  std::cout<<"COST "<<nativeCalls<<" "<<finiteChecks<<"\n";
- if(BAD){ // Genuine missing bytes and native errors remain errors; foreign metadata is not one.
+ if(BAD){
   {std::ofstream f(t.path+"/eps");f<<"-8 -2 3\n";}assert(r.readEpsGPrevRestartMirrorIfPresent(t)&&epsInput[0]==0&&epsInput[1]==1);
   {std::ofstream f(t.path+"/eps");f<<"2 0.5\n";}bool failed=false;try{r.readEpsGPrevRestartMirrorIfPresent(t);}catch(const std::runtime_error&){failed=true;}assert(failed);
   nativeFault=1;failed=false;try{r.downloadSstToHostMirror(t,k,w,n);}catch(const std::runtime_error&){failed=true;}assert(failed);nativeFault=0;
-  std::filesystem::remove(t.path+"/particles");std::filesystem::create_directory(t.path+"/particles");failed=false;try{r.writeParticleRestartMirror(t);}catch(const std::runtime_error&){failed=true;}assert(failed); // actual rename fails against existing directory
+  std::filesystem::remove(t.path+"/particles");std::filesystem::create_directory(t.path+"/particles");failed=false;try{r.writeParticleRestartMirror(t);}catch(const std::runtime_error&){failed=true;}assert(failed);
  }
 }
 '''

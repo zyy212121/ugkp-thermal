@@ -32,7 +32,7 @@ def logmean(a,b):
     out[active]=(b[active]-a[active])/np.log1p(ratio[active]);return out
 
 def work_weight(ma,mb,ba,bb,quadrature=2):
-    # Integrate u/B in the logarithmic momentum-resistance coordinate.
+
     reverse=mb<ma
     l=np.where(reverse,mb,ma);r=np.where(reverse,ma,mb)
     bl=np.where(reverse,bb,ba);br=np.where(reverse,ba,bb)
@@ -48,7 +48,7 @@ def work_weight(ma,mb,ba,bb,quadrature=2):
 class Reference:
     def __init__(self,data,quadrature=2):
         self.y=np.array(data['nodes'])[:,0];self.n=len(self.y);self.quadrature=quadrature
-        # Only u, theta, sqrt(k), z are active for this pure-gas fixture.
+
         self.base=np.array(data['nodes'])[:,[1,3,5,6]]
         self.base[0]=0;self.base[-1]=[UE,TE-TW,np.sqrt(KE),1/np.sqrt(WE)]
         self.base[1,3]=self.y[1]*np.sqrt((P/(RGAS*TW))*.075/(6*MU))
@@ -62,7 +62,7 @@ class Reference:
         y=self.y;dy=np.diff(y);u,theta,K,z=q.T;k=K*K;rho=P/(RGAS*(TW+theta))
         omega=np.zeros(self.n);omega[1:]=1/z[1:]**2
         du=np.diff(u)/dy;dk=np.diff(k)/dy;dw=np.diff(omega)/dy
-        # First interval uses the encoded singular wall omega asymptote.
+
         dw_first=-2*(z[1]-z[0])/dy[0]/z[1]**3
         nur,f1r,_,_=model(y[1:],rho[1:],k[1:],z[1:],du,dk,np.r_[dw_first,dw[1:]])
         nul=np.zeros(self.n-1);f1l=np.zeros(self.n-1)
@@ -87,8 +87,8 @@ class Reference:
         L=y[-1];row[1:-1,0]=(-np.diff(tau))/(MU*UE/L)
         row[1:-1,1]=np.diff(heat)/(MU*CP/PR/L*TW)
         row[1:-1,2]=(np.diff(fluxK)-volume*sourceK)/(MU/L*max(1,KE))
-        # Integrate the local omega^2 asymptote analytically, and direct the
-        # cross-diffusion logarithmic gradient along its transport sign.
+
+
         lo=(y[:-2]+y[1:-1])/2;hi=(y[1:-1]+y[2:])/2
         square_mean=omega[1:-1]**2*y[1:-1]**4*(lo**-3-hi**-3)/(3*volume)
         loggrad=np.zeros(self.n-2)
@@ -105,7 +105,7 @@ def run(data,perturbation=.01):
     ref=Reference(data);initial=ref.pack(ref.base)
     defect=float(np.max(np.abs(ref.residual(initial))))
     x=initial*(1+perturbation*np.sin(np.arange(len(initial))))
-    # Independent solver, Jacobian and perturbation sequence.
+
     solved=least_squares(ref.residual,x,jac='3-point',xtol=1e-13,ftol=1e-13,gtol=1e-13,max_nfev=300,x_scale='jac')
     state=ref.unpack(solved.x);r,flux=ref.evaluate(state)
     heat=float(np.mean(flux));error=abs(heat-data['heat'])

@@ -3,8 +3,8 @@
 #include "gpu/ResidentWallProgram.H"
 #include "../../../common/gasTransport/GasResidentInterval.H"
 namespace chmt {
-// Stage positions are sampled from the resident local clock before gas replay.
-// The published absolute stamps are diagnostic/output metadata.
+
+
 struct CoupledGasInterval {
     GasWallProgramPosition position[3]{};
     Real time[3]{};

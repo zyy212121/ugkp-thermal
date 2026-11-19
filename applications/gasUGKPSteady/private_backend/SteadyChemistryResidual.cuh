@@ -1,8 +1,8 @@
 #pragma once
 #include "../../../common/chemistry/GasRates.H"
 
-// Instantaneous intrinsic species-density source, not a split-step increment.
-// Formation-inclusive total energy has no separate chemical heat-release RHS.
+
+
 template<class State, class Real>
 __host__ __device__ inline bool steadyAddChemistryResidual
 (const State& s, int c, Real* speciesResidual)

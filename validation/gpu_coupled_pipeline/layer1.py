@@ -49,7 +49,7 @@ def compare_csv(left,right):
             assert math.isfinite(u) and math.isfinite(v),(left,key,u,v)
             error=abs(u-v);scale=max(abs(u),abs(v))
             maximum[key]=max(maximum.get(key,0.),error/max(1.,scale))
-            # Packet energy subtraction may cancel; use a small absolute floor.
+
             assert error<=2e-10+2e-10*scale,(left,key,u,v,error)
     return maximum
 
@@ -125,8 +125,8 @@ def audit_chmt(case,closed):
 
 
 def audit_cht(case,grid=2):
-    # Fixed, closed, uniform unit-volume contact fixture. This independent
-    # inventory check is only applied to its contact/mixture/pure descendants.
+
+
     states=[];gas_wall_errors=[];solid_wall_errors=[];initial_species=None;species_errors={}
     for snapshot in matrix.times(case):
         ge=scalar_sum(snapshot/'rhoE',grid**3);se=1e6*scalar_sum(snapshot/'solid/T',grid**3);mass=scalar_sum(snapshot/'rho',grid**3)
@@ -163,7 +163,7 @@ def compare_fields(left,right):
     maximum={}
     for x,y in zip(a,b):
         assert float(x.name)==float(y.name)
-        # Reuse the unchanged existing numerical oracle (relative error < 2e-12).
+
         errors=matrix.compare_fields(x,y)
         for key,value in errors.items():maximum[key]=max(value,maximum.get(key,0.))
     return dict(maximum_scaled_field_errors=maximum)
@@ -214,7 +214,7 @@ def main():
                     matrix.entry(control,'endTime',end);matrix.entry(control,'deltaT',dt)
                     if solver!='CHMT':
                         matrix.entry(case/'constant/scheme','maxDeltaT',dt)
-                        # Keep every coupled endpoint available for budget checks.
+
                         if solver=='gasUGKP':matrix.entry(control,'writeInterval',end/2)
                 if args.end_time is not None:
                     assert args.end_time>0

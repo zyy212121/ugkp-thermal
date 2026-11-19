@@ -1,6 +1,6 @@
 #pragma once
 #include <type_traits>
-// One operator implementation; scalar/time adapters are compile-time only.
+
 __device__ void clearColdWallParticleState
 (
     DeviceState& s,

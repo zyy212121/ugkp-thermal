@@ -1,5 +1,6 @@
 #pragma once
-// Common finite-contact/capillary finalization with native contact-age storage.
+#include "wall/ParticleWallFaceInteraction.H"
+
 __device__ void finalizeOneThermalizedStuckParticle
 (
     DeviceState& s,
@@ -61,7 +62,7 @@ __device__ void finalizeOneThermalizedStuckParticle
                 contactAge/duration, peakTimeFraction
             );
         const unsigned char interactionType =
-            s.particleStuckCandidateMask[faceI];
+            particleWallFaceInteraction(s,faceI);
         const GPU_OPERATOR_REAL frozenArea =
             interactionType
          == Foam::gpuThermal::particleWallSolidifyingDeposition
@@ -151,7 +152,7 @@ __device__ void finalizeOneThermalizedStuckParticle
         double frozenEnergy = 0.;
         if (s.pStuck[i] == Foam::gpuThermal::particleWallTransientRebound)
         {
-            const unsigned char model = s.particleStuckCandidateMask[faceI];
+            const unsigned char model = particleWallFaceInteraction(s,faceI);
             const GPU_OPERATOR_REAL frozenArea =
                 model == Foam::gpuThermal::particleWallSolidifyingDeposition
                 ? static_cast<GPU_OPERATOR_REAL>(s.pColdFrozenArea[Foam::gpuWall::coldWallSlot(s,i)])
@@ -159,11 +160,11 @@ __device__ void finalizeOneThermalizedStuckParticle
                 ? static_cast<GPU_OPERATOR_REAL>(s.pCold2DFrozenArea[i]) : GPU_OPERATOR_R(0.0);
             if (frozenArea > GPU_OPERATOR_R(0.0)) {
                 frozenRelease = true;
-                // The corrected pool velocity is a new mechanical allocation,
-                // separate from the saved impact/rebound reservoir. Thermalize
-                // its remaining lab-frame energy after adhesion and reflection
-                // before enforcing zero-speed release. Fluctuation energy alone
-                // omits the pool mean and cross terms.
+
+
+
+
+
                 const double rx = releaseUx, ry = releaseUy, rz = releaseUz;
                 const double cancelledPoolSpecificEnergy =
                     0.5*(rx*rx + ry*ry + rz*rz);
@@ -181,7 +182,7 @@ __device__ void finalizeOneThermalizedStuckParticle
         s.puzOld[i] = releaseUz;
         s.pStuck[i] = 0;
         s.pStuckFaceId[i] = -1;
-        // Contact age must not become unresolved kinetic energy after release.
+
         s.pTheta[i] = GPU_OPERATOR_R(0.0);
         GPU_RESET_CONTACT_AGE(s, i)
         s.pDepositionArea[i] = 0.0f;
@@ -191,7 +192,7 @@ __device__ void finalizeOneThermalizedStuckParticle
         clearColdWallParticleState(s, i);
         clearColdWall2DParticleState(s, i);
         if (frozenRelease) publishFrozenReleaseEnergy(s,i,frozenEnergy,
-            s.particleStuckCandidateMask[faceI]==Foam::gpuThermal::particleWallSolidifyingDeposition);
+            particleWallFaceInteraction(s,faceI)==Foam::gpuThermal::particleWallSolidifyingDeposition);
     }
     else
     {

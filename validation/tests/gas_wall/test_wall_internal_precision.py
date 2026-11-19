@@ -23,7 +23,7 @@ int main(){
  assert(evaluateWallModel(m.in,c,w,out,status));assert(status.residual<1.01e-8);
  std::cout<<std::setprecision(17)<<"{\"residual\":"<<status.residual<<",\"balance\":[";
  for(int j=0;j<2;++j){
-  // Recompute after storing actual public values, not from an FP64-only audit.
+
   const double matching=out.matchingSpeciesFlux[j],wall=out.wallSpeciesFlux[j],reaction=out.reactionIntegral[j];
   const double balance=double(matching)-double(wall)-double(reaction);
   assert(std::abs(balance)<1e-8);assert(std::abs(out.speciesBalanceResidual[j])<1e-8);
@@ -92,8 +92,8 @@ int main(){
   for(int zero:{-1,0,6}){double c[10];for(int i=0;i<10;++i)c[i]=i==zero?0.:.02*(i+1);
    for(int i=0;i<29;++i){double mixed,copy;assert(gasChemistryDetail::progressRate(i,T,c,tf,mf,mixed));assert(gasChemistryDetail::progressRate(i,T,c,td,md,copy));assert(mixed==copy);++checked;}}
  }
- // Independent SST arithmetic ignores the global GpuReal alias, while legacy
- // wrappers continue to call exactly the same scalar-specific formula.
+
+
  auto typed=defaultSstCoefficientsT<double>();const double f=sstF1(.5,200.,3e-5,.004,.01,typed);
  assert(std::isfinite(f));auto legacy=defaultSstCoefficients();
  assert(sstF1(GpuReal(.5),GpuReal(200),GpuReal(3e-5),GpuReal(.004),GpuReal(.01),legacy)==sstF1<GpuReal>(GpuReal(.5),GpuReal(200),GpuReal(3e-5),GpuReal(.004),GpuReal(.01),legacy));

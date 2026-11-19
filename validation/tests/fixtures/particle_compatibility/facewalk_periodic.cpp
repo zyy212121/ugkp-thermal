@@ -1,5 +1,5 @@
-// Execute unmodified production bodies on the host. Only CUDA qualifiers,
-// trap reporting and unrelated cold-wall profile initialization are adapted.
+
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>

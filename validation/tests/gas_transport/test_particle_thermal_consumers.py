@@ -157,8 +157,8 @@ int main(){
  const auto compact=materialEnthalpyMomentFromParticle<true>(s,0,100.0,300.0,0);
  assert(std::abs(live-30000000.03)<1e-8&&std::abs(compact-29999999.98)<1e-8);
  assert(materialEnthalpyMomentFromParticle<false>(old,0,100.0,300.0,0)==30000000.0);
- // These are explicitly derived caches. The persistent particle carry remains
- // authoritative alongside the double derived cell publication.
+
+
  const double cache=live;assert(cache==live&&cache>30000000.0&&s.pThermalEnthalpyResidual[0]==.0003);
 }
 '''
@@ -247,7 +247,7 @@ int main(){
  bool failed=false;try{applyParticleRadiationAffineTemperatureKernel(&state,&update);}catch(const std::runtime_error&){failed=true;}assert(failed);
  state.pThermalEnthalpyResidual[0]=.0002;state.pCellId[0]=-1;failed=false;
  try{applyParticleRadiationAffineTemperatureKernel(&state,&update);}catch(const std::runtime_error&){failed=true;}assert(failed);
- // Unconsumed inactive/stuck entries do not become new errors.
+
  state.pStatus[0]=0;applyParticleRadiationAffineTemperatureKernel(&state,&update);
  state.pStatus[0]=1;state.pStuck[0]=1;applyParticleRadiationAffineTemperatureKernel(&state,&update);
 }

@@ -2,20 +2,18 @@
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
 
 from pathlib import Path
-import re
 import pytest
 from test_mixture_state import compile_probe
 
 HERE=(VALIDATION_ROOT / 'tests/gas_transport')
 
 def fixture():
-    fields=re.findall(r'    ([\w:]+\*) (\w+)\{\};',((VALIDATION_ROOT / 'tests/gas_transport/legacy_gas_fixture.hpp')).read_text())
-    allocations='\n'.join(f's.{name}=new {ty[:-1]}[8]{{}};' for ty,name in fields)
     return r'''
+#include "gas_field_storage.hpp"
 struct State:ugkwp::GasStateView<Real,Time,ugkwp::SstCoefficients>{ugkwp::GasSpeciesState<Real,2> gasSpecies;};
 void ck(bool good,const char*message){if(!good){std::fprintf(stderr,"%s\n",message);std::abort();}}
 void initialise(State&s){
-ALLOCATE
+    allocateGasTestStorage(s,8);
 s.nCells=2;s.nFaces=3;s.nInternalFaces=1;s.gasFluxScheme=1;s.gasReconstruction=0;s.gasLimiter=0;s.gasMu=0;s.gasPrClamped=.7;s.gammaGas=1.4;s.Rgas=287;s.gasCp=1004.5;s.rhoMin=1e-12;s.TgasMin=1e-9;
 s.gasSpecies.mode=ugkwp::GasMode::MixtureFrozen;
 auto&g=s.gasSpecies;g.rho=new Real[4]{};g.initial=new Real[4]{};g.flux=new Real[6]{};g.gradX=new Real[4]{};g.gradY=new Real[4]{};g.gradZ=new Real[4]{};g.limiter=new Real[2]{};g.boundaryMassFraction=new Real[6]{};g.compositionBoundaryFixed=new int[3]{};g.positivityScale=new Real[4]{};g.soundSpeed=new Real[2]{};g.heatCapacity=new Real[2]{};g.gasConstant=new Real[2]{};g.cellStatus=new int[2]{};g.faceStatus=new int[3]{};
@@ -35,7 +33,7 @@ for(int c=0;c<2;++c){threadIdx.x=c;computeGasFluxPositivityScaleKernel(&s,dt);}
 for(int f=0;f<3;++f){threadIdx.x=f;applyGasFluxPositivityScaleKernel(&s);}
 for(int c=0;c<2;++c){threadIdx.x=c;applyGasFluxDivergenceByCellKernel(&s,dt);recoverGasPrimitivesKernel(&s);}
 }
-'''.replace('ALLOCATE',allocations)
+'''
 
 def test_actual_chain_preserves_formation_contact_temperature(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
@@ -140,8 +138,8 @@ ck(std::abs(species-Real(.3)*l.ux)<Real(1e-4),"HLL supersonic scalar upwind");}
 def test_euler_ale_uniform_state_satisfies_gcl_and_conservation(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);for(int c=0;c<2;++c){s.gasSpecies.rho[c]=.4;s.gasSpecies.rho[2+c]=.6;Real partial[2]={.4,.6};s.rhoE[c]=ugkwp::mixtureEnergy(partial,Real(700),s.gasSpecies.thermo);threadIdx.x=c;recoverGasPrimitivesKernel(&s);}
-// Two moving transmissive endpoints with a uniform state: outward sweeps sum
-// to .1 in each cell; relative advective flux exactly balances this dilation.
+
+
 s.riemannBoundaryKind[1]=s.riemannBoundaryKind[2]=0;
 Real oldV[2]={1,1},newV[2]={1.1,1.1},sweep[3]={0,.1,.1};
 s.gasGeometry.enabled=true;s.gasGeometry.oldVolume=oldV;s.gasGeometry.newVolume=newV;s.gasGeometry.faceSweptVolume=sweep;s.gasGeometry.interval=.001;s.gasGeometry.absoluteGeometryTolerance=Real(1e-7);s.gasGeometry.relativeGeometryTolerance=Real(1e-6);

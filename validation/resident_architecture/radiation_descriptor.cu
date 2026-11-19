@@ -30,8 +30,8 @@ int main(){
     input.resident={true,2,0,epsilon.data,bulkMass.data,bulkT.data,diameter.data,incident.data,nullptr,volume.data,nullptr,nullptr,producer};
     int failures=0;double maximum=0;
     for(int phase=0;phase<12;++phase){
-        // Direct sorted -> unsorted -> sorted, with buffer swaps and attached
-        // particles. A larger direct caller must invalidate cached scratch too.
+
+
         const bool sorted=phase%3!=1;auto aa=a,bb=b;if(!sorted)aa.cellOffsets=bb.cellOffsets=nullptr;
         publishResponse<<<1,1,0,producer>>>(descriptor.data,aa,bb,phase);
         input.resident.cells=phase==6?4:2;

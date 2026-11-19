@@ -11,7 +11,7 @@ source "$source_root/tool/cuda_build_flags.sh"
 cuda_arch="${UGKWP_CUDA_ARCH:-sm_89}"
 gas_species="${UGKWP_GAS_SPECIES-2}"
 build="${GAS_UGKP_BUILD:-$solver_root/private_backend/build/$WM_OPTIONS}"
-# Keep caller-relative output paths stable when wmake changes to the solver.
+
 case "$build" in
   /*) ;;
   *) build="$PWD/$build";;
@@ -34,7 +34,7 @@ ugkp_nvcc "${NVCC:-$cuda_home/bin/nvcc}" "${ugkp_cuda_flags[@]}" -std=c++17 --ex
  -c "$solver_root/private_backend/GpuResidentStrict.cu" -o "$build/GpuResidentStrict.o"
 ar rcs "$build/libugkwp_cuda_backend.a" "$build/GpuResidentStrict.o"
 cd "$solver_root"
-# Rebuild the frontend for the selected species count and typed backend ABI.
+
 rm -f "Make/$WM_OPTIONS/diluteUgkwpFoam.o" "Make/$WM_OPTIONS/diluteUgkwpFoam.C.dep"
 UGKWP_CUDA_EXE_INC="-DUGKWP_USE_CUDA -DUGKWP_GAS_SPECIES=$gas_species" \
 UGKWP_CUDA_EXE_LIBS="$build/libugkwp_cuda_backend.a -L$cuda_home/lib64 -Wl,-rpath,$cuda_home/lib64 -lcudart" wmake

@@ -81,8 +81,8 @@ def main():
     passed=passed and 'Steady sampling window ' not in text and 'Particle steady driver finished' not in text
   else:
    gas=field(d/'1/T');parcel=field(d/'1/Tp');energy=field(d/'1/rhoE')
-   # Independent constant-Cp equation for this stationary closed one-cell case.
-   # Molecular conductivity is mu*Cp/Pr, with Nu=2 at zero slip.
+
+
    cv=1000-8.31446261815324/.028;volume=.7-mass/2500
    alpha=-math.expm1(-12*(1.8e-5*1000/.7)/(2500*800*diameter**2)*2e-5)
    a=mass*800*alpha;target=(volume*cv*1000+a*10000)/(volume*cv+a)
@@ -91,8 +91,8 @@ def main():
    row['numerics']={'gas_temperature':gas,'parcel_temperature':parcel,'expected_gas':target,
                     'expected_parcel':expected_parcel,'parcel_heat_J':heat,'energy_balance_J':balance,'caloric_temperature':energy/cv}
    passed=run.returncode==0 and written==['1'] and (d/'1/steadyState.dat').exists()
-   # The ordinary EOS recovery retains its default 1e-10 relative energy
-   # tolerance. Check the more sensitive conserved caloric temperature too.
+
+
    passed=passed and abs(gas-target)<1e-7 and abs(energy/cv-target)<2e-9 and abs(parcel-expected_parcel)<1e-8 and abs(balance)<2e-9 and heat<0
   row['pass']=passed;report['cases'].append(row)
   (out/'results.json').write_text(json.dumps(report,indent=2)+'\n')

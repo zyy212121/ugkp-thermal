@@ -1,6 +1,6 @@
 
 #!/usr/bin/env python3
-# Host-only exception injection for the actual Level construction source slice.
+
 from pathlib import Path
 import argparse, subprocess, re, json
 parser=argparse.ArgumentParser();parser.add_argument('--output',type=Path,required=True)

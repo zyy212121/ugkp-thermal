@@ -23,8 +23,8 @@ int main(){PhysicsConfig p;p.spatialOrder=1;
      assert(q[c].pore[s]+out.dtLimit*out.rates[c].pore[s]>=0);
      assert(std::abs(out.rates[0].pore[s]+out.rates[1].pore[s])<1e-18);
  }
- // Deterministic donor-support property across unequal coefficients and
- // either zero-support side, including reversal of correction velocity.
+
+
  std::mt19937 random(241024);std::uniform_real_distribution<double> unit(.01,1);
  for(int trial=0;trial<300;++trial){
   dry::PoreFaceState<Ns> left,right;left.density=right.density=1;left.temperature=right.temperature=600;

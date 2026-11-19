@@ -1,6 +1,6 @@
 #pragma once
-// Included in mixtureThermalParticles after its state adapters. This common
-// reduction changes only response evaluation, never parcel publication.
+
+
 template<class State,class Team>
 struct Response {
     const State& state;int cell;double dt,volume;bool csr,split;Team team;
@@ -27,8 +27,8 @@ struct Response {
         }
         q=team.sum(q);derivative=team.sum(derivative);
         curvature=team.sum(second);lower=team.maximum(lo);upper=team.minimum(hi);
-        // A reference on a phase/clipping cut carries the original one-sided
-        // derivative. It must not seed the polynomial on the other side.
+
+
         if(!(T>lower&&T<upper)||!ugkwp::gasFinite(curvature))lower=upper=T;
         reference=T;heat=q;slope=derivative;
         return ugkwp::gasFinite(q)&&ugkwp::gasFinite(derivative)?

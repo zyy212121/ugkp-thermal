@@ -83,7 +83,7 @@ text=text.replace('S1_LAUNCH','accumulatePoissonPoolParticlesByCellKernel'+('<fa
 split_name='accumulatePoissonPoolSplitSegmentByCellKernel' if not thermal else 'accumulatePoissonPoolSplitSegmentKernel'
 flags=', false' if not thermal else ''
 text=text.replace('SPLIT_LAUNCH',split_name+'<true, false'+flags+'><<<2,block,8*block*sizeof(Real)>>>(s,dt);'+split_name+'<false, true'+flags+'><<<2,block,8*block*sizeof(Real)>>>(s,dt);')
-# gas lacks the selected-stuck counter; allocating it in the source would not compile.
+
 if not thermal:text=text.replace('*s->compactCountDevice=0;','').replace('clearPoissonThermalPoolKernel<<<1,32>>>(s);','clearPoissonThermalPoolKernel<<<1,32>>>(s,dt);')
 f=W/'02-tests'/f'collision-{kind}-{app}-{64}.cu';f.write_text(text);exe=W/'03-build'/f'collision-{kind}-{app}-{64}'
 cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if app=='CHT' else 'true'),'-I'+str(src.parent),'-I'+str(r/'common'),'-I'+str(r/'applications'/app/'gpu'),str(f),'-o',str(exe)]

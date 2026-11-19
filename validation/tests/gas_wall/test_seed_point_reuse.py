@@ -83,6 +83,6 @@ def test_seed_reuse_preserves_state_and_failure_writes(seed_probe,ns,nodes,sst,r
 def test_immutable_seed_thermodynamics_is_constructed_once(seed_probe,ns,nodes):
     r=observe(seed_probe,ns,nodes,1,0,0)
     assert r['ok']==1,r
-    # One initial wall point, n first-sweep nodes and two first interval endpoints.
+
     assert r['calls']==nodes+3,r
     assert r['calls']<r['reference_calls'],r

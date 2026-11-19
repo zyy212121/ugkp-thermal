@@ -1,4 +1,4 @@
-// Include after resident helper definitions, outside the anonymous namespace.
+
 extern "C" int ugkwpGpuResidentStrictConfigureMolecularTransport(
     void* handle,const ugkwp::MolecularTransportConfiguration* config){
     DeviceState* s=asState(handle);

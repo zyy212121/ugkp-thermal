@@ -36,10 +36,10 @@ int main() {
     assert(ugkwp::invertCaloricEnergy(Condensed{},1e12,200.,2000.,controls,T)==ugkwp::ThermoStatus::Success);
     double U,C;Condensed{}(T,U,C);assert(std::abs(U-1e12)<100);
     assert(ugkwp::invertCaloricEnergy(Invalid{},0.,200.,2000.,controls,T)==ugkwp::ThermoStatus::Success);
-    assert(T==200); // An actually evaluated endpoint already has the target energy.
+    assert(T==200);
     controls.maximumIterations=1;T=456;
     assert(ugkwp::invertCaloricEnergy(Condensed{},-1e6,200.,2000.,controls,T)==ugkwp::ThermoStatus::Success);
-    assert(T==456); // Not the next unevaluated Newton proposal.
+    assert(T==456);
     controls.maximumIterations=100;controls.minTemperature=800;
     assert(ugkwp::invertCaloricEnergy(Condensed{},-1.5e6,200.,2000.,controls,T)==ugkwp::ThermoStatus::Success);
     Condensed{}(T,U,C);assert(std::abs(U+1.5e6)<1e-3);

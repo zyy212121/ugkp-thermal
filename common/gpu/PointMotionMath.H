@@ -6,8 +6,8 @@
 #define UGKP_MOTION_HD
 #endif
 namespace ugkp { namespace gpu { namespace geometry {
-// Soft normal-height constraints augment the harmonic Dirichlet energy.
-// The matrix is positive semidefinite; physical boundary points remain exact.
+
+
 struct MotionPenalty {
     double xx=0,xy=0,xz=0,yy=0,yz=0,zz=0;
     Point rhs{};
@@ -19,7 +19,7 @@ UGKP_MOTION_HD inline void addNormalHeight(MotionPenalty& p,Point n,double displ
     p.rhs+=n*(w*displacement);
 }
 UGKP_MOTION_HD inline Point motionUpdate(Point neighbourSum,double harmonicWeight,const MotionPenalty& p) {
-    // Cholesky of harmonicWeight*I + sum(w*n*n^T). No determinant cancellation.
+
     const double l00=::sqrt(harmonicWeight+p.xx),l10=p.xy/l00,l20=p.xz/l00;
     const double l11=::sqrt(harmonicWeight+p.yy-l10*l10),l21=(p.yz-l20*l10)/l11;
     const double l22=::sqrt(harmonicWeight+p.zz-l20*l20-l21*l21);

@@ -4,6 +4,7 @@
 #define CHMT_CONFIGURATION_COUPLINGINPUT_H
 #include "configuration/MultirateIO.H"
 #include "configuration/SharedPhasePhysics.H"
+#include "configuration/SharedInputLayout.H"
 #include "configuration/SolverControls.H"
 #include "../../../common/FoamGasSolverControls.H"
 #include "io/MeshIO.H"
@@ -23,6 +24,7 @@ struct CoupledCaseInput {
     Foam::GasNumericsConfiguration gasNumerics;
     ModelConfig model;
     HostState state;
+    ugkp::solverControls::GasTimeStepControls gasTime;
     CouplingControls coupling;
     ugkp::thermal::CouplingSchedule thermalSchedule{0,1,false};
     CpuMaterialControls material;
@@ -36,11 +38,11 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     Foam::IOdictionary solidProperties(Foam::IOobject("solidRegionProperties",time.constant(),time,
         Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE,false));
     const auto& sharedCoupling=solidProperties.subDict("solidThermalCoupling");
-    const Foam::word gasRegion(text(sharedCoupling,"gasRegion",Foam::polyMesh::defaultRegion));
-    const Foam::word solidRegion(text(sharedCoupling,"solidRegion"));
-    Foam::dictionary surface;
-    surface.set("patch",Foam::word(text(sharedCoupling,"solidPatch")));
-    surface.set("gasPatch",Foam::word(text(sharedCoupling,"fluidPatch")));
+    const Foam::word gasRegion(text(sharedCoupling,"gasRegion",text(d,"gasRegion",Foam::polyMesh::defaultRegion)));
+    const Foam::word solidRegion(sharedCoupling.found("solidRegion")?text(sharedCoupling,"solidRegion"):text(d,"solidRegion"));
+    const Foam::dictionary surface=coupledSurfaceInput(d,sharedCoupling);
+    candidate.gasMesh.reset(new Foam::fvMesh(Foam::IOobject(gasRegion,time.timeName(),time,Foam::IOobject::MUST_READ)));
+    candidate.solidMesh.reset(new Foam::fvMesh(Foam::IOobject(solidRegion,time.timeName(),time,Foam::IOobject::MUST_READ)));
     Foam::dictionary interfaceInput(d);
     interfaceInput.set("surface",surface);
     ugkp::solverControls::applyGasSolverControlOverrides(gasProperties,time,gasRegion);
@@ -70,22 +72,32 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
         GravityScalar(gravityField.value().x()),
         GravityScalar(gravityField.value().y()),
         GravityScalar(gravityField.value().z())};
-    Foam::IOdictionary fluidProperties(Foam::IOobject("fluidProperties",time.constant(),time,
-        Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE,false));
+    Foam::IOdictionary fluidProperties(regionalInputObject("fluidProperties",time,*candidate.gasMesh,Foam::IOobject::MUST_READ));
     const auto& fluidMixture=fluidProperties.subDict("mixture");
     const auto& fluidTransport=fluidMixture.subDict("transport");
-    candidate.model.physics.gasViscosity=readNumber(fluidTransport,"mu",0);
-    candidate.model.physics.gasConductivity=readNumber(fluidTransport,"kappa",0);
+    candidate.model.physics.gasViscosity=readPhysical(fluidTransport,"mu");
+    if(fluidTransport.found("kappa"))candidate.model.physics.gasConductivity=readPhysical(fluidTransport,"kappa");
+    else if(d.found("gasConductivity"))candidate.model.physics.gasConductivity=readPhysical(d,"gasConductivity");
+    else{
+        const auto prandtl=readPhysical(fluidTransport,"Pr");
+        require(std::isfinite(prandtl)&&prandtl>0,"fluid transport requires positive Pr");
+        candidate.model.physics.gasConductivity=candidate.model.physics.gasViscosity
+            *readPhysical(fluidMixture.subDict("thermodynamics"),"Cp")/prandtl;
+    }
+    require(std::isfinite(candidate.model.physics.gasViscosity)&&candidate.model.physics.gasViscosity>=0
+        &&std::isfinite(candidate.model.physics.gasConductivity)&&candidate.model.physics.gasConductivity>=0,
+        "fluid transport requires finite nonnegative viscosity and conductivity");
 
 
     Foam::IOdictionary scheduling(Foam::IOobject("schedulingProperties",time.constant(),time,
         Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE,false));
     const auto plan=Foam::readGpuSchedulingConfiguration(scheduling);
-    Foam::IOdictionary momentum(Foam::IOobject("momentumTransport",time.constant(),time,
+    Foam::IOdictionary rawParticlePhysics(Foam::IOobject("particleProperties",time.constant(),time,
         Foam::IOobject::READ_IF_PRESENT,Foam::IOobject::NO_WRITE,false));
-    Foam::IOdictionary particlePhysics(Foam::IOobject("particleProperties",time.constant(),time,
-        Foam::IOobject::READ_IF_PRESENT,Foam::IOobject::NO_WRITE,false));
-    readSharedPhasePhysics(candidate.model,momentum,particlePhysics,!plan.pureGasOnly);
+    const auto particlePhysics=sharedParticleInput(rawParticlePhysics);
+    const auto momentumInput=ugkp::solverControls::readMomentumTransport(time,*candidate.gasMesh,fluidProperties,&d);
+    readSharedPhasePhysics(candidate.model,momentumInput,particlePhysics,!plan.pureGasOnly);
+
 
     auto& particlePlan=candidate.model.particlePhase;
     particlePlan.capacity=plan.particleCapacity;
@@ -97,12 +109,13 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     particlePlan.reductionBlockThreads=plan.reductionBlockThreads;
     particlePlan.warpAggregatedBinning=plan.warpAggregatedBinning;
 
-    readModelSolverControls(candidate.model,time,gasRegion,solidRegion);
+    readModelSolverControls(candidate.model,time,gasRegion,solidRegion,candidate.gasTime);
     {
         auto names=candidate.gasModel.speciesNames;
         if(candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy)
             names={candidate.model.speciesNames[candidate.model.physics.singleGasSpecies]};
-        const auto transport=Foam::readFoamMolecularTransport(time,time,
+        const auto transportObject=regionalInputObject("gasTransportProperties",time,*candidate.gasMesh,Foam::IOobject::READ_IF_PRESENT);
+        const auto transport=Foam::readFoamMolecularTransport(time,transportObject.db(),
             candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy?std::vector<std::string>{}:names);
         if(candidate.model.physics.gasMode==ugkwp::GasMode::SingleLegacy&&!transport.speciesNames.empty()&&transport.speciesNames!=names)
             throw std::runtime_error("molecular transport species must match the active legacy gas");
@@ -129,8 +142,6 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
         candidate.model.physics.gasMechanismFingerprint=candidate.gasMechanism.mechanismHash;
         candidate.model.gasMechanismSourceSha256=candidate.gasMechanism.sourceSha256;
     }
-    candidate.gasMesh.reset(new Foam::fvMesh(Foam::IOobject(gasRegion,time.timeName(),time,Foam::IOobject::MUST_READ)));
-    candidate.solidMesh.reset(new Foam::fvMesh(Foam::IOobject(solidRegion,time.timeName(),time,Foam::IOobject::MUST_READ)));
     candidate.gasNumerics=Foam::readGasNumericsConfiguration(ugkp::solverControls::readGasNumericsDictionary(time,gasRegion));
     auto& state=candidate.state;state.time=time.value();state.radiationTime=state.time;
     state.gasMesh=importMesh(*candidate.gasMesh,solidProperties);

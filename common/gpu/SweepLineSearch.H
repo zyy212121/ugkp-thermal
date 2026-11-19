@@ -14,16 +14,16 @@ struct SweepLineSearchView {
     const Point* points=nullptr;
     const SweepLineSearchStatus* status=nullptr;
 };
-// Finds the next native Armijo candidate. Geometry certification may reject it
-// and resume the same fixed-target search. The origin/correction must remain
-// immutable until acceptance; this owner never commits a trial to either.
+
+
+
 class ResidentSweepLineSearch {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:
     ResidentSweepLineSearch(int points,ResidentSweepResidual&);
     ~ResidentSweepLineSearch();
     SweepLineSearchView view()const;
-    ExecutionGraphNode appendTo(ExecutionGraph,ExecutionGraphNode,const SweepLineSearchProblem*,bool restart=true);
+    ExecutionGraphNode appendTo(ExecutionGraph,ExecutionGraphNode,const SweepLineSearchProblem*,bool restart=true,const int* deviceRestart=nullptr);
     void begin(const SweepLineSearchProblem*,void* stream=nullptr);
     void resume(void* stream=nullptr);
 };

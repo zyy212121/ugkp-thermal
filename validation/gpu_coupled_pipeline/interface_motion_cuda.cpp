@@ -1,5 +1,5 @@
 #include "interface_motion_probe.H"
-#include "mesh/Geometry.C" // independent frozen native scalar route
+#include "mesh/Geometry.C"
 #define main historicalGeometryMain
 #include "../solvers/CHMT/devtools/multirate/test_sweep_constraints.cpp"
 #undef main

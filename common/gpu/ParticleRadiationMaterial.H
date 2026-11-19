@@ -7,6 +7,7 @@
 #include "RadiationResidentView.H"
 #include "DiscreteOrdinateRadiation.H"
 #include <memory>
+#include <future>
 #include <vector>
 namespace ugkp { namespace gpu {
 struct ParticleRadiationMaterialInput {
@@ -30,11 +31,20 @@ public:
     explicit ParticleRadiationMaterial(const MieOpticalTable&,const ParticleRadiationSolveControls& controls={});
     ~ParticleRadiationMaterial();
     RadiationThermalCouplingDeviceView beginAnchoredWindow(const ParticleRadiationMaterialInput&);
+    RadiationThermalCouplingDeviceView prepareParentWindow(const ParticleRadiationMaterialInput&,const double* deviceElapsed);
+    ExecutionGraphNode appendWindowStartTo(ExecutionGraph,ExecutionGraphNode dependency=nullptr);
+    ExecutionGraphNode appendWindowFinishTo(ExecutionGraph,ExecutionGraphNode,const RadiationDeviceView&);
+    RadiationMaterialDeviceView deviceView()const noexcept;
+    void acceptExternalCompletion(const std::shared_future<void>&);
+    void acceptExternalExecution(void* producerStream);
+    void awaitCompletion()const;
+    void* producerStream()const noexcept;
     ExecutionGraphNode appendAnchoredIteration(ExecutionGraph,ExecutionGraphNode,void*,const RadiationThermalIterationDeviceView&);
     ParticleRadiationMaterialResult finishAnchoredWindow(const RadiationDeviceView&,bool exportFields=true);
     ParticleRadiationMaterialResult solve(const ParticleRadiationMaterialInput&,bool exportFields=true);
     ParticleRadiationMaterialResult collect();
     ParticleRadiationMaterialResult collectBoundaryEnergy();
+    RadiationReal collectEscapedEnergy();
 };
 }}
 #endif

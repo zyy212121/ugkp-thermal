@@ -32,7 +32,7 @@ int main()
     const std::array<double, 1> solidC{{1500}};
     const std::array<double, 3> gasC{{0.2, 0.1, 0.7}};
 
-    // C(s) + O -> CO; gas slots O, CO, inert. Synthetic rates, real mass ratios.
+
     std::array<d::SurfaceMassAction<1, 3>, 1> reactions{};
     auto& oxidation = reactions[0];
     oxidation.prefactor = 10;
@@ -44,7 +44,7 @@ int main()
     near(production.gas[0], -0.032, "oxidant signed consumption");
     near(production.gas[1], 0.056, "product production");
     near(production.massResidual, 0, "reaction total mass");
-    // Independent element accounting, not just total-mass summation.
+
     near(production.condensed[0] + production.gas[1]*(12.0/28), 0, "carbon balance");
     near(production.gas[0] + production.gas[1]*(16.0/28), 0, "oxygen balance");
 
@@ -72,8 +72,8 @@ int main()
     near(flux.condensedConsumption[0]-solid[0].density*0.75*flux.recessionSpeed,
         0, "single char front constituent compatibility");
 
-    // Physical-area rates are invariant under an external reference-area
-    // representation. The constitutive core must not apply the area ratio twice.
+
+
     constexpr double physicalArea = 2, referenceArea = 5;
     auto remapped = production;
     for (double& x : remapped.condensed) x *= physicalArea/referenceArea;
@@ -83,8 +83,8 @@ int main()
     near(d::congruentDryInterfaceFlux(remapped, pore, solid, 0.25).recessionSpeed,
         flux.recessionSpeed, "reference area converted before constitutive call");
 
-    // A congruent two-solid front: both constituent supplies independently
-    // match their consumed amounts. Selective recession is not this model.
+
+
     std::array<d::CondensedThermo, 2> mixedSolid{{solid[0], solid[0]}};
     mixedSolid[1].density = 1000;
     constexpr double prescribedRecession = 2e-5;
@@ -147,8 +147,8 @@ int main()
     near(balance.materialEnergy, expectedMaterial, "material incoming energy");
     near(balance.residual, expectedGas-expectedMaterial-50, "energy residual");
 
-    // Shifting every specific energy by the same constant changes neither the
-    // interface residual nor chemistry heat when total mass is conserved.
+
+
     auto shiftedSolid = solid;
     auto shiftedGas = gas;
     auto shiftedPore = pore;
@@ -170,8 +170,8 @@ int main()
     near(d::dryEnergyBalance(flux, pore, elementalSolid, elementalGas, energy).residual,
         balance.residual, "independent carbon/oxygen energy-reference invariance");
 
-    // Analytic nonporous sublimation limit: required heat = m*(h_g-h_s),
-    // with h_s=e_s+p/rho_s. This catches double-counted moving-face p work.
+
+
     d::SurfaceProduction<1, 3> sublimation{};
     sublimation.condensed[0] = -0.02;
     sublimation.gas[0] = 0.02;
@@ -185,8 +185,8 @@ int main()
     near(d::dryEnergyBalance(sublimationFlux, emptyPore, solid, gas, latent).residual,
         0, "sublimation latent heat");
 
-    // Zero net species transport can still exchange energy with different
-    // counterflow donor states. Never infer energy by dividing net mass flux.
+
+
     auto counterflow = emptyPore;
     counterflow.transport[2] = 0;
     counterflow.transportEnergy[2] = 0.1*(gas.enthalpy(2, 900)-gas.enthalpy(2, 800));
@@ -197,8 +197,8 @@ int main()
     near(d::dryEnergyBalance(counterFlux, counterflow, solid, gas, neutral).residual,
         -9000, "counterflow energy survives cancellation");
 
-    // Recession exposes pore inventory: its energy is e, not h. The pressure
-    // correction for both solid and pore swept volume is supplied only once.
+
+
     auto porousSweep = emptyPore;
     constexpr double phi = 0.25, poreRho = 2;
     auto sweptFlux = d::congruentDryInterfaceFlux(sublimation, porousSweep, solid, phi);
@@ -211,9 +211,9 @@ int main()
     near(d::dryEnergyBalance(sweptFlux, porousSweep, solid, gas, latent).residual,
         0, "porous swept pressure cancellation", 1e-10);
 
-    // Separate O/O2/inert fixture, 2 O -> O2 (NOT the earlier O/CO fixture).
-    // Catalysis transports species but neither removes material nor creates
-    // net blowing; formation enthalpy differences supply the reaction heat.
+
+
+
     GasThermo catalyticGas;
     catalyticGas.formation = {{1.5e7, 0, 0}};
     d::SurfaceProduction<1, 3> catalytic{};

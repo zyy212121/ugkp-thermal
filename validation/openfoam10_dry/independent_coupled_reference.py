@@ -25,7 +25,7 @@ def reference(n):
   donor=np.where(u>=0,np.arange(n+1),np.arange(1,n+2))
   adv=u*rf[donor];j=-.003*.5*(rf[:-1]+rf[1:])*np.diff(yf)/dist
   f0=adv*yf[donor]+j;f1=adv*(1-yf[donor])-j
-  # h0=200000+1000T, h1=100000+1000T, diffusion h0-h1=100000.
+
   fe=adv*(100000+100000*yf[donor]+1000*Tf[donor])+100000*j
   kface=np.r_[k[0],.5*(k[:-1]+k[1:]),k[-1]]
   fe-=kface*np.diff(Tf)/dist

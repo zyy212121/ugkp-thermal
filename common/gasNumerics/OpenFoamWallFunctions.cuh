@@ -145,8 +145,8 @@ UGKP_WALL_HD GpuReal spaldingReynoldsRatio
     return (uPlus/reynolds)*uPlus + (uPlus/E)*remainderOverRe;
 }
 
-// The law coordinate y and the patch-normal velocity gradient are distinct
-// geometric quantities (nutUSpaldingWallFunction, OpenFOAM Foundation v14).
+
+
 UGKP_WALL_HD SpaldingWallState spaldingWallStateFromNormalGradient
 (
     const GpuReal velocityDifference,
@@ -172,8 +172,8 @@ UGKP_WALL_HD SpaldingWallState spaldingWallStateFromNormalGradient
     const GpuReal y = maximum(wallDistance, rootVSmall);
     const GpuReal nu = maximum(kinematicViscosity, rootVSmall);
     const GpuReal magGradU = maximum(velocityNormalGradient, GPU_R(0.0));
-    // One bracketed root solve for every nonzero velocity. No Newton attempt
-    // followed by a residual-triggered replacement solver.
+
+
     GpuReal uTau=GPU_R(0);
     if(up>rootVSmall){
         const GpuReal reynolds=up*y/nu,logReynolds=log(reynolds);
@@ -219,7 +219,7 @@ UGKP_WALL_HD SpaldingWallState spaldingWallStateFromNormalGradient
     return SpaldingWallState{uTau, yPlus, nut};
 }
 
-// Backward-compatible orthogonal specialization for callers with y=1/delta.
+
 UGKP_WALL_HD SpaldingWallState spaldingWallState
 (
     const GpuReal velocityDifference,
@@ -327,8 +327,8 @@ UGKP_WALL_HD GpuReal jayatillekeSmoothP(const GpuReal Prat)
        *(GPU_R(1.0) + GPU_R(0.28)*exp(-GPU_R(0.007)*ratio));
 }
 
-// No matching root is an undefined model value, not a zero wall coordinate.
-// The optional context lets production callers retain the exact root site.
+
+
 UGKP_WALL_HD GpuReal jayatillekeThermalYPlus
 (
     const GpuReal Prat,
@@ -349,7 +349,7 @@ UGKP_WALL_HD GpuReal jayatillekeThermalYPlus
         return nan;
     }
     const GpuReal P=jayatillekeSmoothP(Prat);
-    // x=kappa*Prat*y gives x-log(x)=A. Its outer root has x>=1.
+
     const GpuReal A=log(E)-log(kappa)-log(Prat)+kappa*P;
     if(!std::isfinite(A)||A<GPU_R(1)){
         if(diagnostics)recordFatal(diagnostics,makeRecord(!std::isfinite(A)?Code::NonFinite:Code::InvalidPhysicalState,
@@ -357,7 +357,7 @@ UGKP_WALL_HD GpuReal jayatillekeThermalYPlus
         return nan;
     }
     GpuReal lower=GPU_R(1);
-    // For A>=1, A+log(A)+2 brackets the outer root analytically.
+
     GpuReal upper=maximum(GPU_R(2),A+log(A)+GPU_R(2));
     GpuReal x=upper,residual=0,tolerance=0;
     for(int iteration=0;iteration<maxIterations;++iteration){
@@ -377,7 +377,7 @@ UGKP_WALL_HD GpuReal jayatillekeThermalYPlus
     if(fabs(residual)>tolerance)
         recordWarning(diagnostics,makeRecord(Code::AccuracyResidual,2823,32,0,EntityKind::Face,entity,-1,residual,tolerance,x,Quantity::Accuracy));
     const GpuReal denominator=kappa*Prat;
-    // Select the algebraic evaluation by scaling before division, not by retry.
+
     const GpuReal yPlus=std::isfinite(denominator)&&denominator>0?x/denominator:exp(log(x)-log(kappa)-log(Prat));
     if(!std::isfinite(yPlus)||yPlus<=0){
         if(diagnostics)recordFatal(diagnostics,makeRecord(!std::isfinite(yPlus)?Code::NonFinite:Code::InvalidPhysicalState,

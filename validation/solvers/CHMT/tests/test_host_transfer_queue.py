@@ -45,22 +45,22 @@ int main(){
  int device=0,output=-1;
  {int source=17;assert(queue.upload(&device,&source,1));source=91;}
  assert(device==0);assert(queue.download(&output,&device,1));assert(output==-1);
- // An unrelated owner's work must remain pending at this completion point.
+
  int other=0,otherSource=32;pending.push_back({&other,&otherSource,sizeof(int),reinterpret_cast<void*>(2)});
  assert(queue.finish());assert(device==17&&output==17&&other==0&&waits==1);
  const int allocations=pinnedAllocations;
  int source=28;assert(queue.upload(&device,&source,1));assert(queue.download(&output,&device,1));
  assert(queue.finish());assert(output==28&&pinnedAllocations==allocations);
- // A failed submission drains earlier copies without publishing partial reads.
+
  output=-7;assert(queue.download(&output,&device,1));failCopy=1;
  assert(!queue.download(&output,&device,1));assert(!queue.finish());assert(output==-7);
  assert(queue.download(&output,&device,1));assert(queue.finish());assert(output==28);
- // Destructor completes DMA but never writes into an unwound destination.
+
  int untouched=-9;
  {chmt::HostTransferQueue abandoned(fault);abandoned.bindStream(expectedStream);
   assert(abandoned.download(&untouched,&device,1));}
  assert(untouched==-9&&other==0);
- // Explicit stream initialization and batched diagnostics snapshot consumption.
+
  ugkp::diagnostics::GpuOwner diagnostics;assert(diagnostics.initialise(expectedStream)==cudaSuccess);
  ugkp::diagnostics::DeviceContext snapshot{};
  assert(queue.download(&snapshot,diagnostics.device(),1));assert(queue.finish());

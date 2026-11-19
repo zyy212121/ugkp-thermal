@@ -12,12 +12,12 @@ struct WallMatchingDeviceView {
     const ugkwp::gaswall::WallMatchingGeometry* geometry=nullptr;
     const ugkwp::gaswall::WallMatchingStatus* status=nullptr;
 };
-// Shares the mesh owner's immutable device face topology. Initialization owns
-// classification masks, canonical cell-face CSR and polygon scratch. Mutable
-// point/cell geometry and optional classification updates are borrowed from
-// device producers; execution allocates, transfers and synchronizes nothing.
-// This component provides ray anchors and signed owner moments. Reconstructed
-// FV weights and optional positive quadrature remain separate consumers.
+
+
+
+
+
+
 class ResidentWallMatching {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:

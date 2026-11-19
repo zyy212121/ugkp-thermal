@@ -1,6 +1,7 @@
 #include "FoamGasNumericsControls.H"
 #include "FoamSolverScheme.H"
 #include "FoamGasTimeStepControls.H"
+#include "FoamMomentumTransportInput.H"
 #include "FoamParticleSolverControls.H"
 #include "FoamGasSteadyControls.H"
 #include "gasNumerics/FoamGasScalarSolverControls.H"
@@ -13,7 +14,8 @@
 #include "uniformDimensionedFields.H"
 #include "gasTransport/GasNumericsIO.H"
 #include "ProgressLogging.H"
-#include "FoamPrecisionIO.H"
+#include "FoamGasOutput.H"
+#include "FoamPhysicalAdvanceTime.H"
 
 #ifndef UGKWP_USE_CUDA
 #error gasUGKP must be built with UGKWP_USE_CUDA; use private_backend/build_private_backend.sh
@@ -31,23 +33,20 @@ using namespace Foam;
 
 namespace
 {
-#ifdef UGKWP_USE_CUDA
 inline bool finiteScalar(const scalar x)
 {
     return std::isfinite(x);
 }
-#else
-inline bool finiteScalar(const scalar x)
-{
-    return std::isfinite(x);
-}
-#endif
 }
 
 int main(int argc, char *argv[])
 {
     #include "setRootCase.H"
+#ifdef UGKWP_STEADY_APPLICATION
     #include "createTime.H"
+#else
+    ugkp::gpu::PhysicalAdvanceTime runTime(Time::controlDictName,args);
+#endif
     (void)ugkp::solverControls::startupScheme(runTime);
 
     Info<< "GPU precision=" << ugkp::precision::compiledBits << " (fixed at startup)" << nl;
@@ -77,8 +76,8 @@ int main(int argc, char *argv[])
             << " wallKappa=" << sstWallKappa
             << " wallE=" << sstWallE
             << " wallCmu=" << sstWallCmu
-            << "; kMin=" << sstKMin
-            << " omegaMin=" << sstOmegaMin
+            << "; kMin=" << sstCoefficients.minimumK
+            << " omegaMin=" << sstCoefficients.minimumOmega
             << nl;
     }
 
@@ -108,9 +107,9 @@ int main(int argc, char *argv[])
 
         const label gpuResidentMaxFaceWalkHops =
             gpuScheduling.maxFaceWalkHops;
+#ifndef UGKWP_STEADY_APPLICATION
         const auto gasTimeStepControls=ugkp::solverControls::readGasTimeStepControls(runTime,mesh.name());
-        const label gpuResidentCourantUpdateInterval=gasTimeStepControls.courantUpdateInterval;
-        const scalar gpuResidentMaxDeltaTGrowth=gasTimeStepControls.maximumTimeStepGrowth;
+#endif
 
         const scalar epsSMinStrict =
             ugkwpProps.lookupOrDefault<scalar>("epsSMin", 1.0e-12);
@@ -175,20 +174,20 @@ int main(int argc, char *argv[])
                 k,
                 omega,
                 *sstWallDistancePtr,
-                sstAlphaK1,
-                sstAlphaK2,
-                sstAlphaOmega1,
-                sstAlphaOmega2,
-                sstBeta1,
-                sstBeta2,
-                sstBetaStar,
-                sstGamma1,
-                sstGamma2,
-                sstA1,
+                sstCoefficients.sigmaK1,
+                sstCoefficients.sigmaK2,
+                sstCoefficients.sigmaOmega1,
+                sstCoefficients.sigmaOmega2,
+                sstCoefficients.beta1,
+                sstCoefficients.beta2,
+                sstCoefficients.betaStar,
+                sstCoefficients.gamma1,
+                sstCoefficients.gamma2,
+                sstCoefficients.a1,
                 sstB1,
-                sstC1,
-                sstKMin,
-                sstOmegaMin,
+                sstCoefficients.productionLimit,
+                sstCoefficients.minimumK,
+                sstCoefficients.minimumOmega,
                 sstWallTreatment,
                 sstWallKappa,
                 sstWallE,
@@ -196,9 +195,6 @@ int main(int argc, char *argv[])
             );
         };
 
-        const bool adjustTimeStep = gasTimeStepControls.adjustTimeStep;
-        const scalar maxCo = gasTimeStepControls.maxCo;
-        const scalar maxDeltaT = gasTimeStepControls.maxDeltaT;
 
         if (gpuResidentPureGasOnly)
         {
@@ -239,61 +235,19 @@ int main(int argc, char *argv[])
             resident.configureBoundaryLayer(boundaryLayerInput, runTime, mesh, Tgas);
 
 
-            scalar lastMeasuredCo = scalar(0);
-            label stepsSinceCourant = gpuResidentCourantUpdateInterval;
 
 #ifdef UGKWP_STEADY_APPLICATION
             #include "../gasUGKPSteady/steadyGasLoop.H"
 #else
+            const auto advanceControls=runTime.advanceControls(gasTimeStepControls);
+            resident.configureAdvance(runTime.initialAdvance(advanceControls),true);
+            bool advancePending=false;
             while (runTime.run())
             {
-
-                const bool courantRefreshDue =
-                    adjustTimeStep
-                 && stepsSinceCourant >= gpuResidentCourantUpdateInterval;
-                if (courantRefreshDue)
-                {
-                    const scalar oldDt = runTime.deltaTValue();
-                    lastMeasuredCo = resident.computeGasCourant
-                    (
-                        oldDt,
-                        runTime.value() + oldDt
-                    );
-                    if (lastMeasuredCo > SMALL)
-                    {
-                        const scalar requestedDt =
-                            oldDt*maxCo/max(lastMeasuredCo, SMALL);
-                        const scalar growthLimitedDt =
-                            min(requestedDt, oldDt*gpuResidentMaxDeltaTGrowth);
-                        runTime.setDeltaT(min(growthLimitedDt, maxDeltaT));
-                    }
-                    stepsSinceCourant = 1;
-                }
-                else
-                {
-                    stepsSinceCourant = min
-                    (
-                        stepsSinceCourant + 1,
-                        gpuResidentCourantUpdateInterval
-                    );
-                }
-
-                if (sharedGasModel.active())
-                {
-                    // A requested mixture interval must commit completely before
-                    // the physical clock advances or any write can be published.
-                    resident.advanceOneStep(runTime.deltaTValue(), runTime.value());
-                    runTime++;
-                }
-                else
-                {
-                    runTime++;
-                    resident.advanceOneStep
-                    (
-                        runTime.deltaTValue(),
-                        runTime.value()
-                    );
-                }
+                const auto request=runTime.advanceBoundary(advanceControls,progressLogInterval);
+                if(!advancePending)resident.enqueueAdvance(request);
+                const auto completed=resident.collectAdvance(&runTime);advancePending=false;
+                runTime.publishAdvance(completed);
 
                 if
                 (
@@ -309,37 +263,16 @@ int main(int argc, char *argv[])
 
                 if (runTime.writeTime())
                 {
-                    ugkp::precision::ScopedRestartWritePrecision writePrecision;
-                    ugkp::precision::beginPrecisionWrite(runTime.timePath().c_str());
-                    resident.downloadToHostMirror
-                    (
-                        runTime,
-                        rho,
-                        rhoU,
-                        rhoE,
-                        U,
-                        p,
-                        Tgas
-                    );
-                    resident.downloadSharedGasSpecies(sharedGasModel, rho);
-                    resident.writeBoundaryLayerDiagnostics(boundaryLayerInput, runTime);
-                    if (gasTurbulenceModel == 3)
-                    {
-                        resident.downloadSstToHostMirror
-                        (
-                            runTime,
-                            k,
-                            omega,
-                            nut
-                        );
-                    }
-                    else
-                    {
-                        resident.downloadNutToHostMirror(runTime, nut);
-                    }
-
-                    if (runTime.write())
-                        ugkp::precision::writeRestartPrecision(runTime.timePath().c_str());
+                    ugkp::gpu::writeGasOutput(runTime,false,[&]{
+                        resident.downloadToHostMirror(runTime,rho,rhoU,rhoE,U,p,Tgas);
+                        resident.downloadSharedGasSpecies(sharedGasModel,rho);
+                        resident.writeBoundaryLayerDiagnostics(boundaryLayerInput,runTime);
+                        ugkp::gpu::mirrorGasTurbulence(resident,runTime,gasTurbulenceModel,k,omega,nut);
+                        return []{};
+                    },[&]{
+                        resident.enqueueAdvance(runTime.advanceBoundary(advanceControls,progressLogInterval));
+                        advancePending=true;
+                    },[]{return true;});
                 }
             }
 
@@ -414,53 +347,20 @@ int main(int argc, char *argv[])
         );
         configureResidentSst(resident);
 
-        scalar lastMeasuredCo = scalar(0);
         resident.configureMolecularTransport(molecularTransport.config());
-        label stepsSinceCourant = gpuResidentCourantUpdateInterval;
 
 #ifdef UGKWP_STEADY_APPLICATION
         #include "../gasUGKPSteady/steadyParticleLoop.H"
 #else
+        const auto advanceControls=runTime.advanceControls(gasTimeStepControls);
+        resident.configureAdvance(runTime.initialAdvance(advanceControls),false);
+        bool advancePending=false;
         while (runTime.run())
         {
-
-            const bool courantRefreshDue =
-                adjustTimeStep
-             && stepsSinceCourant >= gpuResidentCourantUpdateInterval;
-            if (courantRefreshDue)
-            {
-                const scalar oldDt = runTime.deltaTValue();
-                lastMeasuredCo = resident.computeGasCourant
-                (
-                    oldDt,
-                    runTime.value() + oldDt
-                );
-                if (lastMeasuredCo > SMALL)
-                {
-                    const scalar requestedDt =
-                        oldDt*maxCo/max(lastMeasuredCo, SMALL);
-                    const scalar growthLimitedDt =
-                        min(requestedDt, oldDt*gpuResidentMaxDeltaTGrowth);
-                    runTime.setDeltaT(min(growthLimitedDt, maxDeltaT));
-                }
-                stepsSinceCourant = 1;
-            }
-            else
-            {
-                stepsSinceCourant = min
-                (
-                    stepsSinceCourant + 1,
-                    gpuResidentCourantUpdateInterval
-                );
-            }
-
-            runTime++;
-
-            resident.advanceOneStep
-            (
-                runTime.deltaTValue(),
-                runTime.value()
-            );
+            const auto request=runTime.advanceBoundary(advanceControls,progressLogInterval);
+            if(!advancePending)resident.enqueueAdvance(request);
+            const auto completed=resident.collectAdvance(&runTime);advancePending=false;
+            runTime.publishAdvance(completed);
 
             if
             (
@@ -476,47 +376,15 @@ int main(int argc, char *argv[])
 
             if (runTime.writeTime())
             {
-                ugkp::precision::ScopedRestartWritePrecision writePrecision;
-                ugkp::precision::beginPrecisionWrite(runTime.timePath().c_str());
-                resident.downloadToHostMirror
-                (
-                    runTime,
-                    rho,
-                    rhoU,
-                    rhoE,
-                    U,
-                    p,
-                    Tgas,
-                    epsS,
-                    rhoUs,
-                    rhoEs,
-                    rhoDs,
-                    rhoHp,
-                    Us,
-                    theta,
-                    Tp,
-                    dMeanCell
-                );
-                resident.downloadSharedGasSpecies(sharedGasModel,rho);
-                if (gasTurbulenceModel == 3)
-                {
-                    resident.downloadSstToHostMirror
-                    (
-                        runTime,
-                        k,
-                        omega,
-                        nut
-                    );
-                }
-                else
-                {
-                    resident.downloadNutToHostMirror(runTime, nut);
-                }
-
-                const bool fieldsWritten = runTime.write();
-                (void)resident.writeParticleRestartMirror(runTime);
-                if (fieldsWritten)
-                    ugkp::precision::writeRestartPrecision(runTime.timePath().c_str());
+                ugkp::gpu::writeGasOutput(runTime,false,[&]{
+                    resident.downloadToHostMirror(runTime,rho,rhoU,rhoE,U,p,Tgas,epsS,rhoUs,rhoEs,rhoDs,rhoHp,Us,theta,Tp,dMeanCell);
+                    resident.downloadSharedGasSpecies(sharedGasModel,rho);
+                    ugkp::gpu::mirrorGasTurbulence(resident,runTime,gasTurbulenceModel,k,omega,nut);
+                    return resident.prepareParticleRestartMirror(runTime);
+                },[&]{
+                    resident.enqueueAdvance(runTime.advanceBoundary(advanceControls,progressLogInterval));
+                    advancePending=true;
+                },[]{return true;});
             }
         }
 

@@ -58,7 +58,7 @@ int main(){
     DiscreteOrdinateRadiation radiation(g,t,controls);ParticleRadiationMaterial material(t);
     ParticleRadiationMaterialInput transaction;transaction.coupledBoundary={1,1};transaction.heatFactor=1000;
     transaction.elapsed=.01;transaction.minimumTemperature=100;transaction.maximumTemperature=2000;
-    // Allocate/configure all workspaces before the measured advancement interval.
+
     radiation.solve(input,false,false);transaction.resident=radiation.deviceView();material.solve(transaction,false);material.collect();
     std::vector<double> expectedLedger(4,0);ParticleRadiationMaterialResult expected;RadiationResult expectedRadiation;
     for(int sample=1;sample<=3;++sample){
@@ -89,7 +89,7 @@ int main(){
     same({actual.escapedEnergy},{boundary.escapedEnergy},"escaped boundary collection mismatch");
     ugkp::diagnostics::DeviceContext report{};check(cudaMemcpy(&report,diagnostics,sizeof(report),cudaMemcpyDeviceToHost));
     if(report.fatalClaim)throw std::runtime_error("unexpected deferred radiation failure");
-    // Deferred faults remain visible and suppress dependent physical updates.
+
     auto bad=g;bad.boundaryType[0]=RadiationBoundary::Fixed;bad.fixedIntensity[0]=-1e8;
     DiscreteOrdinateRadiation invalid(bad,t,controls);invalid.solve(input,false,false);
     transaction.resident=invalid.deviceView();const auto rejected=material.solve(transaction);

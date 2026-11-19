@@ -94,7 +94,7 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstan
     if(in.adiabatic&&speedScale>0){
         R logFactor=0,scaledSpeed2=0;
         for(int d=0;d<3;++d){const R component=du[d]/speedScale;scaledSpeed2+=component*component;}
-        if(!detail::constantWallHeatingLogFactor(a,b,logFactor,in.adiabatic))return detail::fail(status,WallCode::NonConvergence);
+        if(!detail::constantWallHeatingLogFactor(a,b,logFactor,in.adiabatic))return detail::fail(status,WallCode::InadmissibleState);
 
         const R logSpeed2=R(2)*std::log(speedScale)+std::log(scaledSpeed2);
         const R value=std::exp(logFactor+logSpeed2+std::log(mu)-std::log(in.adiabatic?lambda:length));
@@ -104,7 +104,7 @@ template<class R,int N,class TableReal> UGKWP_GAS_HD inline bool evaluateConstan
         R speed2=0;for(int d=0;d<3;++d)speed2+=du[d]*du[d];
         if(speed2>0){
             R factor=0;
-            if(!detail::constantWallHeatingFactor(a,b,factor))return detail::fail(status,WallCode::NonConvergence);
+            if(!detail::constantWallHeatingFactor(a,b,factor))return detail::fail(status,WallCode::InadmissibleState);
             heating=mu*speed2/length*factor;
         }
     }

@@ -1,5 +1,5 @@
 #include "sweep_residual_probe.H"
-#include "mesh/Geometry.C" // frozen native formula and geometry oracle
+#include "mesh/Geometry.C"
 #include <random>
 #include <iostream>
 #include <cstring>
@@ -19,7 +19,7 @@ static SweepResidualProbe reference(const g::SweepResidualDefinition& d,const st
     for(std::size_t p=0;p<end.size();++p)if(!chmt::finite(endpoints[p])){out.status.failure=g::SweepResidualFailure::Endpoint;out.status.index=p;return out;}
     if(d.emptyAxis>=0)for(std::size_t p=0;p<end.size();++p){const auto failure=g::emptyTrajectoryPoint(p,d.emptyMate[p],d.emptyAxis,d.old.data(),end.data());
         if(failure!=g::EmptyTrajectoryFailure::None){out.status.index=p;out.status.failure=failure==g::EmptyTrajectoryFailure::NormalDisplacement?g::SweepResidualFailure::EmptyNormal:g::SweepResidualFailure::EmptyTangential;return out;}}
-    // Literal original moving-triangle integration, independent of faceSweep.
+
     for(std::size_t f=0;f<mesh.owner.size();++f){chmt::Vec3 area{};double volume=0;
         const int begin=mesh.faceOffsets[f],stop=mesh.faceOffsets[f+1],ia=mesh.facePoints[begin];
         for(int k=begin+1;k+1<stop;++k){const int ib=mesh.facePoints[k],ic=mesh.facePoints[k+1];

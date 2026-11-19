@@ -33,7 +33,7 @@ model {mieTable "constant/mie.table"; do {
     fixture=importlib.util.module_from_spec(spec);spec.loader.exec_module(fixture);fixture.table(case/'constant/mie.table')
     if mobile:
         data=contact.particles(case/'0');data['pStuck'][:]=0;data['pStuckFaceId'][:]=-1;data['pm'][:]=1e-4
-        # Place the stationary mobile particles inside their original owner cells.
+
         data['px'][:]=.5/grid
         contact.wire.write_restart(case/'0/mobile.dat',[data],len(data['pm']),262144,cht=True)
         (case/'0/mobile.dat').replace(case/'0/gpuResidentStrictParticles.dat')
@@ -46,10 +46,10 @@ def inventory(case,grid,mobile,*,enforce_absolute_bounds=True):
             enthalpy=layer.scalar_sum(snapshot/'rhoHp',grid**3)
             fields=contact.particles(snapshot);mp=math.fsum(fields['pm']);assert np.all(fields['pStuck']==0)
             temperature=layer.field(snapshot/'Tp',grid**3)
-            # The existing radiation transaction uses the configured constant
-            # heat factor (1000 J/kg/K in this fixture). Also retain the actual
-            # nonlinear enthalpy inventory; its baseline discrepancy is evidence,
-            # not a tolerance change or a claim of enthalpy conservation.
+
+
+
+
             ep=math.fsum(float(mass)*1000*temperature[int(cell)] for mass,cell in zip(fields['pm'],fields['cell']))
         else:
             ep,mp=contact.particle_inventory(snapshot);enthalpy=ep

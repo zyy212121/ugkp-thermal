@@ -19,8 +19,8 @@ int main(int argc,char** argv){
   ChemistryControls<double> controls;controls.relativeTolerance=controls.absoluteMassFractionTolerance=controls.absoluteTemperatureTolerance=0;controls.maximumNewtonIterations=1;controls.maximumLineSearchIterations=3;
   gasChemistryDetail::ReactorContext<double,2> ctx(base,a.t,a.m,controls);assert(ctx.prepare());
   const double gamma=1-1/std::sqrt(2.);double z[2]={},rhs[2]={},T=700;
-  // Undefined convergence metrics must not silently replace an internal
-  // rejected trial with a finite candidate before the caller can refine it.
+
+
   const auto failed=gasChemistryDetail::implicitStage(ctx,rhs,gamma,z,T);
   assert(!failed && failed.code==ChemistryCode::NewtonFailure);
   ClosedReactorResult<double,2> out;out.temperature=-777;
@@ -58,7 +58,7 @@ int main(int argc,char** argv){
   }else if(zeroRank){
    assert(status&&scalar&&derivative);assert(f[0]==-783&&f[1]==-784);
    bool direct=false;assert(context.evaluateJacobian(base.speciesMass,700.,nullptr,&direct)&&direct);
-   // The existing strict empty-Jacobian success also ignores unused calorics.
+
    context.refinement=true;direct=false;assert(context.evaluateJacobian(base.speciesMass,700.,j,&direct)&&direct);
   }else{
    assert(!status&&scalar&&f[0]==2000&&f[1]==-784);
@@ -69,11 +69,11 @@ int main(int argc,char** argv){
   if(test!="positive_rank_overflow_caloric")assert(j[0]==-777&&j[1]==-778&&j[2]==-779&&j[3]==-780);
  }else if(test=="missing_consumed_data"){
   const double* absent=nullptr;
-  // Forward product, reverse product and collider each genuinely read c.
+
   for(int mode=0;mode<3;++mode){Model b;if(mode==1){b.rx[0].reactantCount=0;b.rx[0].reversible=true;}if(mode==2){b.rx[0].reactantCount=0;b.rx[0].type=GasReactionType::ThirdBody;}
    assert(!evaluateGasRates(700.,absent,b.t,b.m,w,nullptr,status));assert(w[0]==-777 && w[1]==-778);
    assert(!evaluateGasRateDerivatives(700.,absent,b.t,b.m,j,thermal,status));assert(j[0]==-777 && j[3]==-780 && thermal[0]==-781 && thermal[1]==-782);}
-  // Truly missing consumed backing remains unavailable; no unsafe OOB probe.
+
   for(int mode=0;mode<3;++mode){Model b;if(mode==0)b.m.reactants=nullptr;if(mode==1)b.m.products=nullptr;if(mode==2){b.rx[0].type=GasReactionType::ThirdBody;b.rx[0].efficiencyCount=1;b.m.efficiencies=nullptr;b.m.efficiencyCount=1;}
    assert(!evaluateGasRates(700.,c,b.t,b.m,w,nullptr,status));assert(w[0]==-777 && w[1]==-778);
    assert(!evaluateGasRateDerivatives(700.,c,b.t,b.m,j,thermal,status));assert(j[0]==-777 && j[3]==-780 && thermal[0]==-781 && thermal[1]==-782);}

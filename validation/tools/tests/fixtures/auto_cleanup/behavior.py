@@ -35,8 +35,8 @@ for(auto v:{s,r}){v->nCells=512;v->nFaces=1024;for(int c=0;c<512;c++){v->V[c]=.1
 facePair<<<16,32>>>(s,r);finish();for(int c=0;c<512;c++){equal(s->pressureDeltaMomX[c],r->pressureDeltaMomX[c],"ordered face publication x");equal(s->pressureDeltaMomY[c],r->pressureDeltaMomY[c],"ordered face publication y");equal(s->pressureDeltaMomZ[c],r->pressureDeltaMomZ[c],"ordered face publication z");equal(s->pressureDeltaEnergy[c],r->pressureDeltaEnergy[c],"ordered face publication energy");}
 puts("PASS ordered pressure accumulation and publication bitwise against frozen body");
 
-// The host descriptor must remain ordinary host memory, as in production.
-// WSL does not permit CPU descriptor reads while managed device state is busy.
+
+
 DeviceState host=*s;s=&host;
 s->nCells=4;s->particleCapacity=1024;s->reductionBlockThreads=32;s->multiprocessorCount=2;RESIDENCY
 mem(s->csrReductionTasks,4096);s->csrHeavyTaskCapacity=4096;check(cudaFree(s->cellScanTempStorage));s->cellScanTempStorage=nullptr;check(cub::DeviceScan::ExclusiveSum(s->cellScanTempStorage,s->cellScanTempBytes,s->csrCellTaskCount,s->csrCellTaskOffset,s->nCells+1));check(cudaMalloc(&s->cellScanTempStorage,s->cellScanTempBytes));
@@ -86,9 +86,9 @@ for(auto v:{s,r}){
 for(int heat:{0,1})for(int state:{int(Foam::gpuThermal::particleWallTransientDeposit),int(Foam::gpuThermal::particleWallDeposited)}){
  s->solveParticleTemperature=r->solveParticleTemperature=heat;s->particleGasHeatTransferModelId=r->particleGasHeatTransferModelId=heat;
  s->pStuck[0]=r->pStuck[0]=state;
- // The frozen wrapper is an oracle only where contact area is positive and
- // activeDt equals the physical dt. Zero-area/contact-end gas and age fixes
- // are checked independently in test_cold_wall_contact_routes.py.
+
+
+
  const GpuTime coldDt = GpuTime(7.5e-8);
  const bool finiteContact = state == int(Foam::gpuThermal::particleWallTransientDeposit);
  for(auto v:{s,r}){

@@ -10,14 +10,13 @@ HERE = (VALIDATION_ROOT / 'tests/gas_transport')
 
 
 def fixture():
-    fields = re.findall(r'    ([\w:]+\*) (\w+)\{\};', ((VALIDATION_ROOT / 'tests/gas_transport/legacy_gas_fixture.hpp')).read_text())
-    allocate = '\n'.join(f's.{name}=new {ty[:-1]}[8]{{}};' for ty, name in fields)
     return r'''
+#include "gas_field_storage.hpp"
 struct State:ugkwp::GasStateView<Real,Time,ugkwp::SstCoefficients>{ugkwp::GasSpeciesState<Real,2> gasSpecies;};
 void ck(bool a,const char*m){if(!a){std::fprintf(stderr,"%s\n",m);std::abort();}}
 void near(Real a,Real b,const char*m){if(std::abs(a-b)>Real(128)*std::numeric_limits<Real>::epsilon()*std::max(Real(1),std::abs(b))){std::fprintf(stderr,"%s: %.17g != %.17g\n",m,double(a),double(b));std::abort();}}
 void initialise(State&s){
-ALLOCATE
+    allocateGasTestStorage(s,8);
 s.nCells=2;s.nFaces=3;s.nInternalFaces=1;s.gasFluxScheme=1;s.gasReconstruction=0;s.gasLimiter=0;s.gammaGas=1.4;s.Rgas=287;s.gasCp=1004.5;s.gasMu=0;s.gasPrClamped=.7;s.rhoMin=1e-12;s.TgasMin=1e-9;
 s.gasSpecies.cellStatus=new int[2]{};s.gasSpecies.faceStatus=new int[3]{};
 s.sstCoefficients=ugkwp::defaultSstCoefficients();s.sstKMin=1e-12;s.sstOmegaMin=1e-9;s.turbulentPrandtl=.9;
@@ -28,7 +27,7 @@ blockDim.x=1;blockIdx.x=threadIdx.x=0;
 }
 void moving(State&s,Real*oldV,Real*newV,Real*sweeps,Real dt){s.gasGeometry.enabled=true;s.gasGeometry.oldVolume=oldV;s.gasGeometry.newVolume=newV;s.gasGeometry.faceSweptVolume=sweeps;s.gasGeometry.interval=dt;s.gasGeometry.absoluteGeometryTolerance=Real(16)*std::numeric_limits<Real>::epsilon();s.gasGeometry.relativeGeometryTolerance=Real(16)*std::numeric_limits<Real>::epsilon();}
 void flux(State&s,double dt){for(int c=0;c<2;++c){threadIdx.x=c;computeGasPrimitiveGradientsKernel(&s);computeGasGradientLimiterKernel(&s);computeGasEddyViscosityKernel(&s);}for(int f=0;f<3;++f){threadIdx.x=f;computeGasInternalFaceFluxKernel<false>(&s,dt);}for(int c=0;c<2;++c){threadIdx.x=c;computeGasFluxPositivityScaleKernel(&s,dt);}for(int f=0;f<3;++f){threadIdx.x=f;applyGasFluxPositivityScaleKernel(&s);}}
-'''.replace('ALLOCATE', allocate)
+'''
 
 
 def test_legacy_all_schemes_moving_uniform_state_without_species(tmp_path):
@@ -45,7 +44,7 @@ def test_moving_sst_inventory_uses_old_and_new_volumes(tmp_path):
 int main(){State a,b;initialise(a);initialise(b);a.sstConfigured=b.sstConfigured=1;
 Real oldV[2]={1,1},newV[2]={Real(1.1),Real(.9)},sweeps[3]={Real(.1),0,0};const Real dt=Real(.001);moving(b,oldV,newV,sweeps,dt);
 a.sstPhiRhoK[0]=b.sstPhiRhoK[0]=Real(-600);a.sstPhiRhoOmega[0]=b.sstPhiRhoOmega[0]=Real(-800);
-// Identical stationary fluid: the moving mesh has relative mass phi=-rho*w.A.
+
 b.gasPhiRho[0]=-b.rho[0]*sweeps[0]/dt;
 for(int c=0;c<2;++c){threadIdx.x=c;applySstFluxAndSourceKernel(&a,dt);applySstFluxAndSourceKernel(&b,dt);near(b.rhoK[c]*newV[c],a.rhoK[c]*oldV[c],"SST k inventory diluted incorrectly");near(b.rhoOmega[c]*newV[c],a.rhoOmega[c]*oldV[c],"SST omega inventory diluted incorrectly");}}
 ''')
@@ -60,7 +59,7 @@ const Real before[5]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0]};s.gas
 Real after[5]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0]};
 if(STRICT)ck(std::memcmp(before,after,sizeof before)==0,"strict moving retry published state");
 else{for(int k=0;k<4;++k)ck(after[k]==before[k]*(oldV[0]/newV[0]),"terminal moving bulk formula incomplete");ck(std::isnan(after[4]),"terminal moving energy formula was not evaluated");}
-// True missing consumed backing remains an error in both routes.
+
 s.gasGeometry.newVolume=nullptr;applyGasFluxDivergenceByCellKernel(&s,dt,STRICT);const Real missing[5]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0]};ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage)&&std::memcmp(after,missing,sizeof after)==0,"missing volume backing was hidden by terminal continuation");}
 """.replace('STRICT','true' if strict else 'false'))
 
@@ -119,7 +118,7 @@ def test_sst_inlet_outlet_uses_mesh_relative_direction(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);s.riemannBoundaryKind[2]=0;s.sstBoundaryKMode[2]=2;s.sstBoundaryK[2]=7;s.Ux[1]=1;
 Real oldV[2]={1,1},newV[2]={1,Real(1.002)},sweeps[3]={0,0,Real(.002)};moving(s,oldV,newV,sweeps,Real(.001));
-// The shared SST boundary consumes the actual current ALE Riemann flux.
+
 threadIdx.x=2;computeGasInternalFaceFluxKernel<false>(&s,Real(.001));
 ck(s.gasPhiRho[2]<0,"moving face should have relative inflow");
 near(sstBoundaryValue(s,2,1,false),7,"SST inletOutlet used inertial outflow instead of relative inflow");}

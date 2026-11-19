@@ -30,7 +30,7 @@ ResidentSweepProbeResult residentSweepProbe(const g::Topology& topology,
     Device<g::Point> dModes(flat);std::vector<g::SweepLinearizationDeviceInput> input;
     for(std::size_t i=0;i<modes.size();++i)input.push_back({dOld.p,dEnd.p,
         old.empty()?nullptr:dModes.p+i*old.size(),dScales.p,dPlanar.p,coefficients[i]});
-    // Empty meshes still exercise descriptor selection, reset and graph reuse.
+
     if(input.empty())input.push_back({dOld.p,dEnd.p,nullptr,dScales.p,dPlanar.p,0});
     Device<g::SweepLinearizationDeviceInput> descriptors(input),selected(1);
     const int rows=faces.size()+3*planar.size();Device<double> columns(std::size_t(rows)*modes.size());

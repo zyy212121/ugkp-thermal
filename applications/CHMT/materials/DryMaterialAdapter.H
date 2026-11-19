@@ -7,8 +7,8 @@
 namespace chmt { namespace dryAdapter {
 
 
-// Host Nc is unchanged (currently two condensed inventories); this is not a
-// projection/truncation adapter for higher-dimensional benchmark mechanisms.
+
+
 using State = dry::MaterialState<Nc,Ns>;
 struct GasCalorics {
     const PhysicsConfig& p;
@@ -89,8 +89,8 @@ CHMT_HD inline dry::PoreFaceState<Ns> poreState(const SolidQ& q,const MaterialPr
     if(mass>0)for(int s=0;s<Ns;++s)out.massFraction[s]=q.pore[s]/mass;
     return out;
 }
-// Composition is undefined in an empty pore. Use the occupied-side limit,
-// not a zero-sum composition; this preserves sum(J)=0 without inventing mass.
+
+
 CHMT_HD inline void completePorePair(dry::PoreFaceState<Ns>& a,dry::PoreFaceState<Ns>& b) {
     if(a.density==0&&b.density>0)a.massFraction=b.massFraction;
     else if(b.density==0&&a.density>0)b.massFraction=a.massFraction;

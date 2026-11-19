@@ -1,5 +1,5 @@
 #pragma once
-// Sampling target depends on the completed pool, independent of its dispatch policy.
+
 __device__ __forceinline__ void preparePoissonPoolSamplingCell(DeviceState& s, const int c)
 {
     const int representatives = s.poolThermalCount[c];

@@ -65,8 +65,8 @@ def test_actual_advance_source_order_and_time_arguments():
 
 
 def cache_path_fixture():
-    # Reuse storage/HOST-CUDA syntax adapters only. Replace all three linear
-    # caloric adapters before including production heat and recovery bodies.
+
+
     source = particle_fixture().split("void printState", 1)[0]
     replacements = {
         "Real particleTemperatureFromSpecificEnthalpyDevice(Real hp){return hp/Real(1000);}":
@@ -121,8 +121,8 @@ int main(int argc,char**argv){
  if(s.particleGasHeatTransferModelId)applyEulerianParticleMaterialHeatKernel(&s,dt);
  std::printf(",");record("source",s);
  recoverPrimitivesKernel(&s);std::printf(",");record("recovered",s);
- // Strict Advance has another recovery before the collision pool. No fake
- // collision/pressure/tracking functions are called in this HOST cache proof.
+
+
  recoverPrimitivesKernel(&s);std::printf(",");record("pre_relax",s);
  const Real oldT=s.pT[0];
  const Real oldGas=s.couplingTgasOld[0],newGas=s.Tgas[0];
@@ -238,8 +238,8 @@ def test_recovery_does_not_replace_the_actual_particle_coupling_cache(cache_prob
         assert after["particle_T"] != o["half_cache_T"]
         assert after["particle_T"] != o["fresh_cache_T"]
     residual = caloric_inventory(after, o["caloric"]) - caloric_inventory(before, o["caloric"])
-    # Characterization, not conservation acceptance. Output is deliberately
-    # retained even when a later approved pairing repair changes the residual.
+
+
     print(json.dumps({"scope": "HOST production cache path, not full Advance", "bits": cache_probe[1],
                       "scenario": scenario, "dt": o["dt"], "actual_total_delta_J": str(residual),
                       "gas_delta_J": (source["gas_energy"]-before["gas_energy"])*before["eps"],
@@ -258,8 +258,8 @@ def test_exact_baseline_cache_path_identifies_migration_side(tmp_path):
     new = compile_cache_probe(new_dir)
     for scenario in (0, 2, 3):
         a, b = observe_cache((old, 64), scenario), observe_cache((new, 64), scenario)
-        # Coupling cached initial gas T can differ in the last native ULP after
-        # recovering the exact baseline's rounded gas energy. Report it too.
+
+
         for observation in (a, b):
             expected = observation["snapshot"]["gas_T"] if scenario else observation["before"]["coupling_T"]
             assert observation["final_recovered"]["coupling_T"] == expected
@@ -360,7 +360,7 @@ int main(int argc,char**argv){
  CHECK(maxCo>=0&&maxCo<.5);CUDA_OK(cudaDeviceSynchronize());
  std::printf("{");printState("before",s);
  std::printf(",\"carry_before\":%.17g",readOne(s->pThermalEnthalpyResidual));
- // This is the actual entire exported resident host function. No stage shim.
+
  CHECK(ugkwpGpuResidentStrictAdvance(s,dt,dt)==0);CUDA_OK(cudaDeviceSynchronize());
  CHECK(readOne(s->particleCountDevice)==1);CHECK(readOne(s->pStatus)==1);CHECK(readOne(s->pCellId)==0);
  CHECK(readOne(s->pOrigId)==42);CHECK(readOne(s->pStuck)==0);

@@ -66,9 +66,9 @@ def main():
                     assert x.dtype.kind=='f',field
                     assert np.all(np.isfinite(x)) and np.all(np.isfinite(y)),field
                     absolute=float(np.max(np.abs(x-y)));scaled=float(np.max(np.abs(x-y)/np.maximum(1.,np.maximum(np.abs(x),np.abs(y)))))
-                    # The native implicit root accepts 1e-9 energy residuals.
-                    # Restart reconstruction can redistribute roundoff into
-                    # the stored enthalpy carry without changing temperature.
+
+
+
                     bound=1e-9 if field=='pThermalEnthalpyResidual' else 2e-12
                     assert scaled<bound,(field,scaled,bound)
                     differences[field]=dict(maximum_absolute_error=absolute,maximum_scaled_error=scaled,scaled_bound=bound)

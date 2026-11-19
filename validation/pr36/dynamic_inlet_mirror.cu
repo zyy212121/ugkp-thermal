@@ -1,5 +1,5 @@
-// Exercise the actual shared mirror kernels on CUDA. The adapter deliberately
-// has no resident total-condition program: these are scheduled legacy inlets.
+
+
 #include <cuda_runtime.h>
 #include <cstdio>
 #include <cstdlib>

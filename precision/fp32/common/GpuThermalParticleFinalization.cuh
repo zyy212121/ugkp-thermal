@@ -1,4 +1,5 @@
 #pragma once
+#include "wall/ParticleWallFaceInteraction.H"
 
 __device__ void finalizeOneThermalizedStuckParticle
 (
@@ -61,7 +62,7 @@ __device__ void finalizeOneThermalizedStuckParticle
                 contactAge/duration, peakTimeFraction
             );
         const unsigned char interactionType =
-            s.particleStuckCandidateMask[faceI];
+            particleWallFaceInteraction(s,faceI);
         const GPU_OPERATOR_REAL frozenArea =
             interactionType
          == Foam::gpuThermal::particleWallSolidifyingDeposition
@@ -151,7 +152,7 @@ __device__ void finalizeOneThermalizedStuckParticle
         float frozenEnergy = 0.f;
         if (s.pStuck[i] == Foam::gpuThermal::particleWallTransientRebound)
         {
-            const unsigned char model = s.particleStuckCandidateMask[faceI];
+            const unsigned char model = particleWallFaceInteraction(s,faceI);
             const GPU_OPERATOR_REAL frozenArea =
                 model == Foam::gpuThermal::particleWallSolidifyingDeposition
                 ? static_cast<GPU_OPERATOR_REAL>(s.pColdFrozenArea[Foam::gpuWall::coldWallSlot(s,i)])
@@ -191,7 +192,7 @@ __device__ void finalizeOneThermalizedStuckParticle
         clearColdWallParticleState(s, i);
         clearColdWall2DParticleState(s, i);
         if (frozenRelease) publishFrozenReleaseEnergy(s,i,frozenEnergy,
-            s.particleStuckCandidateMask[faceI]==Foam::gpuThermal::particleWallSolidifyingDeposition);
+            particleWallFaceInteraction(s,faceI)==Foam::gpuThermal::particleWallSolidifyingDeposition);
     }
     else
     {

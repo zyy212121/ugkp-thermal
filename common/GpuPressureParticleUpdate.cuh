@@ -1,6 +1,6 @@
 #pragma once
-// Free-particle pressure projection shared by gas and constrained thermal adapters.
-// Thermal wall constraints are applied before entering this operation.
+
+
 template<bool CompactParticles, class Real>
 __device__ __forceinline__ void updateMobilePressureParticle
 (

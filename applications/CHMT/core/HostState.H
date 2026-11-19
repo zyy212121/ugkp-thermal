@@ -1,6 +1,7 @@
 #ifndef CHMT_CORE_HOSTSTATE_H
 #define CHMT_CORE_HOSTSTATE_H
 #include "Configuration.H"
+#include "AcceptedLedger.H"
 #include "../../../common/SharedSnapshotVector.H"
 #include <vector>
 #include <array>
@@ -8,33 +9,33 @@
 namespace chmt {
 struct HostMesh {
     std::shared_ptr<const ugkp::boundary::Definition> gasBoundary;
-    std::vector<Vec3> referencePoints{}; // immutable prescribed-motion reference, persisted.
+    std::vector<Vec3> referencePoints{};
     std::vector<Vec3> points{},oldPoints{},cellCentres{},faceCentres{},areaVectors{},meshVelocity{};
     std::vector<Real> volumes{},oldVolumes{},wallDistance{};
     std::vector<int> faceOffsets{},facePoints{},owner{},neighbour{},periodicPartner{},cellFaceOffsets{},cellFaces{},cellFaceSigns{};
     std::vector<BoundaryKind> boundaryKind{};std::vector<GasPrimitive> boundaryPrimitive{};
-    // Empty is the homogeneous zeroGradient shorthand for programmatic meshes.
-    // Imported meshes always carry one independent policy per face.
+
+
     std::vector<ThermalBoundaryKind> thermalBoundary{};
     std::vector<SstPrimitive> boundarySst{};std::vector<std::uint64_t> faceIds{};
     std::uint64_t geometryVersion=0,topologyHash=0;
 };
 struct SurfaceMesh {
-    std::vector<unsigned char> ablating{}; // empty preserves the historical all-active surface
+    std::vector<unsigned char> ablating{};
     std::vector<Vec3> prescribedTopTraction{},prescribedPressureGradient{};
-    std::vector<Vec3> edgeOwnerOffset{},edgeNeighbourOffset{}; // edge centre minus face centre in each periodic image [m].
-    std::vector<Real> gasDistance{},solidDistance{}; // nFaces, positive normal cell-to-interface distances [m].
+    std::vector<Vec3> edgeOwnerOffset{},edgeNeighbourOffset{};
+    std::vector<Real> gasDistance{},solidDistance{};
     std::vector<int> gasFace{},solidFace{},solidCell{},edgeOwner{},edgeNeighbour{};
     std::vector<std::uint64_t> persistentId{};
     std::vector<Real> edgeLength{},area{},oldArea{},sweptEdgeArea{};
     std::vector<Vec3> edgeConormal{},centre{},normal{},meshVelocity{},baseVelocity{};
-    // CSR map from a surface donor integral to gas-face receivers; weights >=0
-    // sum to one for each donor. Identity mapping may leave all three empty.
+
+
     std::vector<int> gasMapOffsets{},gasMapFaces{};std::vector<Real> gasMapWeights{};
-    // Normal-layer centres/volumes, concatenated with per-face CSR offsets.
+
     std::vector<int> normalOffsets{};std::vector<Real> normalCoordinates{},normalLayerMass{},normalLayerVolume{},oldNormalLayerVolume{};
-    std::vector<Real> normalThickness{}; // nLayers, m; persistent geometry.
-    std::vector<Real> normalPressure{},normalPressureRate{}; // nFaces, Pa and material Pa/s.
+    std::vector<Real> normalThickness{};
+    std::vector<Real> normalPressure{},normalPressureRate{};
     std::vector<Real> bottomTemperature{},topTemperature{},bottomHeatFlux{},topHeatFlux{};
 };
 struct HostStageGeometry {
@@ -48,12 +49,12 @@ struct HostStageGeometry {
 struct GasSstIntegralAudit {
     Real transportK=0,transportOmega=0,sourceK=0,sourceOmega=0,constraintK=0,constraintOmega=0;
 };
-// Separating dynamic fields from mesh ownership lets material microsteps reuse
-// immutable static geometry without hand-maintaining a list of physical fields.
-// Checkpoint serialization remains explicit and retains its existing wire order.
+
+
+
 struct HostDynamicState {
     Real nextDt=0,lastAcceptedDt=0;
-    Real radiationTime=0; // last completed discrete-ordinate radiation event
+    Real radiationTime=0;
     std::vector<int> particleSourceFaces;
     std::vector<Real> particleSourceResidualMass;
     SurfaceMesh surface{};
@@ -61,19 +62,19 @@ struct HostDynamicState {
     std::vector<GasQ> gas{};std::vector<SolidQ> solid{};std::vector<FilmQ> film{};
     std::vector<Real> gasTemperature{};
     std::vector<FilmAux> filmAux{};std::vector<ParticleQ> particles{};std::vector<SstQ> sst{};
-    // Numerical geometry carry, indexed by surface.solidFace [signed m^3]:
-    // cumulative physical consumed-volume target minus measured actual sweep.
-    // Empty means zero; never a mass, energy, or physical source correction.
+
+
+
     std::vector<Real> solidSweepRemainder{};
     std::vector<Real> gasVoidFraction{},normalEnthalpy{};
-    std::vector<Real> normalLiquidFraction{}; // nLayers, dimensionless phase state.
-    std::vector<Real> normalAcceptedWallHeat{}; // nFaces, cumulative accepted J.
-    // Trial boundary heat rates are Backend-owned candidate scratch, not state;
-    // fractions/accepted heat are rolled back and checkpointed with normal H.
-    ugkp::SharedSnapshotVector<ExchangePacket> ledger{};std::vector<FilmPressureVolumeUpdate> filmStorage{};
-    // Reconstructible diagnostic snapshot, not physical state. Deliberately
-    // absent from checkpoints; restart output marks it NOT_AVAILABLE until a
-    // new accepted gas stage supplies it. Rollback still copies it atomically.
+    std::vector<Real> normalLiquidFraction{};
+    std::vector<Real> normalAcceptedWallHeat{};
+
+
+    AcceptedLedger ledger{};std::vector<FilmPressureVolumeUpdate> filmStorage{};
+
+
+
     std::vector<ugkwp::gaswall::WallOutput<Real,Ns>> gasWallDiagnostics{};
     Real gasWallDiagnosticTime=-1;
     GasSstIntegralAudit gasSstAudit{};
@@ -83,8 +84,8 @@ struct HostState : HostDynamicState {
     std::array<HostStageGeometry,2> gasStages{},solidStages{};
     HostMesh gasMesh{},solidMesh{};
 };
-// GasQ/SstQ store physical cell integrals. The resident common gas operators
-// use intrinsic gas densities, with the lagged phase volume carried explicitly.
+
+
 inline Real gasPhaseVolume(const HostState& state,std::size_t cell) {
     return state.gasMesh.volumes[cell]*(state.gasVoidFraction.empty()?Real(1):state.gasVoidFraction[cell]);
 }
@@ -93,5 +94,5 @@ struct StepReport {
     Real filmReducedResidual=0,filmKineticDefect=0;int iterations=0,rejectedTrials=0;
     std::uint64_t commitSequence=0;Budget budget{};
 };
-} // namespace chmt
+}
 #endif

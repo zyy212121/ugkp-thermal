@@ -19,8 +19,8 @@ struct State:ugkwp::GasStateView<double,double,int>{
  double gasPrOneThird=cbrt(.71),TpMin=100,TpMax=10000,gravityX=0,gravityY=0,gravityZ=0;
  int solveParticleTemperature=1,particleGasHeatTransferModelId=1;
 };
-// Minimal state adapter: retain the production mixture caloric inversion.
-// The transaction below is the unmodified production CUDA kernel.
+
+
 __device__ void recoverGasPrimitiveCell(State& s,int c){
  s.Ux[c]=s.rhoUx[c]/s.rho[c];s.Uy[c]=s.rhoUy[c]/s.rho[c];s.Uz[c]=s.rhoUz[c]/s.rho[c];
  const double kinetic=.5*(s.rhoUx[c]*s.rhoUx[c]+s.rhoUy[c]*s.rhoUy[c]+s.rhoUz[c]*s.rhoUz[c])/s.rho[c];
@@ -48,7 +48,7 @@ int main(int argc,char** argv){Data* d=nullptr;if(cudaMallocManaged(&d,sizeof(Da
  s.couplingDragBeta=&d->couplingDragBeta;s.couplingResponseFraction=&d->couplingResponseFraction;
  const double volume=d->eps*d->V,oldEnergy=d->energy,capacity=d->mass*800,dt=argc>1?std::strtod(argv[1],nullptr):100;
  const double a=-expm1(-6*2*.06/(2e6*.001*.001)*dt);
- // Independent long-double analytic solution for the linear-Cp fixture.
+
  const long double cv=1000.L+(long double)d->coeff[1]*1000.L
      -(long double)ugkwp::universalGasConstant<double>()/.028L;
  const long double linear=cv+(long double)capacity*a/volume;

@@ -1,6 +1,6 @@
-// Host integration of actual CPU proposals, gas-wall packets, film update,
-// material packet ownership and measured three-dimensional moving geometry.
-// This never substitutes for the unexecuted native OF/CUDA interval driver.
+
+
+
 #define main existing_geometry_fixture_main
 #include "test_sweep_constraints.cpp"
 #undef main
@@ -150,7 +150,7 @@ void terminalRemainderSignsPressureAndRollback() {
         require(event&&phase.mass==0,"gas-only exact terminal event has zero phase mass");
         require(absValue(phase.energy+remainder)<1e-8,"terminal residual energy transferred to correct solid/film side");
         require(absValue(phase.energy-phase.advective-phase.conductive-phase.pressureWork-phase.viscousWork)<1e-12,"terminal packet energy decomposition");
-        // Even a tiny positive remaining mass is not a terminal event.
+
         primary.mass=-1+1e-10;primary.species[0]=primary.mass;const auto previous=phase;event=true;
         require(finalizeCpuFilmPhasePacket(q,pressure,local,primary,1,{},p,phase,event,error),"near-empty phase remains admissible");
         require(!event&&phase.mass==previous.mass&&phase.energy==previous.energy,"no tolerance-based premature dryout");
@@ -204,7 +204,7 @@ void evaporatingFilmUsesActualGasPackets(bool terminal) {
     auto h=lifecycleState(p,.02,temperature);const auto base=h;const int steps=terminal?1:20;Real integratedGasMass=0,integratedGasEnergy=0;
     Real actualFlux[Ns]{};Real composition[Ns]{};composition[0]=1;
     require(hertzKnudsenFlux(h.film[0],composition,100000,temperature,p,actualFlux),"evaporation kinetic reference");
-    // Independent kinetic oracle for the rounded, supplied saturation table.
+
     const Real j=(p.material.saturationPressureScale[0]-100000)
         /std::sqrt(2*3.14159265358979323846*p.species[0].R*temperature);
     require(absValue(actualFlux[0]-j)<1e-14&&absValue(j-targetJ)<1e-12,"Hertz-Knudsen flux matches the independently manufactured kinetic rate");

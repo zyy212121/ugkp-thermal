@@ -39,7 +39,7 @@ def main():
    x=m.fields.internal(aa/name,32);y=m.fields.internal(bb/name,32);err=max(abs(u-v)/(1+abs(u)) for xx,yy in zip(x,y) for u,v in zip(xx,yy));assert err<1e-8,(fixture,name,err);errors[name]=err
   if (aa/'gpuResidentStrictParticles.dat').exists():assert m.parcel(aa/'gpuResidentStrictParticles.dat')==m.parcel(bb/'gpuResidentStrictParticles.dat')
   report['comparisons'].append({'case':fixture,'max_scaled_errors':errors});save()
- # Adaptive Courant control constrained by the existing maximum physical dt.
+
  cases=[]
  for adaptive in [False,True]:
   d=out/('adaptive' if adaptive else 'fixed_dt');prepare_adaptive_case(d,adaptive)

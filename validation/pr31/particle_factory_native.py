@@ -39,7 +39,7 @@ def source():
     s=s.replace('CHECK(advanceResidentThermalParticles(s,dt,dt)==0);','CHECK(ugkp::thermal::advanceBoundParticlePhase(s,dt,dt,stream)==0);')
     s=s.replace(' releaseState(s);',r'''
  ugkwpGpuResidentStrictRelease(s);
- // The external owner is still live; borrowed pointers were not freed.
+
  CHECK(readOne(gasOwner->rho)==1);CUDA_OK(cudaStreamDestroy(stream));releaseState(gasOwner);
 ''')
     return s

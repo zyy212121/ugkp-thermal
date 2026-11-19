@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Native-only acceptance gate: no fake CUDA headers, host operator emulation,
-# input-only binary, or pre-existing executable can substitute for this build.
+
+
 set -euo pipefail
 source_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 root="$source_root"
@@ -53,7 +53,7 @@ run_case() {
 }
 run_case full "${mode[@]}"
 if [[ $scenario == single ]]; then
-  # Runtime constant switch, same exact Ns2 executable, no intervening build.
+
   run_case frozen-companion
 fi
 interval=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["coupling_interval"])' "$work/full/verification.json")

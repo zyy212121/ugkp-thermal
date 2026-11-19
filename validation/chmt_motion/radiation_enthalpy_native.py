@@ -1,4 +1,4 @@
-# Actual common CUDA owner: extensive radiation heat and nonlinear enthalpy.
+
 import argparse,sys,subprocess,json
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]

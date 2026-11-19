@@ -18,14 +18,14 @@ int main(){
  auto st=advanceClosedReactor(base,.25,a.t,a.m,controls,result);assert(st);
  assert(near(result.speciesMass[0],.028*std::exp(-.5),3e-6));assert(near(result.speciesMass[0]+result.speciesMass[1],base.totalMass,1e-12));assert(near(result.temperature,700.,1e-11));assert(st.attemptedSteps>0);
  assert(near(mixtureEnergy(result.speciesMass,result.temperature,a.t),base.internalEnergy,1e-11));
- // Stiff rate and exact-zero product: donor remains nonnegative, no clipping.
+
  a.rx[0].highRate.preExponential=1e8;st=advanceClosedReactor(base,.001,a.t,a.m,controls,result);assert(st);assert(result.speciesMass[0]>=0 && result.speciesMass[0]<1e-10);assert(near(result.speciesMass[1],.028,1e-7));
- // Exothermic formation-energy change drives temperature while U stays fixed.
+
  a.rx[0].highRate.preExponential=20;a.coef[5]=-5e5;st=advanceClosedReactor(base,.05,a.t,a.m,controls,result);assert(st);assert(result.temperature>1000);assert(near(result.speciesMass[0],.028*std::exp(-1.),3e-6));assert(near(mixtureEnergy(result.speciesMass,result.temperature,a.t),base.internalEnergy,1e-11));
- // Fixed-energy reduced Jacobian must include thermal feedback.
+
  a.rx[0].highRate.temperatureExponent=.5;double z[2]={.1,0},f[2],j[4],T=700;assert(evaluateConservativeReactor(base,z,a.t,a.m,controls,f,T,j));
  double zp[2]={.100001,0},zm[2]={.099999,0},fp[2],fm[2],Tp=700,Tm=700;assert(evaluateConservativeReactor(base,zp,a.t,a.m,controls,fp,Tp,nullptr));assert(evaluateConservativeReactor(base,zm,a.t,a.m,controls,fm,Tm,nullptr));assert(near(j[0],(fp[0]-fm[0])/2e-6,1e-6));
- // Refinement budgets and mass discrepancy publish the actual complete interval.
+
  controls.maximumSteps=1;st=advanceClosedReactor(base,1.,a.t,a.m,controls,result);assert(st);assert(st.attemptedSteps>0);
  controls.maximumSteps=10000;base.totalMass*=2;st=advanceClosedReactor(base,.1,a.t,a.m,controls,result);assert(st);assert(std::abs(result.speciesMass[0]+result.speciesMass[1]-base.totalMass)>.01);
  base.totalMass=.028;st=advanceClosedReactor(base,0.,a.t,a.m,controls,result);assert(st);assert(result.speciesMass[0]==base.speciesMass[0] && result.speciesMass[1]==0 && st.attemptedSteps==0);
@@ -92,7 +92,7 @@ int main(){
  ChemistryControls<double> controls;controls.relativeTolerance=1e-8;ClosedReactorResult<double,4> out;
  const double rates[4]={1,1e12,1e20,1e100};int baselineAttempts=0;
  for(double rate:rates){reactions[0].highRate.preExponential=rate;auto status=advanceClosedReactor(base,1.,t,m,controls,out);assert(status);assert(out.speciesMass[0]==0 && out.speciesMass[1]==0);assert(std::abs(out.speciesMass[2]/base.totalMass-std::exp(-1.))<3e-6);assert(std::abs(out.temperature-700.)<1e-8);assert(status.attemptedSteps>0);if(rate==1)baselineAttempts=status.attemptedSteps;else assert(status.attemptedSteps==baselineAttempts);}
- // Row-relative pivot testing must still reject an actually singular system.
+
  double singular[16]={1,2,0,0,2,4,0,0},rhs[4]={1,2,0,0};assert((!gasChemistryDetail::solveDense<double,4>(2,singular,rhs)));
 }
 ''')

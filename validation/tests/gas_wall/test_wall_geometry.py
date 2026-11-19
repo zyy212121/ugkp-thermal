@@ -149,16 +149,16 @@ def test_geometry_version_rebuild_tracks_deformed_stage(tmp_path):
 
 def test_concave_star_polyhedron_with_centroid_outside_kernel(tmp_path):
     compile_run(tmp_path,r'''
- // Long-arm L section: the exact volume centroid is outside the cell, but its
- // kernel is nonempty. The wall's area centroid is outside its polygon too.
+
+
  MeshBuilder b;
  const std::vector<V> base={{0,0,0},{4,0,0},{4,1,0},{1,1,0},{1,4,0},{0,4,0}};
  for(int layer=0;layer<3;++layer){
   std::vector<V> low,high;for(auto p:base){p[2]=layer;low.push_back(p);p[2]=layer+1;high.push_back(p);}
   std::vector<std::vector<V>> faces={low,high};
   for(size_t j=0;j<base.size();++j)faces.push_back({low[j],low[(j+1)%base.size()],high[(j+1)%base.size()],high[j]});
-  // Give the helper a kernel seed solely to orient the test mesh, then replace
- // with the analytically exact centroid required by the production contract.
+
+
   b.cell(faces,{.5,.5,layer+.5},7);b.m.cellCentres.back()={19./14,19./14,layer+.5};
  }
  b.m.physicalWall[0]=1;WallGeometryDescriptor<double>d;WallStatus s;
@@ -181,8 +181,8 @@ def test_matching_stencil_is_explicitly_piecewise_constant(tmp_path):
  auto m=cubes(3,.2);WallGeometryDescriptor<double>d;WallStatus s;
  assert(buildWallGeometry(m,0,d,s));assert(d.samplingOrder==0);
  const auto donor=m.cellCentres[d.matchingCells[0]];
- // A positive containing-cell sample is a zeroth-order reconstruction. It
- // must not be mistaken for a claimed affine-exact point interpolation.
+
+
  assert(std::abs(donor[0]-d.matchingPoint[0])>.1);
  assert(near(d.matchingPoint[0],d.origin[0]+d.matchingDistance*d.normal[0]));
  ''')
@@ -217,8 +217,8 @@ def test_profile_cut_quadrature_integrates_source_and_real_moments(tmp_path):
   for(int i=0;i<opt.profileNodes;++i){y[i]=d.matchingDistance*std::pow(double(i)/(opt.profileNodes-1),opt.profileStretch);source[i]=std::sin(2.7*i)+.1*i;}
   auto evaluate=[&](double p){int i=0;while(i+1<opt.profileNodes-1&&y[i+1]<p)++i;return source[i]+(source[i+1]-source[i])*(p-y[i])/(y[i+1]-y[i]);};
   double actual=0;for(size_t q=0;q<d.distance.size();++q)actual+=d.volumeWeight[q]*evaluate(d.distance[q]);
-  // Independent antiderivative: true horizontal section area is one for the
-  // (possibly skewed) cube, 2*(1-y)^2 for the wall tetrahedron.
+
+
   const bool tet=mesh.volumes[0]<1;double expected=0;
   for(int i=0;i<opt.profileNodes-1&&y[i]<1;++i){
    double lo=y[i],hi=std::min(1.,y[i+1]),b=(source[i+1]-source[i])/(y[i+1]-y[i]),a=source[i]-b*y[i];
@@ -226,8 +226,8 @@ def test_profile_cut_quadrature_integrates_source_and_real_moments(tmp_path):
    expected+=primitive(hi)-primitive(lo);
   }
   assert(near(actual,expected,2e-11));
-  // Linear complexity in tetra count and profile nodes, independent of the
-  // legacy recursive quadratureRefinement exponential.
+
+
   const int tets=tet?4:12;
   assert(d.distance.size()<=size_t(tets*(2*(opt.profileNodes+3)+8)));
   auto e=d.distance;opt.quadratureRefinement=4;assert(buildWallGeometry(mesh,0,d,s,opt));assert(e==d.distance);
@@ -249,7 +249,7 @@ def test_profile_first_segment_positive_gauss_converges(tmp_path):
     return k*y1*y1/((y+ell)*(y+ell))*std::exp(.6*(y/y1-1));
    };
    double actual=0;for(size_t i=0;i<d.distance.size();++i)actual+=d.volumeWeight[i]*source(d.distance[i]);
-   // Independent fine midpoint integration after y=y1*t^4 regularization.
+
    double reference=0;const int count=262144;
    for(int i=0;i<count;++i){double t=(i+.5)/count,y=y1*std::pow(t,4),area=mesh.volumes[0]<1?2*(1-y)*(1-y):1;
     reference+=source(y)*area*4*y1*t*t*t/count;}
@@ -282,11 +282,11 @@ def test_profile_section_aggregation_bounds_resident_storage(tmp_path):
   WallGeometryDescriptor<double>d;WallStatus s;assert(buildWallGeometry(mesh,0,d,s,opt));
   checkMoments(d,mesh.cellCentres[0],mesh.volumes[0]);
   assert(!d.quadraturePointsAreInterior);
-  // Both profile knots and dual-face midpoints partition the section.
+
   const int ownerVertices=mesh.volumes[0]<1?4:8;
   assert(d.distance.size()<=size_t(2*(2*opt.profileNodes+ownerVertices+1)+2*opt.firstSegmentGaussOrder));
-  // The transmitted view needs just these compact scalar samples. Full
-  // tetrahedral geometry and cut searches are not repeated during a gas stage.
+
+
   assert(d.quadrature().count==int(d.distance.size()));
  }
  ''')
@@ -314,8 +314,8 @@ def test_concave_profile_quadrature_preserves_actual_section_moments(tmp_path):
  b.m.physicalWall[0]=1;WallGeometryOptions<double>o;o.profileNodes=48;
  WallGeometryDescriptor<double>d;WallStatus s;assert(buildWallGeometry(b.m,0,d,s,o));checkMoments(d,b.m.cellCentres[0],7);
  assert(!d.quadraturePointsAreInterior);
- // The diagnostic section centroid lies outside this L section. No interior
- // claim is made; positive normal measure still comes solely from real tetra.
+
+
  for(auto p:d.quadraturePoints)assert(p[0]>1&&p[1]>1);
  double integral=0;for(size_t i=0;i<d.distance.size();++i)integral+=d.volumeWeight[i]*(1+3*d.distance[i]);
  assert(near(integral,17.5));
@@ -338,7 +338,7 @@ def test_standalone_profile_probe_reports_numeric_acceptance(tmp_path):
 
 def test_mss7_tip_sections_are_translation_and_scale_stable(tmp_path):
     compile_run(tmp_path,r'''
- // Recorded certified tetra and normal cut from actual MSS7 wall face 9063.
+
  const std::array<V,4> original={{{.037112221270554802,.064554715745008068,-2.9735989201637231e-19},
   {.03801563464947668,.064938134403000003,-.0028352601790000002},
   {.03801563464947668,.064938134403000003,.0028352601789999998},
@@ -351,7 +351,7 @@ def test_mss7_tip_sections_are_translation_and_scale_stable(tmp_path):
   for(double y:{.00076836156938800122*scale,std::nextafter(h[3],0.),.75*h[3]}){
    double area=0;V centre{};
    assert(wallGeometryDetail::tetraSection(p,h,y,d,area,centre));assert(area>0);
-   // Independent triangle oracle: all three crossings meet at vertex 3.
+
    std::array<std::array<long double,3>,3> q;
    for(int i=0;i<3;++i)for(int k=0;k<3;++k)
     q[i][k]=((long double)p[i][k]-p[3][k])*(((long double)h[3]-y)/((long double)h[3]-h[i]));
@@ -365,8 +365,8 @@ def test_mss7_tip_sections_are_translation_and_scale_stable(tmp_path):
   assert(!wallGeometryDetail::tetraSection(p,h,h[3],d,area,centre));
   for(auto&v:p)v[0]=p[3][0];
   assert(!wallGeometryDetail::tetraSection(p,h,.75*h[3],d,area,centre));assert(area==0);
-  // A zero-area section has no centroid: preserve output and report failure,
-  // rather than divide by zero and publish a successful NaN geometry.
+
+
   for(double component:centre)assert(component==0);
  }
  ''')
@@ -374,8 +374,8 @@ def test_mss7_tip_sections_are_translation_and_scale_stable(tmp_path):
 
 def test_mss7_face_9063_owner_profile_preserves_positive_measure(tmp_path):
     compile_run(tmp_path,r'''
- // Actual imported MSS7 owner and its unconstrained matching donor. Preserve
- // input last-bit vertex differences that generated the near-tip cut.
+
+
  MeshBuilder b;
  const std::vector<V>p={
   {0.036208807891632916,0.064169772833612013,-0.0028017127883829536},

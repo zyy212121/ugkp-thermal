@@ -24,6 +24,8 @@ struct MaterialDriveRecordView {
 class MaterialDriveCursor {
     const IntervalHistory& history_;
     std::size_t record_=0;
+    GasIntervalRecord payload_;
+    std::vector<GasIntervalRecord> publishedSamples_;
     WindowTime previous_{};
     bool positioned_=false,ordered_=true;
 public:
@@ -38,14 +40,23 @@ public:
         positioned_=true;previous_=time;
         const auto& records=history_.records();
         while(record_<records.size()&&!(time<records[record_].localEnd))++record_;
-        return record_<records.size()?&records[record_]:nullptr;
+        if(record_>=records.size())return nullptr;
+        if(!history_.externalPayload())return &records[record_];
+        payload_=history_.readRecord(record_);return &payload_;
     }
 
 
 
     void samplesInside(WindowTime begin,WindowTime end,std::vector<const GasIntervalRecord*>& output){
-        output.clear();at(begin);
-        const auto& records=history_.records();
+        output.clear();publishedSamples_.clear();
+        if(history_.externalPayload()){
+            std::vector<std::size_t> indices;sampleIndicesInside(begin,end,indices);
+            publishedSamples_.reserve(indices.size());
+            for(auto index:indices)publishedSamples_.push_back(history_.readRecord(index));
+            for(const auto& record:publishedSamples_)output.push_back(&record);
+            return;
+        }
+        at(begin);const auto& records=history_.records();
         for(std::size_t i=ordered_?record_:0;i<records.size();++i){
             const auto& r=records[i];if(ordered_&&r.localBegin>=end)break;
             if(r.localBegin>begin&&r.localBegin<end)output.push_back(&r);
@@ -53,6 +64,15 @@ public:
     }
 
 
+
+
+    void sampleIndicesInside(WindowTime begin,WindowTime end,std::vector<std::size_t>& output){
+        output.clear();at(begin);const auto& records=history_.records();
+        for(std::size_t i=ordered_?record_:0;i<records.size();++i){const auto& r=records[i];
+            if(ordered_&&r.localBegin>=end)break;
+            if(r.localBegin>begin&&r.localBegin<end)output.push_back(i);
+        }
+    }
     bool slabEndLocal(WindowTime begin,WindowTime requested,PhysicalReal tolerance,PhysicalReal tractionScale,
         WindowTime& output,std::string& error){
         const auto& history=history_;
@@ -61,7 +81,10 @@ public:
         const GasIntervalRecord* held=at(begin);
         if(!held){error="no driving sample at material slab start";return false;}WindowTime end=requested;
         for(std::size_t index=ordered_?record_:0;index<history.records().size();++index){
-            const auto& r=history.records()[index];
+            const auto& metadata=history.records()[index];
+            if(ordered_&&metadata.localBegin>=end)break;
+            if(metadata.localBegin<=begin||metadata.localBegin>=end)continue;
+            const auto r=history.readRecord(index);
             if(ordered_&&r.localBegin>=end)break;
             if(r.localBegin<=begin||r.localBegin>=end)continue;
             const auto comparison=ugkwp::compareGasDrive<Ns>(MaterialDriveRecordView{*held},MaterialDriveRecordView{r},tractionScale);

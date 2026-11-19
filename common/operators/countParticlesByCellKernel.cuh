@@ -1,6 +1,6 @@
 #pragma once
 #include "../wall/GpuColdWall1DHandles.cuh"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<bool WarpAggregated, bool SurvivorsOnly = false>
 __global__ void countParticlesByCellKernel(DeviceState* sp)
 {

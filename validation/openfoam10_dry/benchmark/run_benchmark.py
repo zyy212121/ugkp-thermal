@@ -24,7 +24,7 @@ if not args.reference_dir:
 S=Path(args.reference_dir).resolve()
 B=args.output_dir.resolve(); B.mkdir(parents=True,exist_ok=True)
 ROOT=Path(os.environ.get('DRY_CORE_ROOT',str(HERE.parents[2]))).resolve()
-# Offline provenance checks, not production runtime admission policy.
+
 provenance=json.loads((HERE/'provenance.json').read_text())
 for item in provenance['required_inputs']:
     path=S/item['path']
@@ -41,8 +41,8 @@ cap=np.array([30.,22.8,7.2]); A=np.array([12000.,4.97777e8,4.97777e8])
 E=np.array([71130.89,169975.,169975.]); R=8.314471469
 onset=(np.array([333.3,555.6,555.6])-300)/3.1
 times=np.arange(352.)
-# Cubic transformed solution: z=1-xi, d(z^-2)/dt=2*a(t).
-# Adaptive Gauss-Kronrod quadrature is independent of core mass-action/Euler code.
+
+
 remaining=np.empty((352,3)); pi=np.zeros(352); quadrature_error=0.
 for i,t in enumerate(times):
     for j in range(3):
@@ -75,13 +75,13 @@ for name in ['PATO','FIAT']:
       'reference_final_density':float(rr[-1]),'reference_peak_pi':float(max(pp)),
       'max_abs_density_fine_core_vs_reference':float(np.max(abs(rr-fine['rho_s']))) }
     np.savetxt(B/f'comparison_{name}.csv',np.c_[times,rr,rho,fine['rho_s'],pp,pi,mean,fine['pi_instant'],fine['pi_1s_average']],delimiter=',',header='time_s,reference_rho,quadrature_rho,core_fine_rho,reference_pi,quadrature_pi_instant,quadrature_pi_average,core_pi_instant,core_pi_average',comments='')
-# A diagnostic replica of published fixed-dt temperature sampling; still actual core.
+
 p=subprocess.run([str(B/'tacot_core'),'1','1','1'],capture_output=True,text=True,check=True)
 (B/'core_PATO_sampling_dt1.csv').write_text(p.stdout);(B/'core_PATO_sampling_dt1.log').write_text(p.stderr)
 x=np.genfromtxt(B/'core_PATO_sampling_dt1.csv',delimiter=',',names=True)
 r=np.genfromtxt(S/'zeroD_PATO_reference.csv',delimiter=',',names=True)
 summary['PATO_dt1_end_temperature_diagnostic']={'max_abs_rho_difference':float(np.max(abs(x['rho_s']-r['solid_bulk_density_kg_m3']))),'max_abs_pi_average_difference':float(np.max(abs(x['pi_1s_average']-r['pyrolysis_mass_source_kg_m3_s'])))}
-# Extensive storage scaling test, same bulk chemistry for another cell volume.
+
 p=subprocess.run([str(B/'tacot_core'),'.015625','0.000001'],capture_output=True,text=True,check=True)
 (B/'core_fine_volume1e-6.csv').write_text(p.stdout);(B/'core_fine_volume1e-6.log').write_text(p.stderr)
 y=np.genfromtxt(B/'core_fine_volume1e-6.csv',delimiter=',',names=True)
@@ -89,7 +89,7 @@ summary['volume_scaling_max_density_error']=float(max(abs(y['rho_s']-fine['rho_s
 summary['gas_yield_max_absolute_error']=float(max(np.max(abs(fine[n]-np.sum((cap-remaining)*weights,axis=1))) for n,weights in zip(['H2O','A1','A1OH','CO2','CO','CH4','H2'],np.array([[.69,.02,.29,0,0,0,0],[0,0,0,.09,.33,.58,0],[0,0,0,0,0,0,1]]).T)))
 (B/'summary.json').write_text(json.dumps(summary,indent=2)+'\n')
 
-# Yield map check against actually reacted core pools, not a time-discretization mismatch.
+
 yields=np.array([[.69,.02,.29,0,0,0,0],[0,0,0,.09,.33,.58,0],[0,0,0,0,0,0,1]])
 reacted=cap-np.column_stack([fine[f'volatile{j+1}'] for j in range(3)])
 expected=reacted@yields
@@ -103,7 +103,7 @@ summary['PATO_sampling_diagnostic_NOT_acceptance_shift']={
  'unshifted_dt1_density_max_error':float(max(abs(coarse['rho_s']-r['solid_bulk_density_kg_m3']))),
  'core_t_vs_reference_t_plus_1_density_max_error':float(max(abs(coarse['rho_s'][:-1]-r['solid_bulk_density_kg_m3'][1:]))),
  'reference_rho_discrete_derivative_vs_pi_max_error':float(max(abs(-np.diff(r['solid_bulk_density_kg_m3'])-r['pyrolysis_mass_source_kg_m3_s'][1:])))}
-# FIAT has a different rounded input table; compute its own continuum exactly.
+
 fiat_rho=[]
 for t in times:
  rem=[]
@@ -119,7 +119,7 @@ assert summary['volume_scaling_max_density_error']<1e-10
 assert summary['gas_yield_identity_max_error_kg_m3']<1e-10
 assert errs[-1]<.002
 (B/'summary.json').write_text(json.dumps(summary,indent=2)+'\n')
-# Plot raw time-aligned external targets; no fitted or shifted curves.
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt

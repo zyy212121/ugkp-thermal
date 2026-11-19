@@ -21,7 +21,7 @@ HERE=(VALIDATION_ROOT / 'tests/gas_transport')
 ])
 def test_shared_headers_are_global_before_legacy_operator_namespace(tmp_path,consumer):
     app=(ROOT/consumer).read_text().split('\nnamespace',1)[0]
-    # Read the exact global shared-gas dependency includes from each entry TU.
+
     dependencies='\n'.join('#include "'+match.group(1)+'"'
         for line in app.splitlines()
         if (match:=re.match(

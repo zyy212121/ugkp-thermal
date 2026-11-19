@@ -23,9 +23,9 @@ inline backend::Topology faceTopology(const HostMesh& mesh){
 }
 inline backend::PolyhedralGeometry& workspace(){thread_local backend::PolyhedralGeometry value;return value;}
 inline bool failure(std::string& error,const char* text,int index){error=std::string(text)+" at index "+std::to_string(index);return false;}
-// Initialization-only topology adaptation shared by native publication and
-// the resident stage owner. Sorted vertex order and manifold checks stay the
-// same; no coordinate-dependent metric is computed here.
+
+
+
 struct MeshTopologyDefinition {
     backend::Topology topology;std::vector<unsigned char> manifold;std::vector<int> walls;
 };
@@ -44,8 +44,8 @@ inline MeshTopologyDefinition meshTopology(const HostMesh& mesh){
             if(k==BoundaryKind::NoSlip||k==BoundaryKind::Slip||k==BoundaryKind::Interface)walls.push_back(f);}
     return definition;
 }
-// One device transaction computes face, cell and distance fields. Host
-// publication still follows the original validation/diagnostic ordering.
+
+
 class RebuiltGeometry {
     backend::Topology topology_;std::vector<unsigned char> manifold_;backend::RebuildResult result_;
 public:
@@ -62,7 +62,7 @@ public:
     bool cells(HostMesh& mesh,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics)const{
         const auto& result=result_.cells;const auto& t=topology_;const auto& manifold=manifold_;const int count=result.size();
     mesh.volumes.assign(count,0);mesh.cellCentres.assign(count,{});
-    // Publish diagnostics and failures in the same cell/policy order as before.
+
     for(int c=0;c<count;++c){const auto& r=result[c];const Vec3 closure=unpack(r.closure);
         if(t.vertexOffsets[c+1]-t.vertexOffsets[c]<4)return failure(error,"degenerate cell geometry",c);
         if(!finite(closure)||!finite(r.areaSum))return failure(error,"nonfinite cell area closure",c);
@@ -83,8 +83,8 @@ public:
 inline void adjacency(const std::vector<std::set<int>>& rows,std::vector<int>& offsets,std::vector<int>& neighbours){
     offsets.assign(1,0);for(const auto& row:rows){neighbours.insert(neighbours.end(),row.begin(),row.end());offsets.push_back(neighbours.size());}
 }
-// Output adaptation only: ordered checks and geometry are produced by the
-// common stage owner. This bridge performs no numerical mesh reconstruction.
+
+
 template<class Result> inline bool publishStageGeometry(const HostMesh& accepted,const Result& result,
     const std::vector<backend::Point>& points,HostMesh& output,std::vector<double>& sweep,std::string& error,ugkp::diagnostics::DeviceContext* diagnostics){
     if(diagnostics)for(unsigned int category=0;category<ugkp::diagnostics::warningCategoryCount;++category){

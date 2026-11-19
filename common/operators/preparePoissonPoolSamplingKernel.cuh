@@ -1,6 +1,6 @@
 #pragma once
 #include "GpuCollisionPoolTarget.cuh"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 __global__ void preparePoissonPoolSamplingKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;

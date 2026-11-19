@@ -36,8 +36,8 @@ def restart_fields(meta):
 
 
 def function_body(text, name):
-    # A call inside an if-condition is not a definition. Match balanced
-    # parameters first, then require the opening body immediately afterwards.
+
+
     start = None
     for match in re.finditer(r'\b' + re.escape(name) + r'\s*\(', text):
         depth, end = 1, match.end()
@@ -63,7 +63,7 @@ def function_body(text, name):
 
 
 def calls(text, name):
-    # Balanced argument extraction preserves production expressions and labels.
+
     for match in re.finditer(r'\b' + re.escape(name) + r'\s*\(', text):
         level, string, escape = 1, False, False
         for index in range(match.end(), len(text)):

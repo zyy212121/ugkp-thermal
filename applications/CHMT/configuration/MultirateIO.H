@@ -18,8 +18,9 @@ inline CouplingControls readCouplingControls(const Foam::Time& time, Real contro
     require(thermalInterval>0||controlsDictionary.found("couplingInterval"),
         "thermalCoupling.couplingInterval is required for executionMode Multirate");
     CouplingControls controls;
+    controls.scheduleOrigin=time.beginTime().value();
     controls.interval = thermalInterval>0?thermalInterval:readNumber(controlsDictionary,"couplingInterval");
-    // deltaT is a gas cap only. Neither it nor a material local step limits H.
+
     (void)controlDeltaT;
 
     return controls;

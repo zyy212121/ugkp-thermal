@@ -2,7 +2,7 @@
 source /opt/openfoam10/etc/bashrc
 set -eo pipefail
 R=$(cd "$(dirname "$0")/.." && pwd)
-# Diagnostic experiment only: keep an unsuccessful compiler below global OOM.
+
 ulimit -v 10485760
 export FOAM_USER_APPBIN="$R/bin" GAS_UGKP_BUILD="$R/build-evidence/gas-min"
 export NVCC=/usr/local/cuda/bin/nvcc UGKWP_CUDA_FAST_COMPILE=min

@@ -1,5 +1,5 @@
-// Exercise the production resident donor/stoichiometry kernels, including the
-// boundary-layer inputs which otherwise bypass generic flux scaling.
+
+
 #include "gpu/SharedGasDeviceStorage.cuh"
 #include "gpu/CoupledSurfaceTransfer.cuh"
 #include "gpu/CoupledSurfacePipeline.cuh"
@@ -48,19 +48,19 @@ int main(){
    assert(v->gasBoundaryLayerModel.input[f].massFlux[0]==w.speciesRate[0]+w.poreRate[0]);
    loss-=w.speciesRate[0]+w.poreRate[0]-w.poreSweepRate[0];
   }
-  // Already excessive transport is handled by its existing positivity pass;
-  // the reaction consumes zero and cannot add another withdrawal.
+
+
   if(scenario!=1)assert(loss<=phase[0]*v->gasSpecies.rho[0]+1e-16);
   std::printf("scenario=%d progress=%.17g gross=%.17g\n",scenario,extent[0],loss);
  }
- // A gas density floor constrains progress too; it must not subsequently
- // scale wall conduction/pressure work together with an already-built packet.
+
+
  phase[0]=1;v->rhoMin=.8;v->gasSpecies.rho[0]=.3;v->gasSpecies.rho[1]=.7;v->gasSpecies.flux[2]=0;
  for(int f=0;f<2;++f){program[f].speciesRate[0]=program[f].speciesRate[1]=-1;program[f].poreRate[0]=program[f].poreSweepRate[0]=0;}
  boundSurfaceProgressKernel<<<1,1>>>(v,cells,1,slots,geometry,program,2,{},1,true,extent);
  assert(cudaDeviceSynchronize()==cudaSuccess);assert(fabs(extent[0]-.05)<2e-15);
- // An inactive constraint is bit-preserving, including opposing pore
- // channels. The second identical publication must not repeat the wall BVP.
+
+
  extent[0]=1;program[0].poreRate[0]=1e-12;program[0].poreSweepRate[0]=100;
  auto* changed=array<unsigned char>(2);
  prepareResidentSurfaceKernel<<<1,2>>>(v,faces,2,geometry,program,{},extent,bounded,changed);

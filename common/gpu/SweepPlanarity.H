@@ -8,9 +8,9 @@ struct SweepPlanarityView {
     const double* tolerance=nullptr;
     const int* count=nullptr;
 };
-// Candidate storage comes solely from topology. Current coordinate rounding
-// determines the actual constraints; stable compaction preserves native face
-// and vertex order, without padded equations or a host count round trip.
+
+
+
 class ResidentSweepPlanarity {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:

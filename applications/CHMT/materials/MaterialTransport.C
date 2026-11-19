@@ -28,7 +28,7 @@ bool applyMaterialPacketBatchImpl(const std::vector<SolidQ>& base,const std::vec
     std::vector<std::array<long double,Nc+Ns+1>> sum(base.size()),scale(base.size());std::vector<std::size_t> operations(base.size());
     for(std::size_t cell=0;cell<base.size();++cell){for(int c=0;c<Nc;++c){sum[cell][c]=base[cell].condensed[c];scale[cell][c]=absValue(base[cell].condensed[c]);}
         for(int species=0;species<Ns;++species){sum[cell][Nc+species]=base[cell].pore[species];scale[cell][Nc+species]=absValue(base[cell].pore[species]);}sum[cell][Nc+Ns]=base[cell].energy;}
-    // Scatter each actual packet once. No full-domain scan per gas record.
+
     for(const auto& packet:packets)if(requiredConsumers(packet.kind)&ConsumeSolid){
         if((packet.solidCell<0||static_cast<std::size_t>(packet.solidCell)>=base.size())){if(numericalFailure)*numericalFailure=true;error="material packet owner invalid";return false;}
         const std::size_t cell=packet.solidCell;const auto delta=packetDelta(packet);++operations[cell];sum[cell][Nc+Ns]+=delta.solid.energy;
@@ -78,9 +78,9 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
     std::vector<Vec3> pressureGradient(q.size());
     std::vector<Real> gradientSensitivity(q.size()),stabilityRate(q.size()),cellDtLimit(q.size());
     std::vector<Real> lossLeft(m.owner.size()),lossRight(m.owner.size());
-    // Construct the physical-face gather independently from stencil incidence.
-    // This is the original global-face diffusion-loss order, including both
-    // sides of a self-periodic pair at the same cell.
+
+
+
     std::vector<int> offsets(q.size()+1),diffusionFaces,diffusionSides;
     auto visit=[&](auto append){for(std::size_t f=0;f<m.owner.size();++f){
         const auto kind=m.boundaryKind[f];int right=m.neighbour[f];
@@ -134,4 +134,4 @@ bool advanceMaterialReactions(const SolidQ& base,Real volume,const PhysicsConfig
     return advanceMaterialReactionsImpl(base,volume,p,interval,maxStep,cfl,maximum,out,accepted,error,numericalFailure);
 }
 
-} // namespace chmt
+}

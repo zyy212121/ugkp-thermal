@@ -4,9 +4,9 @@ from test_mixture_state import compile_probe
 from test_legacy_ale_transport import fixture
 from test_sst_ale_audit import AUDIT
 
-# A deliberately incompatible auxiliary profile must never become a second
-# coarse-grid k inventory. Changing the publisher/source to consume its net
-# source or wall-k flux makes these regressions fail.
+
+
+
 SETUP = r'''
 #include "gasTransport/GasBoundaryLayerEvaluation.H"
 void wall(State&s,Real tau,Real omega){
@@ -88,8 +88,8 @@ def test_selected_wall_ale_source_envelope_and_rk_audit(tmp_path):
     compile_probe(tmp_path,fixture()+AUDIT+SETUP+r'''
 
 int main(){
- // Selected wall: the ALE estimator must envelope gross physical activity,
- // and mesh-volume transport must not appear as an extra compression source.
+
+
  State s;initialise(s);wall(s,Real(4),Real(100));
  Real oldV[2]={1,1},newV[2]={Real(1.1),Real(.9)},sweeps[3]={Real(.1),0,0};const Real dt=.001;
  moving(s,oldV,newV,sweeps,dt);audit(s);const Real initialOmega=s.rhoOmega[0];threadIdx.x=0;applySstWallFunctionStateKernel(&s);
@@ -99,8 +99,8 @@ int main(){
  const Real k0=s.rhoK[0],o0=initialOmega;applySstFluxAndSourceKernel(&s,dt);
  ck(s.gasSpecies.cellStatus[0]==0,"selected ALE source rejected legal dt");
  near(observed.sourceK[0],dt*expected,"selected wall ALE source contains spurious mesh compression");checkBudget(s,k0,o0,0);
- // Selected algebraic omega survives the same actual conservative RK blend
- // and recover path while the independent k equation remains transported.
+
+
  for(Real weight:{Real(.5),Real(.25),Real(2)/3}){
   State r;initialise(r);wall(r,Real(4),Real(100));threadIdx.x=0;applySstWallFunctionStateKernel(&r);audit(r);threadIdx.x=0;saveGasConservativeStateKernel(&r);
   const Real before=r.rhoK[0],oldOmega=r.rhoOmega[0];applySstFluxAndSourceKernel(&r,Real(.001));

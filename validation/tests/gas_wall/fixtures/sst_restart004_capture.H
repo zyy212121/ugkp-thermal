@@ -1,12 +1,12 @@
 #pragma once
 #include "common/gasWall/WallModel.H"
-// Real GPU capture: restart t=.004, face53683, step8889; not the original9788 snapshot.
-struct CapturedSstWall {
- ugkwp::SpeciesThermoData<double> species[2]{};
- double coefficients[6]={1004.675,0,0,843.68062566560013,0,0};
- ugkwp::gaswall::WallInput<double,2> input{};
- ugkwp::gaswall::WallModelConfig<double> config{};
- UGKWP_GAS_HD CapturedSstWall(){
+
+template<class R> struct CapturedSstWallOf {
+ ugkwp::SpeciesThermoData<R> species[2]{};
+ R coefficients[6]={1004.675,0,0,843.68062566560013,0,0};
+ ugkwp::gaswall::WallInput<R,2> input{};
+ ugkwp::gaswall::WallModelConfig<R> config{};
+ UGKWP_GAS_HD CapturedSstWallOf(){
  species[0].model=static_cast<ugkwp::SpeciesThermoModel>(0);
  species[0].coefficientOffset=0;
  species[0].molarMass=0.028965206821645145;
@@ -80,6 +80,8 @@ struct CapturedSstWall {
  config.enableSst=true;
  }
 };
+
+using CapturedSstWall=CapturedSstWallOf<double>;
 
 inline void loadCapturedSstIterate(ugkwp::gaswall::WallWorkspace<double,2,24>& w){
  w.y[0]=0;

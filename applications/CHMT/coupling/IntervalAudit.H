@@ -1,22 +1,23 @@
 #ifndef CHMT_COUPLING_INTERVALAUDIT_H
 #define CHMT_COUPLING_INTERVALAUDIT_H
 #include "coupling/IntervalContracts.H"
+#include "coupling/WallProgramComparison.H"
 #include <set>
 #include "../../../common/HostMemory.H"
 namespace chmt {
 inline Real intervalNormalizedError(Real a,Real b,Real absolute,Real relative){
     const Real difference=absValue(a-b),tolerance=absolute+relative*maxValue(absValue(a),absValue(b));
     if(!finite(a)||!finite(b)||!finite(difference)||!finite(absolute)||!finite(relative)||!finite(tolerance)||absolute<0||relative<0)return undefinedValue();
-    // This dimensionless diagnostic can exceed representable range even when
-    // both physical values and their difference are finite. Saturate only the
-    // diagnostic ratio; an infinite physical input/difference fails above.
+
+
+
     if(tolerance==0)return difference==0?0:std::numeric_limits<Real>::max();
     if(tolerance<1&&difference>std::numeric_limits<Real>::max()*tolerance)return std::numeric_limits<Real>::max();
     return difference/tolerance;
 }
 
-// Existing CPU-owned SolidFilm records are retained; prior macro records are
-// not copied. Bookkeeping only: no inventory or budget source is applied here.
+
+
 template<class Records,class Release>
 inline bool finalizeIntervalLedgerRecords(Records& records,HostState& candidate,std::string& error,Release release){
     std::vector<ExchangePacket> ledger;std::size_t size=0;
@@ -30,24 +31,41 @@ inline bool finalizeIntervalLedgerRecords(Records& records,HostState& candidate,
     }
     candidate.ledger=std::move(ledger);error.clear();return true;
 }
-inline bool finalizeIntervalLedger(const IntervalHistory& history,HostState& candidate,std::string& error){
-    return finalizeIntervalLedgerRecords(history.records(),candidate,error,[](const GasIntervalRecord&){});
-}
 inline bool finalizeReleasedIntervalLedger(std::vector<GasIntervalRecord> records,HostState& candidate,std::string& error){
-    // Free each consumed payload before writing the next. The exact packet
-    // order and completed consumer masks are identical to retained publication.
+
+
     std::size_t count=0;
     const bool ok=finalizeIntervalLedgerRecords(records,candidate,error,[&](GasIntervalRecord& r){
         r=GasIntervalRecord{};if(++count%512==0)ugkp::releaseUnusedHostPages();
     });
     ugkp::releaseUnusedHostPages();return ok;
 }
-struct WallProgramComparison { Real thermalError=0,massPredictionError=0,geometryError=0;bool regimeMatches=true; };
+
+
+inline bool finalizeReleasedIntervalLedger(IntervalHistory history,HostState& candidate,std::string& error){
+    if(!history.externalPayload())return finalizeReleasedIntervalLedger(history.releaseRecords(),candidate,error);
+    std::vector<ExchangePacket> solidFilm;
+    candidate.ledger.forEachChunk([&](const ExchangePacket* packets,std::size_t count){
+        for(std::size_t i=0;i<count;++i)
+            if(packets[i].kind==ExchangeKind::SolidFilm)solidFilm.push_back(packets[i]);
+    });
+    candidate.ledger.freeze([first=std::move(solidFilm),packets=history.releaseLedgerReader()](const AcceptedLedger::ChunkVisitor& visit){
+        if(!first.empty())visit(first.data(),first.size());
+        packets(visit);
+    });
+    error.clear();return true;
+}
+inline bool finalizeIntervalLedger(const IntervalHistory& history,HostState& candidate,std::string& error){
+    if(history.externalPayload())return finalizeReleasedIntervalLedger(history,candidate,error);
+    return finalizeIntervalLedgerRecords(history.records(),candidate,error,[](const GasIntervalRecord&){});
+}
 inline bool intervalSampleWallLocal(const WallProgram& program,WindowTime localTime,WallKnot& result,std::string& error){
     const Real time=windowAbsolute(program.interval.begin,localTime);
     if(program.knots.size()<2)return intervalFailure(error,"wall comparison time outside program");
     std::size_t hi=1;while(hi+1<program.knots.size()&&localTime>knotOffset(program.interval,program.knots[hi]))++hi;
     const auto& a=program.knots[hi-1];const auto& b=program.knots[hi];
+    if(a.faces.size()!=b.faces.size()||a.gasPoints.size()!=b.gasPoints.size()
+        ||a.solidPoints.size()!=b.solidPoints.size())return intervalFailure(error,"wall interpolation field layout is incomplete");
     const Real f=windowFraction(localTime,knotOffset(program.interval,a),knotOffset(program.interval,b),time,a.time,b.time);WallKnot out=a;out.time=time;out.localTime=localTime;
     for(std::size_t i=0;i<out.faces.size();++i){auto& q=out.faces[i];const auto& t=b.faces[i];
         q.temperature+=f*(t.temperature-q.temperature);q.velocity=q.velocity+(t.velocity-q.velocity)*f;
@@ -60,13 +78,13 @@ inline bool intervalSampleWallLocal(const WallProgram& program,WindowTime localT
     result=std::move(out);error.clear();return true;
 }
 inline bool intervalSampleWall(const WallProgram& program,Real time,WallKnot& result,std::string& error){return intervalSampleWallLocal(program,windowOffset(program.interval.begin,time),result,error);}
-// absoluteGeometry is the swept-volume tolerance [m^3]. For each
-// reference surface face A [m^2], convert it to a displacement tolerance
-// absoluteGeometry/A + relativeGeometry*sqrt(A) [m]. The program does not
-// carry point-to-interface incidence, so use the strictest face tolerance
-// for all points rather than allowing a coarse face to hide a fine-face error.
-// This is a point-trajectory comparison only; actual swept-volume/GCL checks
-// remain mandatory. No absolute world coordinate enters its scale.
+
+
+
+
+
+
+
 inline bool wallPointLengthTolerance(const WallProgram& first,const WallProgram& second,
     const WallKnot& a,const WallKnot& b,const Tolerances& tol,Real& lengthTolerance,std::string& error){
     Real result=std::numeric_limits<Real>::infinity();
@@ -78,10 +96,10 @@ inline bool wallPointLengthTolerance(const WallProgram& first,const WallProgram&
         result=minValue(result,threshold);
     }
     if(first.surface.area.empty()&&second.surface.area.empty()){
-        // Gas-only programs have no interface face area. Use their intrinsic
-        // point-cloud extent; a degenerate cloud has no positive length scale.
-        // Reject any nonzero mismatch in that case instead of inventing a unit
-        // length or using the distance to the global origin.
+
+
+
+
         Real length=0;
         const std::vector<Vec3>* clouds[]={&a.gasPoints,&a.solidPoints,&b.gasPoints,&b.solidPoints};
         for(const auto* cloud:clouds)if(!cloud->empty()){
@@ -97,14 +115,16 @@ inline bool wallPointLengthTolerance(const WallProgram& first,const WallProgram&
     if(!finite(result)||result<0)return intervalFailure(error,"nonfinite wall point comparison tolerance");
     lengthTolerance=result;error.clear();return true;
 }
-inline bool compareWallPrograms(const WallProgram& first,const WallProgram& second,const Tolerances& tol,
-    WallProgramComparison& result,std::string& error){
-    std::set<WindowTime> times;for(const auto& k:first.knots)times.insert(knotOffset(first.interval,k));for(const auto& k:second.knots)times.insert(knotOffset(second.interval,k));
+inline bool compareWallProgramsAtTimes(const WallProgram& first,const WallProgram& second,const Tolerances& tol,
+    const std::set<WindowTime>& times,WallProgramComparison& result,std::string& error){
     if(times.empty())return intervalFailure(error,"wall program does not cover interval");
-    WallProgramComparison comparison;
+    WallProgramComparison comparison=result;
     bool valid=true;
     auto accumulate=[&](Real old,Real value){if(!finite(value))valid=false;return maxValue(old,value);};
     for(WindowTime time:times){WallKnot a,b;if(!intervalSampleWallLocal(first,time,a,error)||!intervalSampleWallLocal(second,time,b,error))return false;
+        if(a.faces.size()!=b.faces.size()||first.surface.area.size()<a.faces.size()
+            ||second.surface.area.size()<a.faces.size()||a.gasPoints.size()!=b.gasPoints.size()
+            ||a.solidPoints.size()!=b.solidPoints.size())return intervalFailure(error,"wall comparison field layout is incomplete");
         for(std::size_t i=0;i<a.faces.size();++i){const auto& x=a.faces[i];const auto& y=b.faces[i];comparison.regimeMatches=comparison.regimeMatches&&x.primaryKind==y.primaryKind;
             comparison.thermalError=accumulate(comparison.thermalError,intervalNormalizedError(x.temperature,y.temperature,tol.absoluteTemperature,tol.relativeTemperature));
             const Real scale=(first.interval.end-first.interval.begin)*maxValue(first.surface.area[i],second.surface.area[i]);
@@ -124,5 +144,28 @@ inline bool compareWallPrograms(const WallProgram& first,const WallProgram& seco
     if(!valid)return intervalFailure(error,"nonfinite wall waveform comparison");
     result=comparison;error.clear();return true;
 }
-} // namespace chmt
+inline bool compareWallPrograms(const WallProgram& first,const WallProgram& second,const Tolerances& tol,
+    WallProgramComparison& result,std::string& error){
+    std::set<WindowTime> times;
+    for(const auto& k:first.knots)times.insert(knotOffset(first.interval,k));
+    for(const auto& k:second.knots)times.insert(knotOffset(second.interval,k));
+    WallProgramComparison comparison;
+    if(!compareWallProgramsAtTimes(first,second,tol,times,comparison,error))return false;
+    result=comparison;return true;
+}
+
+
+
+
+inline bool accumulateWallProgramSegment(const WallProgram& first,const WallProgram& second,const Tolerances& tol,
+    WallProgramComparison& result,std::string& error){
+    if(second.knots.size()<2)return intervalFailure(error,"wall comparison requires an adjacent knot pair");
+    const auto begin=knotOffset(second.interval,second.knots[0]),end=knotOffset(second.interval,second.knots[1]);
+    if(!(begin<end))return intervalFailure(error,"wall comparison segment does not advance");
+    std::set<WindowTime> times{end};
+    if(begin==WindowTime{})times.insert(begin);
+    for(const auto& k:first.knots){const auto time=knotOffset(first.interval,k);if(begin<time&&time<=end)times.insert(time);}
+    return compareWallProgramsAtTimes(first,second,tol,times,result,error);
+}
+}
 #endif

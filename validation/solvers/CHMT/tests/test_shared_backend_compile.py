@@ -81,7 +81,7 @@ int main(){
  assert(beginGasWindow(*b,program,error));b->microTime=0;b->microDt=.01;assert(transport::CoupledTrialPolicy::begin(b.get())==0);
  auto&v=b->storage.hostView();v.rho[0]=1;v.Tgas[0]=600;v.p[0]=model.physics.species[0].R*600;v.gasSpecies.soundSpeed[0]=400;
  assert(applyCoupledFaces(b.get(),.01,0)==0);assert(std::abs(v.gasPhiRhoE[0]+300)<1e-10);
- // Simulate only the common donor factor here; no transport is emulated.
+
  v.gasPhiRhoE[0]*=.5;v.gasPhiRhoUx[0]*=.5;v.gasPhiRhoUy[0]*=.5;v.gasPhiRhoUz[0]*=.5;v.gasPhiRho[0]*=.5;
  for(int s=0;s<Ns;++s)v.gasSpecies.flux[s*b->nFaces]*=.5;
  assert(accountCoupledFaces(b.get(),.01)==0);assert(b->record.packets.size()==2);

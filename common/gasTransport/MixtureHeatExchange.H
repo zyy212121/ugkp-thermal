@@ -4,10 +4,10 @@
 
 namespace ugkwp
 {
-// Density form of V*(E(T)-Eold) + A*(T-Tref) = sum_i w_i*(Tp_i-Tref).
-// Centering removes formation-energy offsets from the convergence scale. The
-// parcel temperatures enter the right hand side unchanged; only gas property
-// evaluations are restricted to the gas table's valid interval.
+
+
+
+
 template<class Real,int Ns,class TableReal>
 struct MixtureHeatExchangeEvaluator
 {
@@ -25,8 +25,8 @@ struct MixtureHeatExchangeEvaluator
     }
 };
 
-// Shared bounded inversion and acceptance for linear or nonlinear particle
-// response. The evaluator returns a centered energy and its actual derivative.
+
+
 template<class Real,class Evaluator>
 UGKWP_GAS_HD inline ThermoStatus invertAcceptedHeatExchange
 (
@@ -36,33 +36,18 @@ UGKWP_GAS_HD inline ThermoStatus invertAcceptedHeatExchange
 ) noexcept
 {
     using namespace gasThermoDetail;
-    // Subtracting represented caloric energies has this roundoff floor even
-    // when the requested physical heat transfer is much smaller than Eold.
+
+
     auto solveControls=controls;
     const Real energyRoundoff=Real(4)*std::numeric_limits<Real>::epsilon()
         *(absValue(oldEnergy)+absValue(heatTarget));
     solveControls.absoluteEnergyTolerance+=energyRoundoff;
-    Real candidate=temperature;
-    const auto status=invertCaloricEnergy(evaluator,heatTarget,lo,hi,solveControls,
-                                         candidate,nullptr,diagnostics);
-    if(status!=ThermoStatus::Success)return status;
-    Real energy,capacity;
-    const auto evaluated=evaluateCaloricEnergy(evaluator,candidate,energy,capacity);
-    if(evaluated!=ThermoStatus::Success)return evaluated;
-    const Real residual=energy-heatTarget;
-    const Real energyTolerance=solveControls.absoluteEnergyTolerance
-        +solveControls.relativeEnergyTolerance*absValue(heatTarget);
-    const Real temperatureTolerance=solveControls.absoluteTemperatureTolerance
-        +solveControls.relativeTemperatureTolerance*absValue(candidate);
-    // invertCaloricEnergy also supports warning-only accuracy diagnostics.
-    // A paired exchange must not report success solely from a closed budget:
-    // its constitutive equation must have converged as well.
-    if(capacity==Real(0))return ThermoStatus::NonPositiveHeatCapacity;
-    if(absValue(residual)>energyTolerance
-       || absValue(residual/capacity)>temperatureTolerance+energyRoundoff/absValue(capacity))
-        return ThermoStatus::IterationLimit;
-    temperature=candidate;
-    return ThermoStatus::Success;
+
+
+
+
+    return invertCaloricEnergy(evaluator,heatTarget,lo,hi,solveControls,
+                              temperature,nullptr,diagnostics);
 }
 template<class Real,int Ns,class TableReal>
 UGKWP_GAS_HD inline ThermoStatus invertMixtureHeatExchange
@@ -82,10 +67,10 @@ UGKWP_GAS_HD inline ThermoStatus invertMixtureHeatExchange
         controls,temperature,view.diagnostics);
 }
 
-// Nonlinear parcel calorics use the same gas interval, Newton/bisection
-// strategy and residual acceptance as the constant-capacity exchange above.
-// Response(T,q,dq) supplies particle heat gain per gas volume and d(q)/d(T).
-// It must not publish particle state during a trial evaluation.
+
+
+
+
 template<class Real,int Ns,class TableReal,class Response>
 struct MixtureParticleHeatExchangeEvaluator
 {
@@ -121,8 +106,8 @@ UGKWP_GAS_HD inline ThermoStatus invertMixtureParticleHeatExchange
     Real referenceHeat,derivative;
     const auto status=response(temperature,referenceHeat,derivative);
     if(status!=ThermoStatus::Success)return status;
-    // Center on the exchange at the old gas temperature. This retains a
-    // physical heat scale even though the total energy equation has RHS zero.
+
+
 
 
 
@@ -143,5 +128,5 @@ UGKWP_GAS_HD inline ThermoStatus invertMixtureParticleHeatExchange
     return invertAcceptedHeatExchange(evaluator,-referenceHeat,oldEnergy,lo,hi,
         controls,temperature,view.diagnostics);
 }
-} // namespace ugkwp
+}
 #endif

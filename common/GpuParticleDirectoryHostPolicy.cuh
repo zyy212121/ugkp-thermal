@@ -1,8 +1,8 @@
 #pragma once
 
-// Compile-time directory capabilities and field/kernel adapters. All scan,
-// scatter, invalidation, task publication and automatic scheduling live in
-// GpuParticleDirectoryHost.cuh. Thermal applications expose full/split only.
+
+
+
 inline GPU_DIRECTORY_PARAMETER_TYPE currentPreTransportDirectoryKind(const DeviceState* s)
 {
 #if GPU_DIRECTORY_HAS_BASE_ONLY

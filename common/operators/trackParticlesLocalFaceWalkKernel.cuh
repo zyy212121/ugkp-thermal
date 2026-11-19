@@ -1,6 +1,6 @@
 #pragma once
 #include "ParticleResidentInterval.H"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<bool SommerfeldEnabled = true>
 __global__ void trackParticlesLocalFaceWalkKernel(DeviceState* sp, const GPU_OPERATOR_TIME requestedDt)
 {

@@ -3,6 +3,7 @@
 #include "gasNumerics/GasScalarSolverControlsApi.H"
 #include "GpuParticlePhaseGraph.cuh"
 #include "ParticleResidentInterval.H"
+#include "gpu/AdvanceState.cuh"
 #include "GpuParticleExecutionContext.H"
 #include "GpuParticleDirectoryGraph.H"
 #include "GpuCsrConditionalGraph.H"
@@ -91,6 +92,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
+#include <type_traits>
 #include <vector>
 
 #ifdef UGKP_DEVELOPMENT_PROBES
@@ -137,10 +139,11 @@ struct CsrReductionTask
 #include "GpuPressureProjectionTypes.H"
 
 struct DeviceState;
+void releaseAdvanceSequence(DeviceState*);
 template<bool Capture> int launchBoundaryLayer(DeviceState*);
 struct DeviceState
 {
-    const void* particleTrackingKernel = nullptr; // host launch selection only
+    const void* particleTrackingKernel = nullptr;
 
     ugkp::boundary::View gasBoundaryProgram;
     ugkp::boundary::Resident* gasBoundaryOwner=nullptr;
@@ -270,7 +273,7 @@ struct DeviceState
     ugkwp::GasResidentInterval* gasGraphClock=nullptr;
     bool gasGraphIntervalSubmitted=false,gasGraphAdvancesInterval=false;
     bool gasGraphIncludesBoundary=false,gasGraphPreparedBoundary=false,gasGraphFrozenBoundary=false;
-    double gasGraphDt=-1; // NaN invalidates structural/configuration bindings.
+    double gasGraphDt=-1;
     int gasGraphMode = -1;
     int particleBlockThreads = 128;
     int reductionBlockThreads = 128;
@@ -322,7 +325,7 @@ struct DeviceState
     double* planeD = nullptr;
 
 #ifdef UGKWP_STEADY_APPLICATION
-    // Allocated only by the steady application; transient ABI calls retain null.
+
     double* gasPseudoDt = nullptr;
     double gasPseudoReferenceDt = 1.0;
     bool gasSteadyMode = false;
@@ -564,9 +567,9 @@ struct DeviceState
     int* csrCellTaskOffset = nullptr;
     CsrReductionTask* csrReductionTasks = nullptr;
     int* csrMultiTaskCellList = nullptr;
-    // All nonempty-cell tasks, including single-task cells.
-    // Only cells requiring multiple tasks and final reduction.
-    // Occupancy statistics never alias task metadata consumed by finalizers.
+
+
+
     int* csrHeavyCellList = nullptr;
     int* csrHeavyTaskCell = nullptr;
     int* csrHeavyTaskBegin = nullptr;
@@ -624,7 +627,7 @@ struct DeviceState
     double* poissonCellCollisionProbability = nullptr;
     PressureProjectionCell* pressureProjectionCache = nullptr;
     int trackingWorkGrid = 0;
-
+#include "gpu/AdvanceOwnerFields.inl"
 };
 #include "GpuContactAgeStorage.cuh"
 
@@ -839,68 +842,7 @@ void setLastErrorText(const char* text)
 
 #include "GpuCsrConditionalGraph.cuh"
 
-template<class T>
-int allocate(T*& ptr, const size_t n, const char* name)
-{
-    ptr = nullptr;
-    if (n == 0)
-    {
-        return 0;
-    }
-
-    const cudaError_t err =
-        cudaMalloc(reinterpret_cast<void**>(&ptr), n*sizeof(T));
-    if (err != cudaSuccess)
-    {
-        setLastError(name, err);
-        return 1;
-    }
-    return 0;
-}
-
-template<class T>
-void release(T*& ptr)
-{
-    if (ptr != nullptr)
-    {
-        cudaFree(ptr);
-        ptr = nullptr;
-    }
-}
-
-template<class T>
-int copyToDevice(T* dst, const T* src, const size_t n, const char* name)
-{
-    if (n == 0)
-    {
-        return 0;
-    }
-    const cudaError_t err =
-        cudaMemcpy(dst, src, n*sizeof(T), cudaMemcpyHostToDevice);
-    if (err != cudaSuccess)
-    {
-        setLastError(name, err);
-        return 1;
-    }
-    return 0;
-}
-
-template<class T>
-int copyToHost(T* dst, const T* src, const size_t n, const char* name)
-{
-    if (n == 0)
-    {
-        return 0;
-    }
-    const cudaError_t err =
-        cudaMemcpy(dst, src, n*sizeof(T), cudaMemcpyDeviceToHost);
-    if (err != cudaSuccess)
-    {
-        setLastError(name, err);
-        return 1;
-    }
-    return 0;
-}
+#include "gpu/ResidentStorage.cuh"
 
 int syncDeviceState(DeviceState* s, const char* name)
 {
@@ -1042,6 +984,7 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
         return;
     }
 
+    releaseAdvanceSequence(s);
     releaseSharedGasTrialStorage(s->gasTrial);
     release(s->gasStatusFirstUnavailable);
     releaseBoundaryLayerStorage(*s);
@@ -1356,8 +1299,8 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->compactPRng);
     release(s->compactPOrigId);
 
-    // All preceding cudaFree calls belong to the original teardown and have
-    // completed outstanding users. Drain before freeing diagnostic evidence.
+
+
     if(s->diagnosticOwner) {
         s->diagnosticOwner->observeCompletedWork();
         s->diagnosticOwner->dispatchPending();
@@ -1928,7 +1871,7 @@ int applyGasGravitySource
     const bool nativeRefinement=false
 )
 {
-    // Steady gravity is an unsplit old-state RHS in each shared RK substage.
+
     if (!s->hostGravityActive
 #ifdef UGKWP_STEADY_APPLICATION
         || s->gasSteadyMode
@@ -2454,7 +2397,7 @@ constexpr bool postTransportFusePayload = true;
 #define GPU_PIPELINE_REAL double
 #include "GpuSegmentedMomentWorkers.cuh"
 
-// Compatibility adapter: historical gas bool order is recovery, then payload.
+
 int launchCsrSegmentedMomentReduction(DeviceState* s, const int block,
     const bool deferRecovery = false, const bool gatherSurvivors = false)
 {
@@ -3809,9 +3752,9 @@ extern "C" int ugkwpGpuResidentStrictCreate
         return 1;
     }
 
-    // Fast-compile builds outline thermo/wall calls. CUDA's default thread
-    // stack can then overflow before the first timestep. Keep the default
-    // unchanged unless the caller explicitly requests a larger stack.
+
+
+
     if (const char* requestedStack = std::getenv("GAS_UGKP_CUDA_STACK_BYTES"))
     {
         char* end = nullptr;
@@ -4597,7 +4540,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     if (err == cudaSuccess)
     {
         err = cudaDeviceSynchronize();
-    // Reuse this pre-existing completion point; do not add a synchronization.
+
     if(err==cudaSuccess) {
         err=s->diagnosticOwner->observeCompletedWork();
         if(s->diagnosticOwner->dispatchPending())return 1;
@@ -4628,56 +4571,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
 }
 
 
-#include "../../../common/GpuGasCourantReduction.cuh"
-#include "../../../common/GpuGasCourant.cuh"
-extern "C" int ugkwpGpuResidentStrictComputeGasCourant
-(
-    void* handle, double dt, double scheduleTime, double* maxCo
-)
-{
-    DeviceState* s=asState(handle);
-    if(validateState(s,"compute gas Courant"))return 1;
-    if(!maxCo){setLastErrorText("null gas Courant output");return 1;}
-    if(
-#ifdef UGKWP_STEADY_APPLICATION
-        !s->gasSteadyBoundaryFrozen &&
-#endif
-        s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy
-        && publishStartupWorkPlan(s,dt,scheduleTime))return 1;
-    GasCourantMaxima result;
-    const auto maximum=[](const double* acoustic,int count,cudaStream_t stream,double& value)
-    {
-        try
-        {
-            value=ugkwp::reduceGasAcousticCourant(acoustic,count,stream);
-        }
-        catch(const std::exception& e){setLastErrorText(e.what());return 1;}
-        const auto error=cudaGetLastError();
-        if(error!=cudaSuccess){setLastError("gas Courant maximum reduction",error);return 1;}
-        return 0;
-    };
-    if(computeGasCurrentCourant(s,dt,scheduleTime,
-        s->fixedCellBlockThreads,s->fixedFaceBlockThreads,s->gasCaptureStream,result,maximum))
-    {
-        if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)SharedGasTrialPolicy::complete(s);
-        return 1;
-    }
-    if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)
-    {
-        // Publish the timestep candidate only after queued status checks finish.
-        const int status=SharedGasTrialPolicy::validate(s);
-        const int completion=SharedGasTrialPolicy::complete(s);
-        if(status||completion)return 1;
-        *maxCo=result.maximum;
-        return 0;
-    }
-    // Courant's existing reduction has returned its host scalar.
-    const auto diagnosticReadback=s->diagnosticOwner->observeCompletedWork();
-    if(diagnosticReadback!=cudaSuccess) {setLastError("diagnostics at Courant readback",diagnosticReadback);return 1;}
-    if(s->diagnosticOwner->dispatchPending())return 1;
-    *maxCo=result.maximum;
-    return 0;
-}
+using ResidentCourantTrialPolicy=SharedGasTrialPolicy;
+#include "gasTransport/ResidentCourant.inl"
 
 extern "C" int ugkwpGpuResidentStrictAdvance
 (
@@ -4686,9 +4581,9 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     double simulationTime
 )
 {
-    // Legacy/particle callers pass the committed interval end. Transport RK
-    // stages start at simulationTime-dt; injection and publication retain the end.
-    // A pure-mixture requested interval has its own start-time adapter below.
+
+
+
     DeviceState* s = asState(handle);
     if (validateState(s, "advance") != 0)
     {
@@ -5208,11 +5103,11 @@ extern "C" int ugkwpGpuResidentStrictAdvance
 #undef UGKP_DEV_PROBE_ENTER
 #undef UGKP_DEV_PROBE_LEAVE
 
-    // Both physical-time drivers consume the same completed transaction before
-    // accepting a sample or writing transient fields/restart data.
+
+
     if(pairedMixture&&SharedGasTrialPolicy::complete(s))return 1;
-    // Graph submission advances its host mirror. Probes bypass that graph;
-    // empty particle phases still count as completed steady samples.
+
+
     if(s->particlePhaseGraphs.positionSequenceEnabled
 #ifndef UGKP_DEVELOPMENT_PROBES
         &&skipParticlePath
@@ -5229,9 +5124,9 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
     double simulationTime
 )
 {
-    // Legacy/particle callers pass the committed interval end. Transport RK
-    // stages start at simulationTime-dt; injection and publication retain the end.
-    // A pure-mixture requested interval has its own start-time adapter below.
+
+
+
     DeviceState* s = asState(handle);
     if (validateState(s, "pure-gas advance") != 0)
     {
@@ -5256,8 +5151,8 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
         }
         const GasRequestedIntervalControls<double> controls;
         const int result=advanceGasRequestedInterval<SharedGasTrialPolicy>(s,dt,simulationTime,controls);
-        // Complete both successful and failed intervals before the frontend can
-        // publish its physical clock. Guarded history commits are included.
+
+
         const int completion=SharedGasTrialPolicy::complete(s);
         return result||completion;
     }
@@ -5334,7 +5229,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadFields
     rc |= copyToHost(Uz, s->Uz, n, "cudaMemcpy strict Uz result");
     rc |= copyToHost(p, s->p, n, "cudaMemcpy strict p result");
     rc |= copyToHost(Tgas, s->Tgas, n, "cudaMemcpy strict Tgas result");
-    // Tgas has just completed a pre-existing blocking field readback.
+
     const auto diagnosticReadback=n?s->diagnosticOwner->observeCompletedWork():cudaSuccess;
     if(diagnosticReadback!=cudaSuccess) {setLastError("diagnostics at field readback",diagnosticReadback);rc|=1;}
     if(s->diagnosticOwner->dispatchPending())return 1;
@@ -5411,9 +5306,9 @@ extern "C" int ugkwpGpuResidentStrictUploadEpsGPrev
     {
         return rc;
     }
-    // Tracking can remove the last parcel after porosity sources have run.
-    // Its checkpoint still owes the next step a phase-volume correction.
-    // Restore the sticky coupled-path flag without changing that history.
+
+
+
     for (size_t cell = 0; cell < n; ++cell)
     {
         if (epsGPrev[cell] != 1.0)
@@ -5736,7 +5631,7 @@ extern "C" int ugkwpGpuResidentStrictSetDiagnosticOperation(void* handle,std::ui
     DeviceState* s=asState(handle);
     if(!s || !s->diagnostics)return 1;
     s->diagnosticOwner->setOperationContext(sequence,step,time);
-    // Ordered before graph replay, never captured with frozen timestep values.
+
     ugkp::diagnostics::beginOperationKernel<<<1,1>>>(s->diagnostics,sequence,step,time);
     const auto rc=cudaGetLastError();
     if(rc!=cudaSuccess){setLastError("begin diagnostic metadata",rc);return 1;}
@@ -5751,4 +5646,6 @@ extern "C" int ugkwpGpuResidentStrictSetDiagnosticOperation(void* handle,std::ui
 
 #ifdef UGKWP_STEADY_APPLICATION
 #include "../../gasUGKPSteady/private_backend/SteadyParticleDriver.cuh"
+#include "../../gasUGKPSteady/private_backend/SteadyAdvance.cuh"
 #endif
+#include "../../../common/GpuAdvanceSequence.cuh"

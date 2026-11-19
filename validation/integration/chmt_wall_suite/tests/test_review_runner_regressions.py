@@ -116,7 +116,7 @@ def test_contact_card_has_no_invented_element_or_pyrolysis_mapping(tmp_path):
 def test_imported_mesh_count_includes_neighbour_only_cell(tmp_path):
     mesh = tmp_path / 'mesh'
     shutil.copytree(CASES_ROOT / 'example/production/MSS7_laminar/constant/fluid/polyMesh', mesh)
-    # Focused addressing fixture: the highest label occurs only in neighbour.
+
     (mesh / 'owner').write_text('FoamFile { format ascii; class labelList; object owner; }\n3\n(0 1 2)\n')
     (mesh / 'neighbour').write_text('FoamFile { format ascii; class labelList; object neighbour; }\n2\n(1 3)\n')
     spec = load('generate').prepare('mss7_fixed', tmp_path / 'case',

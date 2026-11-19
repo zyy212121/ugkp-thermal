@@ -16,8 +16,8 @@ int main(){
  s.V[0]=s.V[1]=Real(3.6691894773708457e-7);
  s.gasSpecies.rho[0]=1;s.gasSpecies.rho[1]=1;
  s.gasSpecies.rho[2]=0;s.gasSpecies.rho[3]=0;
- // The neighbour is a zero CO2 donor. The request disappears as an integrated
- // mass, but remains representable in the production density update.
+
+
  const Real tiny=Real(1.1644331826788377e-317);
  s.gasSpecies.flux[0]=tiny;s.gasSpecies.flux[3]=-tiny;s.gasPhiRho[0]=0;
  s.gasPhiRhoE[0]=123;
@@ -44,11 +44,11 @@ int main(){
  assert(inventoryOutflowScale(0.,1e-7,1e-8,1e-317)==0);
  assert(inventoryOutflowScale(1.,1.,0.,1.)==1);
  assert(inventoryOutflowScale(1.,1.,1.,0.)==1);
- // Both products underflow, yet the mathematical ratio is one half.
+
  const double a=inventoryOutflowScale(1e-319,1e-7,1e-8,2e-318);
  assert(a>0 && a<.51);
- // Neither an overflowing product nor a lost density*volume may discard
- // an otherwise representable ratio. Long double is the independent oracle.
+
+
  const int e[]={-1074,-1060,-1022,-900,-500,-100,0,100,500,900,1023};
  for(int ed:e)for(int ev:e)for(int et:e)for(int ef:e){
   const double d=std::ldexp(1.,ed),v=std::ldexp(1.,ev),t=std::ldexp(1.,et),f=std::ldexp(1.,ef);

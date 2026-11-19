@@ -22,10 +22,10 @@ struct SurfaceGeometryDeviceView {
     const EdgeResult* edge=nullptr;
     const SurfaceGeometryStatus* status=nullptr;
 };
-// The coupled owner supplies already certified gas/solid stage geometry. This
-// operator computes only the interface metrics and adaptive edge quadrature;
-// it does not re-run either region's completed geometry transaction. Face
-// correspondence is immutable. Edge maps may be produced/updated on device.
+
+
+
+
 class ResidentSurfaceGeometry {
     struct Implementation;std::unique_ptr<Implementation> data_;
     void prepareImpl(PolyhedralGeometryDeviceView,PolyhedralGeometryDeviceView,PolyhedralGeometryDeviceView,
@@ -39,8 +39,8 @@ public:
         PolyhedralGeometryDeviceView gas,const Point* oldPoints,const Point* points,
         const SurfaceEdgeMap* edges,const double* interval,
         ugkp::diagnostics::DeviceContext* diagnostics=nullptr,void* stream=nullptr);
-    // The seam owner supplies the compacted map and its active edge count on
-    // device. Invalid seam candidates retain native face-before-edge ordering.
+
+
     void prepareWithSeams(PolyhedralGeometryDeviceView oldSolid,PolyhedralGeometryDeviceView solid,
         PolyhedralGeometryDeviceView gas,const Point* oldPoints,const Point* points,
         SurfaceSeamDeviceView seams,const double* interval,

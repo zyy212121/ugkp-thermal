@@ -9,20 +9,34 @@ namespace radiationFgmresDetail {
 using R=RadiationReal;
 constexpr int restart=16;
 __device__ R propagatingMax(R a,R b){return isnan(a)?a:isnan(b)?b:fmax(a,b);}
-struct Controls { R tolerance=R(1e-6),relativeTolerance=R(0),small=R(1e-30);int maximumIterations=200; };
-enum class StopReason {NotStarted=0,Converged=1,IterationLimit=2,Breakdown=3,NonFinite=4};
-struct Report {int iterations=0;R initialResidual=0,finalResidual=0,relativeResidual=0;StopReason stopReason=StopReason::NotStarted;bool converged=false;int breakdowns=0;bool nonFinite=false;};
-struct State {R beta,initialNorm,target;int used,active;Report report;};
+struct Controls { R tolerance=R(1e-6),relativeTolerance=R(0),small=R(1e-30);int maximumIterations=200; const unsigned long long* availableWork=nullptr;const bool* correctPublishedResidual=nullptr; };
+enum class StopReason {NotStarted=0,Converged=1,IterationLimit=2,Breakdown=3,NonFinite=4,Stagnation=5,WorkLimit=6};
+struct Report {int iterations=0,residualChecks=0;R initialResidual=0,finalResidual=0,relativeResidual=0;StopReason stopReason=StopReason::NotStarted;bool converged=false;int breakdowns=0;bool nonFinite=false;unsigned long long negativeIntensityBits=0;};
+struct State {R beta,initialNorm,target;int used,active,changed;unsigned long long workLimit;Report report;};
 __device__ R sum(R a,R* shared){int t=threadIdx.x;shared[t]=a;__syncthreads();for(int s=blockDim.x/2;s;s/=2){if(t<s)shared[t]+=shared[t+s];__syncthreads();}return shared[0];}
 __device__ R maximum(R a,R* shared){int t=threadIdx.x;shared[t]=a;__syncthreads();for(int s=blockDim.x/2;s;s/=2){if(t<s)shared[t]=propagatingMax(shared[t],shared[t+s]);__syncthreads();}return shared[0];}
+__device__ inline bool affordable(const State& state){
+ return 3ULL*state.report.iterations+state.report.residualChecks+4<=state.workLimit;
+}
+__device__ inline bool canIterate(const State& state,Controls controls){
+ return state.report.iterations<controls.maximumIterations&&affordable(state);
+}
+__device__ bool reachedTarget(R maxr,R norm,R den,const State& state,Controls c,bool first){
+ if(first&&c.correctPublishedResidual&&*c.correctPublishedResidual&&norm>0)return false;
+ return maxr<=c.tolerance*propagatingMax(den,c.small)||(c.relativeTolerance>0&&norm<=c.relativeTolerance*state.initialNorm);
+}
 __device__ void reportResidual(State* s,R maxr,R norm,R den,bool done,Controls c){
+ ++s->report.residualChecks;
  s->report.nonFinite=s->report.nonFinite||!isfinite(maxr)||!isfinite(norm)||!isfinite(den)||!isfinite(s->report.finalResidual);
  s->report.relativeResidual=s->initialNorm>R(0)?norm/s->initialNorm:(norm==R(0)?R(0):R(INFINITY));
  s->report.converged=done&&!s->report.nonFinite;
  s->report.stopReason=s->report.converged?StopReason::Converged:s->report.nonFinite?StopReason::NonFinite:
-     s->report.iterations>=c.maximumIterations?(s->report.breakdowns?StopReason::Breakdown:StopReason::IterationLimit):StopReason::NotStarted;
+     s->report.iterations>=c.maximumIterations?(s->report.breakdowns?StopReason::Breakdown:StopReason::IterationLimit):
+     !affordable(*s)?StopReason::WorkLimit:s->report.iterations>0&&!s->changed?StopReason::Stagnation:StopReason::NotStarted;
 }
-__global__ void initialize(State* s){if(!threadIdx.x)*s={};}
+__global__ void initialize(State* s,Controls controls){
+ if(!threadIdx.x){*s={};s->workLimit=controls.availableWork?*controls.availableWork:~0ULL;}
+}
 __global__ void residual(int n,const R* rhs,const R* ax,R* v,State* s,Controls c,bool first,cudaGraphConditionalHandle loop){
  extern __shared__ R tmp[];R ss=0,m=0,scale=0;
  for(int i=threadIdx.x;i<n;i+=blockDim.x){R r=rhs[i]-ax[i];v[i]=r;m=propagatingMax(m,fabs(r));scale=propagatingMax(scale,propagatingMax(fabs(rhs[i]),fabs(ax[i])));}
@@ -32,9 +46,9 @@ __global__ void residual(int n,const R* rhs,const R* ax,R* v,State* s,Controls c
  if(!threadIdx.x){s->beta=norm;s->report.finalResidual=maxr/propagatingMax(den,c.small);
  if(first){s->initialNorm=norm;s->report.initialResidual=s->report.finalResidual;}
  s->target=propagatingMax(c.tolerance*propagatingMax(den,c.small),c.relativeTolerance*s->initialNorm);
- bool done=maxr<=c.tolerance*propagatingMax(den,c.small)||(c.relativeTolerance>0&&norm<=c.relativeTolerance*s->initialNorm);
+ bool done=reachedTarget(maxr,norm,den,*s,c,first);
  reportResidual(s,maxr,norm,den,done,c);
- s->active=!done&&s->report.iterations<c.maximumIterations;
+  s->active=!done&&!s->report.nonFinite&&(first||s->changed)&&canIterate(*s,c);
  s->used=0;cudaGraphSetConditional(loop,s->active);}
 }
 __global__ void begin(int n,R* v,R* h,R* g,R* cs,R* sn,State* s){
@@ -43,7 +57,7 @@ __global__ void begin(int n,R* v,R* h,R* g,R* cs,R* sn,State* s){
  for(int i=threadIdx.x;i<=restart;i+=blockDim.x)g[i]=i?R(0):s->beta;
  for(int i=threadIdx.x;i<restart;i+=blockDim.x){cs[i]=0;sn[i]=0;}
 }
-__global__ void gate(State* s,Controls c,cudaGraphConditionalHandle handle){if(!threadIdx.x)cudaGraphSetConditional(handle,s->active&&s->report.iterations<c.maximumIterations);}
+__global__ void gate(State* s,Controls c,cudaGraphConditionalHandle handle){if(!threadIdx.x)cudaGraphSetConditional(handle,s->active&&canIterate(*s,c));}
 __global__ void arnoldi(int n,int j,R* v,R* w,R* h,R* g,R* cs,R* sn,State* s,Controls c){
  extern __shared__ R tmp[];
  for(int pass=0;pass<2;++pass)for(int k=0;k<=j;++k){
@@ -61,11 +75,33 @@ __global__ void arnoldi(int n,int j,R* v,R* w,R* h,R* g,R* cs,R* sn,State* s,Con
  R gj=g[j];g[j]=cs[j]*gj;g[j+1]=-sn[j]*gj;s->used=j+1;++s->report.iterations;
  if(!isfinite(r)||!isfinite(norm)||!isfinite(g[j+1]))s->report.nonFinite=true;
  if(!(r>0)||!(norm>0))++s->report.breakdowns;
- s->active=isfinite(r)&&r>0&&norm>0&&fabs(g[j+1])>s->target&&s->report.iterations<c.maximumIterations;}
+ s->active=isfinite(r)&&r>0&&norm>0&&fabs(g[j+1])>s->target&&canIterate(*s,c);}
+}
+__device__ void updateFeasibleIntensity(int n,R* x,const R* z,const R* weights,State* state){
+ const int first=blockIdx.x*blockDim.x+threadIdx.x;
+ const int stride=gridDim.x*blockDim.x;
+ bool changed=false;
+ R maximumCorrection=0;
+ for(int i=first;i<n;i+=stride){
+     R value=x[i];
+     for(int k=0;k<state->used;++k)value+=z[k*n+i]*weights[k];
+     if(isfinite(value)&&value<0){
+         maximumCorrection=fmax(maximumCorrection,-value);
+         value=0;
+     }
+     changed|=value!=x[i];
+     x[i]=value;
+ }
+ if(maximumCorrection>0)
+     atomicMax(&state->report.negativeIntensityBits,
+         static_cast<unsigned long long>(__double_as_longlong(double(maximumCorrection))));
+ const int anyChanged=__syncthreads_or(changed);
+ if(!threadIdx.x&&anyChanged)atomicExch(&state->changed,1);
 }
 __global__ void update(int n,R* x,const R* z,const R* h,R* g,State* s){
- if(!threadIdx.x){for(int k=s->used-1;k>=0;--k){R q=g[k];for(int j=k+1;j<s->used;++j)q-=h[j*(restart+1)+k]*g[j];R d=h[k*(restart+1)+k];g[k]=d!=0?q/d:R(0);}}
- __syncthreads();for(int i=threadIdx.x;i<n;i+=blockDim.x){R q=x[i];for(int k=0;k<s->used;++k)q+=z[k*n+i]*g[k];x[i]=q;}
+ if(!threadIdx.x){s->changed=0;for(int k=s->used-1;k>=0;--k){R q=g[k];for(int j=k+1;j<s->used;++j)q-=h[j*(restart+1)+k]*g[j];R d=h[k*(restart+1)+k];g[k]=d!=0?q/d:R(0);}}
+ __syncthreads();
+ updateFeasibleIntensity(n,x,z,g,s);
 }
 __global__ void parallelDots(int n,int j,const R* v,const R* w,R* partial){
  extern __shared__ R tmp[];int k=blockIdx.y;R q=0;
@@ -103,9 +139,9 @@ __global__ void finishResidual(const R* stats,State* s,Controls c,bool first,cud
  s->report.finalResidual=maxr/propagatingMax(den,c.small);
  if(first){s->initialNorm=norm;s->report.initialResidual=s->report.finalResidual;}
  s->target=propagatingMax(c.tolerance*propagatingMax(den,c.small),c.relativeTolerance*s->initialNorm);
- bool done=maxr<=c.tolerance*propagatingMax(den,c.small)||(c.relativeTolerance>0&&norm<=c.relativeTolerance*s->initialNorm);
+ bool done=reachedTarget(maxr,norm,den,*s,c,first);
  reportResidual(s,maxr,norm,den,done,c);
- s->active=!done&&s->report.iterations<c.maximumIterations;s->used=0;cudaGraphSetConditional(loop,s->active);
+ s->active=!done&&!s->report.nonFinite&&(first||s->changed)&&canIterate(*s,c);s->used=0;cudaGraphSetConditional(loop,s->active);
 }
 __global__ void parallelBegin(int n,R* v,R* h,R* g,R* cs,R* sn,State* s){
  for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<n;i+=gridDim.x*blockDim.x)v[i]=s->beta>0?v[i]/s->beta:R(0);
@@ -120,16 +156,16 @@ __global__ void finishArnoldi(int j,const R* stats,R* h,R* g,R* cs,R* sn,State* 
  R gj=g[j];g[j]=cs[j]*gj;g[j+1]=-sn[j]*gj;s->used=j+1;++s->report.iterations;
  if(!isfinite(r)||!isfinite(norm)||!isfinite(g[j+1]))s->report.nonFinite=true;
  if(!(r>0)||!(norm>0))++s->report.breakdowns;
- s->active=isfinite(r)&&r>0&&norm>0&&fabs(g[j+1])>s->target&&s->report.iterations<c.maximumIterations;
+ s->active=isfinite(r)&&r>0&&norm>0&&fabs(g[j+1])>s->target&&canIterate(*s,c);
 }
 __global__ void normalizeVector(int n,const R* w,R* v,const R* stats){
  for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<n;i+=gridDim.x*blockDim.x)v[i]=stats[1]>0?w[i]/stats[1]:R(0);
 }
 __global__ void triangular(const R* h,R* g,State* s){
- if(threadIdx.x)return;for(int k=s->used-1;k>=0;--k){R q=g[k];for(int j=k+1;j<s->used;++j)q-=h[j*17+k]*g[j];R d=h[k*17+k];g[k]=d!=0?q/d:R(0);}
+ if(threadIdx.x)return;s->changed=0;for(int k=s->used-1;k>=0;--k){R q=g[k];for(int j=k+1;j<s->used;++j)q-=h[j*17+k]*g[j];R d=h[k*17+k];g[k]=d!=0?q/d:R(0);}
 }
-__global__ void parallelUpdate(int n,R* x,const R* z,const R* g,const State* s){
- for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<n;i+=gridDim.x*blockDim.x){R q=x[i];for(int k=0;k<s->used;++k)q+=z[k*n+i]*g[k];x[i]=q;}
+__global__ void parallelUpdate(int n,R* x,const R* z,const R* g,State* s){
+ updateFeasibleIntensity(n,x,z,g,s);
 }
 
 }
@@ -155,7 +191,7 @@ class RadiationFgmres {
  finishResidual<<<1,1,0,st>>>(stats_,state_,controls,first,handle);
  };
  cudaGraphConditionalHandle loop;checked(cudaGraphConditionalHandleCreate(&loop,graph,0,cudaGraphCondAssignDefault));
- auto node=capture(graph,dep,[&]{initialize<<<1,1,0,st>>>(state_);});
+ auto node=capture(graph,dep,[&]{initialize<<<1,1,0,st>>>(state_,controls);});
  node=apply(graph,node,x,w_);
  node=capture(graph,node,[&]{norm(true,loop);});
  cudaGraph_t body=nullptr;auto finished=addWhile(graph,loop,{node},body);

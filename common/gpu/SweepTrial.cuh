@@ -1,4 +1,4 @@
-// Included by PolyhedralGeometry.cu.
+
 #include "SweepTrial.H"
 namespace ugkp { namespace gpu { namespace geometry { namespace {
 struct SweepTrialPartial {int invalid=INT_MAX;bool changed=false;};

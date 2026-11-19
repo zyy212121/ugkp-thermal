@@ -50,8 +50,8 @@ def fields(c):
    else:continue
    nums=[float(v) for v in re.findall(r'(?<![A-Za-z_])[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?',body)]
    output[str(p.relative_to(c))]=nums
- # Sampling reports are part of the stopping decision and conservation audit.
- # Compare them as well as the persisted mean fields and physical state.
+
+
  selected=[]
  for line in (c/'run.log').read_text().splitlines():
   if any(mark in line for mark in [' meanChange=', '  windowStationary=',

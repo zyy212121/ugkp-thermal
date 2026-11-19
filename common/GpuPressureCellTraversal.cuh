@@ -1,8 +1,8 @@
 
 #pragma once
 #include "GpuPressureUnsortedAlgebra.cuh"
-// One pressure traversal; model adapters own only constraints and moment closure.
-// Directory modes describe storage, never application identity.
+
+
 enum class PressureDirectory { Full, Split, Base, Injection };
 struct PressureParameters
 {
@@ -13,7 +13,7 @@ struct PressureParameters
 __device__ __forceinline__ void pressureDeltaFromLimitedFaces
 (DeviceState& s,const int c,const PressureTime dt,PressureReal (&delta)[4])
 {
-    // Keep accumulation local; publish the caller's array only after recovery.
+
     PressureReal dpx,dpy,dpz,de;
     accumulatePressureFaceDelta(s,c,dt,dpx,dpy,dpz,de);
     delta[0]=dpx; delta[1]=dpy; delta[2]=dpz; delta[3]=de;

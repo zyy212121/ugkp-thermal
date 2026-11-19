@@ -15,7 +15,7 @@ void checkAllDistances(HostMesh& mesh) {
             || kind==BoundaryKind::Interface;
     for (std::size_t c=0;c<mesh.cellCentres.size();++c) {
         Real reference=hasWall?std::numeric_limits<Real>::max():0;
-        // Preserve the original ascending all-face traversal as the oracle.
+
         for (std::size_t f=0;f<mesh.owner.size();++f) {
             const auto kind=mesh.boundaryKind[f];
             if (kind!=BoundaryKind::NoSlip && kind!=BoundaryKind::Slip
@@ -42,14 +42,14 @@ void exerciseUpdates(HostMesh mesh) {
         mesh.boundaryKind[f]=(f%3==0?BoundaryKind::NoSlip:
             f%3==1?BoundaryKind::Interface:BoundaryKind::Outlet);
     checkAllDistances(mesh);
-    // Change coordinates without changing connectivity or the wall labels.
-    // A global affine transform keeps every polygon planar and cell positive.
+
+
     for (auto& p:mesh.points)p={1.7*p.x+.2*p.y+11,.9*p.y+.1*p.z-7,1.3*p.z+4};
     checkAllDistances(mesh);
     clearWalls(mesh);
     checkAllDistances(mesh);
-    // Re-introduce only the last exterior face, then only the first one. A list
-    // cached across rebuilds would retain either no wall or the wrong wall.
+
+
     for (int f=int(mesh.owner.size())-1;f>=0;--f)if (mesh.neighbour[f]<0) {
         mesh.boundaryKind[f]=BoundaryKind::Slip;break;
     }

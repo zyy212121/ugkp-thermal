@@ -2,6 +2,7 @@
 #define UGKWP_SHARED_GAS_MODEL_INPUT_H
 
 #include "fvCFD.H"
+#include "../DiagnosticsHost.H"
 #include "../FoamGasSolverControls.H"
 #include "../gasBoundary/FoamInput.H"
 #include "GpuBackendApi.H"
@@ -97,19 +98,16 @@ class SharedGasModelInput
     }
     void initialiseIdentity(const Time& time,const fvMesh& mesh)
     {
-        IOobject prior("gasModelIdentity",time.timeName(),mesh,IOobject::READ_IF_PRESENT,IOobject::NO_WRITE,false);
-        if(isFile(prior.objectPath(false))){
-            IOdictionary saved(prior);
-            const auto hash=[&](const char* key){return std::string(Foam::string(saved.lookup(key)).c_str());};
-            if(hash("speciesOrderHash")!=std::to_string(model_.speciesOrderHash)
-                ||hash("thermoHash")!=std::to_string(model_.thermoHash)
-                ||hash("mechanismHash")!=std::to_string(mechanism_.mechanismHash))
-                throw std::runtime_error("restart gas thermodynamics/species/mechanism identity mismatch");
-            restart_=true;
-            for(const word& name:wordList{"rho","rhoU","rhoE"})
-                if(!isFile(IOobject(name,time.timeName(),mesh).objectPath(false)))
-                    throw std::runtime_error("gas restart is missing conserved field "+std::string(name));
-        }
+
+
+
+        restart_=time.value()!=0
+            ||isFile(IOobject("rhoU",time.timeName(),mesh).objectPath(false))
+            ||isFile(IOobject("rhoE",time.timeName(),mesh).objectPath(false));
+        if(restart_)for(const word& name:wordList{"rho","rhoU","rhoE"})
+            if(!isFile(IOobject(name,time.timeName(),mesh).objectPath(false)))
+                throw std::runtime_error(ugkp::diagnostics::inputError(
+                    {36003,__FILE__,__func__,__LINE__,"gas restart is missing conserved field "+std::string(name)}));
         restartIdentity_.reset(new IOdictionary(IOobject("gasModelIdentity",time.timeName(),mesh,
             IOobject::NO_READ,IOobject::AUTO_WRITE)));
         auto& dict=restartIdentity_();

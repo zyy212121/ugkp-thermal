@@ -1,6 +1,6 @@
 #pragma once
-// The gas reference reads published cell moments. Thermal/contact owners can
-// supply the mobile subset without changing the common finite-capacity law.
+
+
 struct ParticleGasHeatMoments
 {
     GPU_OPERATOR_REAL mass, px, py, pz, diameter, enthalpy;

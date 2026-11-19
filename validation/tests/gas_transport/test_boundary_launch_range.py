@@ -7,7 +7,7 @@ def test_boundary_local_indices_preserve_all_three_operators(tmp_path):
     mirror=(SOURCE_ROOT/'common/operators/updateLegacyGasBoundaryMirrorKernel.cuh').read_text().split('#include "reconstructGasMixtureFace.cuh"')[0]
     wave=(SOURCE_ROOT/'common/operators/updateWaveTransmissivePressureBoundaryKernel.cuh').read_text()
     current=mirror+wave
-    # Reference index contract only; all boundary arithmetic is the real header.
+
     reference=current.replace('s.nInternalFaces + blockIdx.x*blockDim.x + threadIdx.x','blockIdx.x*blockDim.x + threadIdx.x')
     reference=reference.replace('if (f >= s.nFaces','if (f < s.nInternalFaces || f >= s.nFaces')
     names=['updateLegacyGasBoundaryMirrorKernel','updateRiemannBoundaryMirrorKernel','updateWaveTransmissivePressureBoundaryKernel']
@@ -54,7 +54,7 @@ int main(){blockDim.x=1;
  }
 }
 """)
-    # initializer_list is required by the range-based test cases.
+
     cpp.write_text('#include <initializer_list>\n'+cpp.read_text())
     exe=tmp_path/'boundary'
     q=subprocess.run(['g++','-std=c++17','-O2',str(cpp),'-o',str(exe)],capture_output=True,text=True)

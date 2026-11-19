@@ -1,4 +1,4 @@
-// Included by PolyhedralGeometry.cu.
+
 #include "SweepPlanarity.H"
 #include <cub/device/device_scan.cuh>
 namespace ugkp { namespace gpu { namespace geometry { namespace {

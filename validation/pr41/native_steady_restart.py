@@ -78,7 +78,7 @@ def main():
         assert abs(mass+residual-expected)<expected*1e-9
         report["coverage"]=dict(parcels=len(xyz),unique_transverse_positions=unique,
             normalized_rounding_digits=9,mass=mass,residual=residual,expected_mass=expected)
-        # Existing-format checkpoint, sampleCount larger than Foam::label on DPInt32.
+
         high=out/"large-count";shutil.copytree(checkpoint,high)
         path=high/"32/steadyState.dat"
         path.write_text(re.sub(r"sampleCount \d+","sampleCount "+str(2**40),path.read_text()))
@@ -86,7 +86,7 @@ def main():
         highmeta=metadata(high/"64/steadyState.dat")
         assert highmeta["sampleCount"]==2**40+32,highmeta
         report["large_count_restart"]=highmeta
-        # Old cases without clock metadata remain runnable, with a fresh epoch.
+
         missing=out/"without-clock-metadata";shutil.copytree(checkpoint,missing)
         (missing/"32/steadyState.dat").unlink()
         resume(missing,64);execute(binary,missing,"resumed",report)

@@ -11,8 +11,8 @@ struct ResidentMaterialStep {
     bool active=false,finalStep=false;
     MaterialStepSelectionError error=MaterialStepSelectionError::None;
 };
-// Existing material policy, separated from the host loop. The gas-history
-// selector and physical transport limit supply device results between phases.
+
+
 CHMT_HD inline ResidentMaterialStep requestMaterialStep(ugkp::CompensatedTime begin,
     ugkp::CompensatedTime total,Real maxSubstep,Real tolerance,Real tractionScale,
     ugkwp::GasDriveControls& drive){
@@ -29,8 +29,8 @@ CHMT_HD inline void alignMaterialStep(ResidentMaterialStep& step,const ugkwp::Ga
     if(!step.active||step.error!=MaterialStepSelectionError::None)return;
     if(drive.error!=ugkwp::GasDriveSelectionError::None){step.error=MaterialStepSelectionError::Drive;return;}
     step.drive=drive.held;step.dt=ugkp::boundedTimeDuration(drive.end,step.begin);
-    // Retain original knot order and strict interior comparison, including
-    // unrepresentable intermediate endpoints; do not add a microstep cap.
+
+
     for(std::size_t i=0;i<count;++i)if(step.begin<knots[i].local&&knots[i].local<step.begin+step.dt)
         step.dt=ugkp::boundedTimeDuration(knots[i].local,step.begin);
 }
@@ -38,7 +38,7 @@ CHMT_HD inline void limitMaterialStep(ResidentMaterialStep& step,ugkp::Compensat
     Real transportLimit,int transportError){
     if(!step.active||step.error!=MaterialStepSelectionError::None)return;
     if(transportError){step.error=MaterialStepSelectionError::Transport;return;}
-    // std::min's first-operand NaN behavior is part of the original order.
+
     if(transportLimit<step.dt)step.dt=transportLimit;
     step.end=step.begin+step.dt;
     if(!finite(step.dt)||!(step.dt>0)||step.end==step.begin){step.error=MaterialStepSelectionError::NonAdvancing;return;}

@@ -6,8 +6,8 @@
 #include <iostream>
 #include <algorithm>
 using namespace chmt::dry;
-// Test-only thin adapter proves the new math uses the existing shared gas
-// thermochemistry unchanged. No duplicate EOS/property implementation.
+
+
 struct Gas {
     chmt::SpeciesThermo species[2];
     Gas() {
@@ -50,8 +50,8 @@ int main() {
     close(p.porosity,.5);close(p.poreDensity,6);close(p.pressure,6*287*600);
     close(p.conductivity,1.02);
 
-    // Manufactured two-element reaction: mass/element invariants are exact,
-    // but these yields/kinetics are NOT an experimentally validated material.
+
+
     Stoichiometry<2,2> nu;nu.condensed={{-1,.4}};nu.gas={{.2,.4}};
     close(massResidual(nu),0);
     const std::array<std::array<double,2>,2> elementSolid{{{{.6,.4}},{{1,0}}}};
@@ -65,8 +65,8 @@ int main() {
     assert(reacted.converged);assert(std::abs(reacted.temperature-600)>1);
     close(caloricState(q,solids,gas,reacted.temperature).energy,initialEnergy);
 
-    // Shift every species formation energy by elemental reference constants.
-    // The temperature from conserved energy must not change.
+
+
     auto shiftedSolid=solids;auto shiftedGas=gas;auto shiftedState=q;
     const std::array<double,2> shift{{8e5,-1.2e6}};
     double totalShift=0;
@@ -86,9 +86,9 @@ int main() {
     MaterialState<2,2> rate;rate.condensedMass={{-1,.4}};rate.poreMass={{.2,.4}};
     close(reactionEuler(small,rate,1),.01);close(small.condensedMass[0],0);
     close(mass(small),.01);close(small.energy,9);
-    // Preserve the actual legacy mass-concentration kinetic parameterization.
-    // Compare against BOTH the independent formula and existing CHMT evaluator
-    // with unchanged A, b, Ea, orders and mass-yield coefficients.
+
+
+
     chmt::Reaction oldReaction;
     oldReaction.A=7.3;oldReaction.temperaturePower=.35;oldReaction.activationEnergy=22000;
     oldReaction.order[0]=.7;oldReaction.order[1]=1.2;
@@ -109,14 +109,14 @@ int main() {
         close(preservedSource.condensedMass[1],.4*oldRate);
         close(preservedSource.poreMass[0],.2*oldRate);close(preservedSource.poreMass[1],.4*oldRate);
     }
-    // Explicit optional molar-concentration input is equivalent ONLY with
-    // A_molar=A_mass*product(W_i^order_i), same extent/production basis.
+
+
     const std::array<double,2> W{{.025,.12}},rho{{3,7}},molar{{3/.025,7/.12}};
     auto molarReaction=preserved;
     molarReaction.preExponential*=std::pow(W[0],.7)*std::pow(W[1],1.2);
     close(reactionRate(preserved,rho,std::array<double,2>{},800),
         reactionRate(molarReaction,molar,std::array<double,2>{},800));
-    // Independently configured reaction stages retain distinct gas yields.
+
     Reaction<2,2> stage1,stage2;
     stage1.production.condensed={{-.1,.05}};stage1.production.gas={{.05,0}};
     stage2.production.condensed={{0,-.1}};stage2.production.gas={{0,.1}};
@@ -153,8 +153,8 @@ int main() {
     exchangePoreFlux(a,b,f,.2,1e-3);
     for(std::size_t s=0;s<2;++s)close(a.poreMass[s]+b.poreMass[s],2*before.poreMass[s]);
     close(a.energy+b.energy,2*before.energy);
-    // Single-species diffusion cancels exactly; three species don't require a
-    // second component placeholder or fixed two-species matrix.
+
+
     close(correctedDiffusion(1,std::array<double,1>{{1}},
         std::array<double,1>{{1}},std::array<double,1>{{1}})[0],0);
     const auto j3=correctedDiffusion(2,std::array<double,3>{{.2,.3,.5}},

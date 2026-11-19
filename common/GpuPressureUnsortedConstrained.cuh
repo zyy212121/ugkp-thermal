@@ -1,6 +1,6 @@
 #pragma once
 #include "ParticleResidentInterval.H"
-// Shared unsorted thermal projection; preserves the published-state reconstruction.
+
 __global__ void applyCollisionalPressureProjectionCellAtomicKernel
 (
     DeviceState* sp,

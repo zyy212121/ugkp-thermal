@@ -8,7 +8,7 @@ for(int mutation=0;mutation<4;++mutation)for(bool quadrature:{false,true}){
  auto m=cubes();
  if(mutation==0)m.volumes[0]=.9;
  if(mutation==1)m.cellCentres[0][2]=.4;
- // A warped side face still has a complete existing ear-clipped surface.
+
  if(mutation==2)m.points[6][0]+=.01;
  if(mutation==3)m.physicalWall[2]=1;
  WallGeometryOptions<double> o;o.constructQuadrature=quadrature;o.relativeTolerance=0;
@@ -94,7 +94,7 @@ int main(){
  }
  auto m=cubes();WallGeometryDescriptor<double>d;WallStatus s;
  assert(buildWallGeometry(m,0,d,s));checkMoments(d,{.5,.5,.5},1);
- // Exhausted seed search still publishes its actual signed tetrahedral moments.
+
  m.cellCentres[0]={3,3,.5};assert(buildWallGeometry(m,0,d,s));
  assert(d.matchingCells==std::vector<int>{1}&&std::isfinite(d.firstMoment));
 }
@@ -109,8 +109,8 @@ int main(){
 def test_mesh_reads_actual_offset_ranges_and_owner_volume(tmp_path):
     compile_run(tmp_path, r'''
 auto m=cubes();
-// Consumed face ranges need not start at zero. Unconsumed prefix/tail values
-// and donor-cell volume storage are not required by the wall construction.
+
+
 m.facePoints.insert(m.facePoints.begin(),999);for(auto&i:m.faceOffsets)++i;
 m.faceOffsets.push_back(999999);m.volumes.resize(1);
 WallStatus s;WallGeometryDescriptor<double>d;

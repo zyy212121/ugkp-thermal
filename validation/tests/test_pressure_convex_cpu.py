@@ -107,14 +107,14 @@ int main(int argc,char** argv) {
         const Real big=std::numeric_limits<Real>::max()/Real(4);
         r=limitFace(big,big,big,big,Real(2)*big,Real(0),Real(10),-big,-big,-big,Real(0));
         check(r.valid && r.beta==Real(1),"scaled three-axis kinetic energy overflowed");
-        // Near a tangent, negative b must use the rationalized root branch.
+
         r=call(1,1,Real(.5)+Real(128)*std::numeric_limits<Real>::epsilon(),0,100,1,-1);
         check(r.valid && r.beta>0,"small positive internal budget was lost");
         const long double p=1+(long double)r.beta,e=Real(.5)+Real(128)*std::numeric_limits<Real>::epsilon()-(long double)r.beta;
         check(internal(1,p,e)>=0,"near-tangent boundary crossed");
     } else if(mode=="cancellation") {
-        // Both raw faces sum to zero. The old net-cell lambda is one, but a
-        // neighbour reducing just the second face uncancels a forbidden kick.
+
+
         const Real raw[2]={2,-2}, omega=Real(.5);
         check(internal(1,raw[0]+raw[1],1)==1,"invalid cancellation fixture");
         check(internal(1,raw[0],1)<0,"old min-neighbour failure did not reproduce");
@@ -127,8 +127,8 @@ int main(int argc,char** argv) {
             long double dp=(long double)shared0*raw[0]+(long double)shared1*raw[1];
             check(internal(1,dp,1)>=-tol,"arbitrary smaller shared-face coefficients broke convexity");
         }
-        // Quantify the deliberate local-price: exact cancellation is globally
-        // admissible at beta=1; independent endpoints retain about 35.355%.
+
+
         const long double loss=1-(long double)cell;
         check(loss>.646 && loss<.647,"unexpected cancellation over-dissipation");
         std::cout << "cancellation retained=" << cell << " discarded=" << loss << '\n';

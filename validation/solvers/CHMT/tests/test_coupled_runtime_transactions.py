@@ -29,7 +29,7 @@ struct Fixture {
  }
 };
 
-// Test-only comparison of independently executed physical candidates.
+
 void samePhysicalGas(const HostState& a,const HostState& b){
  assert(a.gas.size()==b.gas.size()&&a.sst.size()==b.sst.size());
  for(size_t c=0;c<a.gas.size();++c){const auto& x=a.gas[c];const auto& y=b.gas[c];
@@ -131,7 +131,7 @@ inline std::vector<HostChemistryObservation> hostChemistryObservations;
 template<class State,class Time,class Volume,class Function>
 void hostObserveChemistry(State* state,Time dt,const Volume* volumes,int speciesCount,Function body){
  HostChemistryObservation record;record.dt=double(dt);const int n=state->nCells;
- // Test-only snapshots of actual fields around the real translated kernel.
+
  for(int c=0;c<n;++c){record.volume.push_back(double(volumes[c]));record.beforeEnergy.push_back(double(state->rhoE[c]));}
  for(int k=0;k<speciesCount;++k)for(int c=0;c<n;++c)record.before.push_back(double(state->gasSpecies.rho[k*n+c]));
  body();
@@ -180,7 +180,7 @@ int main(){
  const auto& record=b->history.records().front();double exchange=0;
  for(const auto& packet:record.packets)exchange+=packetDelta(packet).gas.energy;
  assert(std::abs(b->trial.gas[0].energy-f.h.gas[0].energy-exchange)<1e-9);
- // The preceding assertion independently closes actual energy against packets.
+
  assert(rollbackGasWindow(*b,f.error));assert(b->trial.gas[0].energy==f.h.gas[0].energy);
  }
 }
@@ -306,7 +306,7 @@ int main(){
  assert(report.rejectedTrials==0&&b->history.records().size()==1);
  assert(std::abs(b->trial.gas[0].mass-1)<1e-12);
  assert(rollbackGasWindow(*b,f.error));assert(b->trial.gas[0].mass==1);
- // A supplied pore-sweep transfer follows the existing actual transport and reservation.
+
  for(auto& knot:f.program.knots){knot.faces[0].speciesRate[0]=knot.faces[0].condensedRate[0]=0;
  knot.faces[0].poreRate[0]=0;knot.faces[0].poreSweepRate[0]=-2e5;}
  assert(beginGasWindow(*b,f.program,f.error));
@@ -323,8 +323,8 @@ def test_failed_device_restore_after_missing_material_owner_cannot_retry(tmp_pat
     stub=tmp_path/'cuda_runtime.h'
     stub.write_text(stub.read_text().replace('inline int cudaMemcpy(void*d,const void*s,size_t n,int){',
         'inline bool shimInjected=false;inline int shimFailCopy=0;inline int cudaMemcpy(void*d,const void*s,size_t n,int){if(shimFailCopy>0&&--shimFailCopy==0)return 2;'))
-    # Test-only one-shot fault at the actual rejected reservation boundary.
-    # No instrumentation or fault controls are added to production classes.
+
+
     text=source.read_text();needle='if(!b.reserve.prepare(b.record,reservation,b.error)){'
     assert text.count(needle)==1
     text=text.replace(needle,'b.record.packets[0].solidCell=99;'+needle+'if(!shimInjected){shimInjected=true;shimFailCopy=1;}')
@@ -370,7 +370,7 @@ int main(){
   assert(currentGasCourant(*selected,1e-5,maxima));assert(maxima.maximum>=0);
   assert(v.rho[0]==q[0]&&v.rhoUx[0]==q[1]&&v.rhoUy[0]==q[2]&&v.rhoUz[0]==q[3]&&v.rhoE[0]==q[4]);
   assert(v.rhoK[0]==q[5]&&v.rhoOmega[0]==q[6]);assert(d2dCopies==(sst?4:0));assert(d2dBytes==(sst?32:0));
-  // Reset only this diagnostic estimate before the production path below.
+
   assert(rollbackGasWindow(*selected,f.error));assert(beginGasWindow(*selected,f.program,f.error));
   direct->microTime=0;direct->microDt=1e-5;
   assert(transport::advanceGasTrial<transport::CoupledTrialPolicy>(direct.get(),1e-5,0)==0);

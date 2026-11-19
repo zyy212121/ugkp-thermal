@@ -8,6 +8,7 @@
                                                                          
 
 #include "GpuBackendTypes.H"
+#include "gpu/AdvanceApi.H"
 
 extern "C" int ugkwpGpuResidentStrictCreate
 (
@@ -58,7 +59,7 @@ extern "C" int ugkwpGpuResidentStrictUploadMesh
     const double* planeD
 );
 
-// Optional global particle-source velocity; unspecified follows gas boundaries.
+
 extern "C" int ugkwpGpuResidentStrictConfigureParticleInjectionVelocity
 (void* handle, int specified, double ux, double uy, double uz);
 
@@ -213,7 +214,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadNut
 extern "C" void ugkwpGpuResidentStrictRelease(void* handle);
 extern "C" const char* ugkwpGpuResidentStrictLastError();
 
-// Geometry rows: inward normal xyz, ownerDistance, matchingDistance, volume, firstMoment.
+
 
 
 #include "../../../common/DiagnosticsHost.H"
@@ -224,6 +225,9 @@ extern "C" void ugkwpGpuResidentStrictSetDiagnosticSink(void*,const ugkp::diagno
 
 #ifdef UGKWP_STEADY_APPLICATION
 #include "../../gasUGKPSteady/gpu/GpuSteadySampling.H"
+extern "C" int ugkwpGpuResidentStrictConfigureSteadyAdvance(void*,const ugkp::gpu::SteadyAdvanceControls*,const double*,int);
+extern "C" int ugkwpGpuResidentStrictCollectSteadyResidual(void*,double*);
+extern "C" int ugkwpGpuResidentStrictCollectSteadyWindow(void*,GpuSteadySamplingReport*);
 extern "C" int ugkwpGpuResidentStrictConfigureSteadySampling(void*,double);
 extern "C" int ugkwpGpuResidentStrictConfigureSteadySamplingFromRestart(void*,double,std::uint64_t);
 extern "C" int ugkwpGpuResidentStrictBeginSamplingWindow(void*);
@@ -231,7 +235,7 @@ extern "C" int ugkwpGpuResidentStrictAccumulateSamplingWindow(void*,double);
 extern "C" int ugkwpGpuResidentStrictFinishSamplingWindow(void*,double,GpuSteadySamplingReport*);
 extern "C" int ugkwpGpuResidentStrictDownloadSamplingMean(void*,double*);
 
-// Steady-only driving API. Existing transient entry points are unchanged.
+
 extern "C" int ugkwpGpuResidentStrictConfigureSteady(void*, double);
 extern "C" int ugkwpGpuResidentStrictPrepareSteadyStep(void*, double, double);
 extern "C" int ugkwpGpuResidentStrictSteadyResidual(void*, double*);

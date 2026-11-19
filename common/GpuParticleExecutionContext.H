@@ -2,8 +2,8 @@
 #include <type_traits>
 #include <utility>
 namespace ugkp { namespace gpu {
-// Recording context only. Ordinary execution retains the particle owner's
-// existing stream; callers supply the root when recording a conditional body.
+
+
 template<class State,class=void>struct HasParticleCaptureContext:std::false_type{};
 template<class State>struct HasParticleCaptureContext<State,std::void_t<
     decltype(std::declval<State>().particleCaptureStream),

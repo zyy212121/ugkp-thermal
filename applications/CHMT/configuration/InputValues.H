@@ -15,6 +15,12 @@ namespace chmt { namespace io {
         inline Real readNumber(const Foam::dictionary& d, const char* key, Real fallback) {
             return d.found(key)?readNumber(d, key):fallback;
         }
+        inline PhysicalReal readPhysical(const Foam::dictionary& d,const char* key) {
+            return PhysicalReal(readNumber(d,key));
+        }
+        inline PhysicalReal readPhysical(const Foam::dictionary& d,const char* key,PhysicalReal fallback) {
+            return d.found(key)?readPhysical(d,key):fallback;
+        }
         inline std::string text(const Foam::dictionary& d, const char* key) {
             Foam::token value(d.lookup(key));
             require(value.isWord() || value.isString(), std::string("expected word or quoted string for ")+key);

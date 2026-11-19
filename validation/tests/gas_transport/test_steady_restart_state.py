@@ -12,7 +12,7 @@ int main(){{
  if(!writeSteadyRestartState("{checkpoint}",state))return 1;
  if(!readSteadyRestartState("{checkpoint}",loaded))return 2;
  if(loaded.boundaryTime!=.125 || loaded.samplingTime!=2.375 || loaded.sampleCount!=1900 || loaded.samplingDeltaT!=2e-5)return 3;
- // Output folder1900 is a sample index, never the boundary clock.
+
  loaded.samplingTime+=.001; ++loaded.sampleCount;
  if(!writeSteadyRestartState("{checkpoint}",loaded))return 4;
  SteadyRestartState resumed;

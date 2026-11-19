@@ -24,8 +24,8 @@ template<class X,class R,int N,bool Complete=true,bool SchemaChecked=false> UGKW
  if(a.type!=GasReactionType::Elementary) {
    if(!c)return false;
    X collider(0);
-   // Sum positive efficiencies directly, avoiding subtraction cancellation when
-   // an excluded explicit collider has default efficiency zero.
+
+
    for(int s=0;s<N;++s){C efficiency=C(a.defaultEfficiency);for(int j=0;j<a.efficiencyCount;++j)if(m.efficiencies[a.efficiencyOffset+j].species==s)efficiency=m.efficiencies[a.efficiencyOffset+j].efficiency;collider=collider+X(efficiency)*c[s];}
    if(a.type==GasReactionType::ThirdBody)k=k*collider;
    else {
@@ -44,7 +44,7 @@ template<class X,class R,int N,bool Complete=true,bool SchemaChecked=false> UGKW
          const X nT=X(.75)-X(1.27)*logCenter;
          const X shifted=rateLog(reduced)/X(::log(C(10)))+cT;
          const X denominator=nT-X(.14)*shifted;
-         // Algebraic form avoids the removable infinity when denominator=0.
+
          shape=denominator*denominator/(denominator*denominator+shifted*shifted);
        } else shape=X(C(.14)*C(.14)/(C(1)+C(.14)*C(.14)));
        broadening=rateExp(X(::log(C(10)))*logCenter*shape);
@@ -68,8 +68,8 @@ template<class X,class R,int N,bool Complete=true,bool SchemaChecked=false> UGKW
    const X logKc=X(-1)*deltaG/(X(universalGasConstant<C>())*T)+X(deltaNu)*rateLog(X(C(m.referencePressure)/universalGasConstant<C>())/T);
    if((Complete?a.productCount>0:bool(a.productCount)) && !c)return false;
    const X reverseFactor=concentrationProduct(m.products,a.productOffset,a.productCount,c);
-   // This also handles exact-zero products and colliders with finite limiting
-   // derivatives, without forming an overflowing reciprocal Kc.
+
+
    backward=rateProductExp(k,reverseFactor,X(-1)*logKc);
  }
  q=forward-backward;
@@ -88,7 +88,7 @@ template<class R,int N,class TableReal,bool Complete=true> UGKWP_GAS_HD inline C
  return st;
 }
 }
-// Production [mol/(m^3 s)] and optional net progress [mol/(m^3 s)]. All caller
+
 
 
 template<class R,int N,class TableReal,bool Complete=true> UGKWP_GAS_HD inline bool evaluateGasRates

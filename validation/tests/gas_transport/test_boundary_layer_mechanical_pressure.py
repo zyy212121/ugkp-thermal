@@ -69,8 +69,8 @@ def test_n128_muscl_euler_couette_reaches_original_time_and_accuracy_gate(tmp_pa
     assert float(values['maxDiff'])<=.25,summary
     rows=[[float(x) for x in line.split()[1:]] for line in run.stdout.splitlines() if line.startswith('DATA ')]
     assert len(rows)==128
-    # Both centre-value and true finite-volume cell-average references. Neither
-    # reference changes the original .02/.05 gates.
+
+
     for cell_average in (False,True):
         errors=[]
         for y,u,_,_ in rows:

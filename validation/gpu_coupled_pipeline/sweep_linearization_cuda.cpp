@@ -1,4 +1,4 @@
-// The oracle is the separately selected frozen Geometry.C.
+
 #include "mesh/Geometry.C"
 #include "gpu/PolyhedralGeometry.H"
 #include <random>

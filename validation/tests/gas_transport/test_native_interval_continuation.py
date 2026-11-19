@@ -113,8 +113,8 @@ struct Policy{
 int main(){Host a,b;initialise(a);initialise(b);Real oldV[2]={1,1},newV[2]={Real(1.001),Real(.999)},sweep[3]={Real(.001),0,0};const double dt=1e-5;
 for(Host*h:{&a,&b}){moving(*h,oldV,newV,sweep,Real(dt));h->rhoUx[0]=2;h->rhoUx[1]=4;h->rhoE[0]+=1;h->rhoE[1]+=4;}
 ck(advanceGasTrial<Policy>(&a,dt,1e20)==0,"moving RK real stages refused");const int count=kernelLaunches;
-// Independent explicit use of the pre-existing Euler and blend body, retaining
-// the real stage values and original RK weights/ledger order.
+
+
 ck(prepareGasTrialTransport<Policy>(&b,dt,1e20)==0,"reference preparation");
 for(int c=0;c<b.nCells;++c){blockDim.x=1;blockIdx.x=0;threadIdx.x=c;saveGasConservativeStateKernel(b.deviceState);}
 const double first=RK==2?dt*.5:dt*(1./6.);

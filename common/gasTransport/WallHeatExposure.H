@@ -1,8 +1,8 @@
 #pragma once
 #include "MixtureThermo.H"
 namespace ugkwp {
-// Geometric occlusion applies only to gas conductive heat. It does not scale
-// species transport, surface reactions, injection enthalpy or wall traction.
+
+
 template<class Real>
 UGKWP_GAS_HD inline bool wallHeatExposedFraction
 (Real faceArea,Real representedContactArea,Real contactAreaScale,Real& exposed) noexcept

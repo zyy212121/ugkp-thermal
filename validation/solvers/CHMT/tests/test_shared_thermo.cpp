@@ -11,8 +11,8 @@ static SpeciesThermo nasa() {
     SpeciesThermo s;
     s.model=ugkwp::SpeciesThermoModel::NASA7;
     s.R=300;s.Tmin=200;s.Tmid=1000;s.Tmax=3000;
-    // Synthetic polynomial: cp/R=3.5+0.001*T below 1000 K, 4+0.0005*T above.
-    // Different integration constants make both h branches continuous.
+
+
     const Real low[7]={3.5,.001,0,0,0,-10000,2};
     const Real high[7]={4,.0005,0,0,0,-10250,2};
     for(int j=0;j<7;++j){s.nasa7[j]=low[j];s.nasa7[j+7]=high[j];}
@@ -100,18 +100,18 @@ int main() {
         ReactionStepControl control;check(reactionStepControl(solid,.001,p,.4,control),"NASA material reaction controller");
         near(control.capacity,caloric.capacity(T),"reaction controller NASA capacity");
     }
-    // Keep source branch discontinuities instead of silently smoothing NASA7.
+
     p.species[0].nasa7[12]+=100;
     MaterialCaloric discontinuous;std::string discontinuousError;
     check(materialCaloric(solid,p,discontinuous,discontinuousError),"discontinuous NASA caloric");
     for(Real a:{750.,1000.})near(discontinuous.secant(a,1500),
         (discontinuous.energy(1500)-discontinuous.energy(a))/(1500-a),"NASA breakpoint energy jump retained");
     p.species[0].nasa7[12]-=100;
-    // A formation-energy offset must not ruin the small-step heat-capacity secant.
+
     p.species[0].nasa7[5]=p.species[0].nasa7[12]=1e20;
     MaterialCaloric c;std::string error;check(materialCaloric(solid,p,c,error),"large offset caloric");
     near(c.secant(500,500+1e-8),c.capacity(500+5e-9),"offset-free material secant",1e-10,1e-7);
-    // Legacy single-active-species states allow absent inactive tables.
+
     p=physics();p.species[1]=SpeciesThermo{};
     GasPrimitive w;w.rho=1;w.temperature=600;w.Y[0]=1;
     GasPrimitive recovered;check(recoverGas(conservativeGas(w,1,p),1,p,recovered),"inactive legacy thermo preserved");
@@ -121,13 +121,13 @@ int main() {
     check(!recoverGas(failedGas,1,p,recovered)&&recovered.temperature==987,"failed gas recovery is transactional");
     solid.pore[0]=-1;Real unchanged=456;
     check(!recoverSolid(solid,p,unchanged)&&unchanged==456,"failed mixed recovery is transactional");
-    // Borrowed addresses are regenerated after a value copy.
+
     p.species[0].hasEntropyReference=true;p.species[0].referenceTemperature=300;p.species[0].referenceEntropy=400;
     GasThermoAdapter<1> original(&p.species[0]);const auto copied=original;
     check(copied.view().species!=original.view().species,"adapter copy owns metadata");
     check(copied.view().coefficients!=original.view().coefficients,"adapter copy owns coefficients");
     near(ugkwp::speciesEntropyStandard(0,300.,copied.view()),400,"explicit entropy metadata preserved");
-    // A gas energy intercept cannot substitute for NASA formation enthalpy.
+
     p.species[0]=nasa();Reaction reaction;reaction.gasNu[0]=1;
     check(!chmt::finite(reactionFormationEnergy(reaction,p)),"legacy formation diagnostic rejects NASA");
     std::cout<<"shared CHMT thermo: NASA gas/material recovery, common capacity, stable secants and legacy behavior passed\n";

@@ -43,8 +43,8 @@ __device__ inline ColdWallThermalReal coldWall1DPcrSolve
 {
     for (int stride = 1; stride < 8; stride *= 2)
     {
-        // All rows need the same neighbouring pivots. Form each reciprocal
-        // once and exchange it, instead of dividing by each neighbour twice.
+
+
         const ColdWallThermalReal inverseDiagonal = GPU_R(1.0)/(diagonal + GPU_REAL_MIN);
         const ColdWallThermalReal lowerLower =
             __shfl_up_sync(mask, lower, stride, 8);

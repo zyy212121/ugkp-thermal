@@ -68,8 +68,8 @@ int main(){try{
             surface[r*nf+f].bulk=b;surface[r*nf+f].gradient=gradients[r][f];surface[r*nf+f].acceptedWall=rates[r][f];
             walls[r*nf+f].matching.state=context.matching;walls[r*nf+f].matching.pressure=context.matchingPressure;walls[r*nf+f].matching.mechanicalPressure=context.mechanicalPressure;
             ownerCells.push_back(f%cells);active.push_back(!(nf==7&&f==1));}
-        // Inactive interface slots retain no physical matching state. They
-        // must be skipped before reading it, as in the native producer.
+
+
         if(nf==7){host.surface.gasFace[1]=-1;for(int r=0;r<requests;++r){
             contexts[r][1].mechanicalPressure=-1;walls[r*nf+1].matching.mechanicalPressure=-1;}}
         std::vector<MaterialSurfaceRequest> request;
@@ -127,10 +127,10 @@ int main(){try{
             equal(actual[i],native[r].physics[f]);equal(actualWall[i].temperature,native[r].wall[f].temperature);
             for(int k=0;k<Ns;++k){equal(actualWall[i].speciesRate[k],native[r].wall[f].speciesRate[k]);equal(actualWall[i].poreRate[k],native[r].wall[f].poreRate[k]);}
             if(host.surface.gasFace[f]<0){++comparisons;continue;}
-            // The native binary retains its production FMA policy, whereas
-            // this isolated CUDA probe disables contraction. Cancellation in
-            // the thermal residual is judged by the original physical energy
-            // budget, not the relative tolerance for temperatures/fluxes.
+
+
+
+
             const auto budget=[&](const SurfacePhysicsResult& v){
                 return physics.tolerances.absoluteEnergy/(host.surface.area[f]*step.dt)
                     +physics.tolerances.relativeEnergy*(std::abs(v.gasEnergy)+std::abs(v.poreEnergy)+std::abs(v.phaseEnergy)+std::abs(v.radiationFlux));};

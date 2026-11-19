@@ -47,11 +47,8 @@ IOdictionary schedulingPropertiesFile
 );
 
 const dictionary& physicalProperties = fluidPropertiesFile;
-IOdictionary momentumTransportProperties
-(
-    IOobject("momentumTransport",runTime.constant(),mesh,
-        IOobject::READ_IF_PRESENT,IOobject::NO_WRITE,false)
-);
+const dictionary momentumTransportProperties =
+    ugkp::solverControls::readMomentumTransport(runTime,mesh,physicalProperties);
 const dictionary& ugkwpProps = particlePropertiesFile;
 const GpuSchedulingConfiguration gpuScheduling =
     readGpuSchedulingConfiguration(schedulingPropertiesFile,
@@ -112,9 +109,9 @@ if (!sharedGasModel.active())
 }
 else
 {
-    // The optional mixture EOS comes exclusively from gasModelProperties.
-    // These scalar values only satisfy the unchanged legacy create payload;
-    // active mixture operators use their immutable common thermodynamic view.
+
+
+
     gammaGasValue = 1.4;
     specificGasConstantValue = 1.0;
     const dictionary& transport = physicalProperties.subDict("mixture").subDict("transport");
@@ -164,168 +161,14 @@ const label gasReconstruction = gasNumerics.gasReconstruction;
 const label gasLimiter = gasNumerics.gasLimiter;
 const label gasTimeIntegrator = gasNumerics.gasTimeIntegrator;
 
-word gasTurbulenceModelName("laminar");
-scalar lesDeltaCoeff = scalar(1);
-scalar turbulentPrandtl = scalar(0.9);
-scalar waleCw = scalar(0.325);
-scalar smagorinskyCs = scalar(0.17);
-scalar sstAlphaK1 = scalar(0.85);
-scalar sstAlphaK2 = scalar(1.0);
-scalar sstAlphaOmega1 = scalar(0.5);
-scalar sstAlphaOmega2 = scalar(0.856);
-scalar sstBeta1 = scalar(0.075);
-scalar sstBeta2 = scalar(0.0828);
-scalar sstBetaStar = scalar(0.09);
-scalar sstGamma1 = scalar(5.0/9.0);
-scalar sstGamma2 = scalar(0.44);
-scalar sstA1 = scalar(0.31);
-scalar sstB1 = scalar(1.0);
-scalar sstC1 = scalar(10.0);
-scalar sstKMin = scalar(1.0e-12);
-scalar sstOmegaMin = scalar(1.0e-6);
-word sstWallTreatmentName("lowRe");
-label sstWallTreatment = 0;
-scalar sstWallKappa = scalar(0.41);
-scalar sstWallE = scalar(9.8);
-scalar sstWallCmu = scalar(0.09);
+#include "FoamGasTurbulenceControls.H"
 
-if (!momentumTransportProperties.empty())
+if (momentumTransportProperties.lookupOrDefault<word>("simulationType","laminar")=="laminar")
 {
-    const word simulationType
-    (
-        momentumTransportProperties.lookupOrDefault<word>
-        (
-            "simulationType",
-            "laminar"
-        )
-    );
-    if (simulationType == "laminar")
-    {
-        gasTurbulenceModelName = "laminar";
-        sstWallTreatmentName = momentumTransportProperties.lookupOrDefault<word>("wallTreatment", "lowRe");
-    }
-    else if (simulationType == "LES")
-    {
-        const dictionary& les =
-            momentumTransportProperties.subDict("LES");
-        gasTurbulenceModelName = word(les.lookup("model"));
-        const dictionary deltaCoeffs =
-            les.subOrEmptyDict("cubeRootVolCoeffs");
-        lesDeltaCoeff =
-            deltaCoeffs.lookupOrDefault<scalar>("deltaCoeff", scalar(1));
-        const dictionary modelCoeffs =
-            les.subOrEmptyDict(gasTurbulenceModelName + "Coeffs");
-        waleCw = modelCoeffs.lookupOrDefault<scalar>("Cw", waleCw);
-        smagorinskyCs =
-            modelCoeffs.lookupOrDefault<scalar>("Cs", smagorinskyCs);
-    }
-    else if (simulationType == "RAS")
-    {
-        const dictionary& ras =
-            momentumTransportProperties.subDict("RAS");
-        const Switch turbulenceEnabled =
-            ras.lookupOrDefault<Switch>("turbulence", Switch(true));
-        gasTurbulenceModelName =
-            turbulenceEnabled ? word(ras.lookup("model")) : word("laminar");
-        turbulentPrandtl = ras.lookupOrDefault<scalar>
-        (
-            "turbulentPrandtl",
-            turbulentPrandtl
-        );
-
-        if (turbulenceEnabled && gasTurbulenceModelName == "kOmegaSST")
-        {
-            const dictionary modelCoeffs =
-                ras.subOrEmptyDict("kOmegaSSTCoeffs");
-            sstAlphaK1 = modelCoeffs.lookupOrDefault<scalar>("alphaK1", scalar(0.85));
-            sstAlphaK2 = modelCoeffs.lookupOrDefault<scalar>("alphaK2", scalar(1.0));
-            sstAlphaOmega1 = modelCoeffs.lookupOrDefault<scalar>("alphaOmega1", scalar(0.5));
-            sstAlphaOmega2 = modelCoeffs.lookupOrDefault<scalar>("alphaOmega2", scalar(0.856));
-            sstBeta1 = modelCoeffs.lookupOrDefault<scalar>("beta1", scalar(0.075));
-            sstBeta2 = modelCoeffs.lookupOrDefault<scalar>("beta2", scalar(0.0828));
-            sstBetaStar = modelCoeffs.lookupOrDefault<scalar>("betaStar", scalar(0.09));
-            sstGamma1 = modelCoeffs.lookupOrDefault<scalar>("gamma1", scalar(5.0/9.0));
-            sstGamma2 = modelCoeffs.lookupOrDefault<scalar>("gamma2", scalar(0.44));
-            sstA1 = modelCoeffs.lookupOrDefault<scalar>("a1", scalar(0.31));
-            sstB1 = modelCoeffs.lookupOrDefault<scalar>("b1", scalar(1.0));
-            sstC1 = modelCoeffs.lookupOrDefault<scalar>("c1", scalar(10.0));
-            sstKMin = modelCoeffs.lookupOrDefault<scalar>("kMin", scalar(1.0e-12));
-            sstOmegaMin = modelCoeffs.lookupOrDefault<scalar>("omegaMin", scalar(1.0e-6));
-            sstWallTreatmentName =
-                modelCoeffs.lookupOrDefault<word>("wallTreatment", "lowRe");
-            sstWallKappa =
-                modelCoeffs.lookupOrDefault<scalar>("wallKappa", scalar(0.41));
-            sstWallE =
-                modelCoeffs.lookupOrDefault<scalar>("wallE", scalar(9.8));
-            sstWallCmu =
-                modelCoeffs.lookupOrDefault<scalar>("wallCmu", scalar(0.09));
-            const Switch f3 =
-                modelCoeffs.lookupOrDefault<Switch>("F3", Switch(false));
-            if (f3)
-            {
-                FatalErrorInFunction
-                    << "UGKP implements the smooth-wall OpenFOAM-10 "
-                    << "kOmegaSST model and therefore requires F3=false."
-                    << exit(FatalError);
-            }
-        }
-    }
-    else
-    {
-        FatalErrorInFunction
-            << "momentumTransport simulationType '" << simulationType
-            << "' is unsupported. Valid values are laminar, LES and RAS."
-            << exit(FatalError);
-    }
-}
-
-label gasTurbulenceModel = -1;
-if (gasTurbulenceModelName == "laminar")
-{
-    gasTurbulenceModel = 0;
-    if (sstWallTreatmentName == "boundaryLayer") sstWallTreatment = 2;
-    else if (sstWallTreatmentName != "lowRe")
+    sstWallTreatmentName=momentumTransportProperties.lookupOrDefault<word>("wallTreatment","lowRe");
+    if (sstWallTreatmentName=="boundaryLayer") sstWallTreatment=2;
+    else if (sstWallTreatmentName!="lowRe")
         FatalErrorInFunction << "Laminar wallTreatment supports lowRe or boundaryLayer" << exit(FatalError);
-}
-else if (gasTurbulenceModelName == "WALE")
-{
-    gasTurbulenceModel = 1;
-}
-else if (gasTurbulenceModelName == "Smagorinsky")
-{
-    gasTurbulenceModel = 2;
-}
-else if (gasTurbulenceModelName == "kOmegaSST")
-{
-    gasTurbulenceModel = 3;
-    if (sstWallTreatmentName == "lowRe")
-    {
-        sstWallTreatment = 0;
-    }
-    else if (sstWallTreatmentName == "wallFunction")
-    {
-        sstWallTreatment = 1;
-    }
-    else if (sstWallTreatmentName == "boundaryLayer")
-    {
-        sstWallTreatment = 2;
-    }
-    else
-    {
-        FatalErrorInFunction
-            << "Unsupported kOmegaSST wallTreatment '"
-            << sstWallTreatmentName
-            << "'. Valid values are lowRe, wallFunction and boundaryLayer."
-            << exit(FatalError);
-    }
-}
-else
-{
-    FatalErrorInFunction
-        << "Unsupported momentumTransport model '"
-        << gasTurbulenceModelName
-        << "'. Valid values are laminar, WALE, Smagorinsky and kOmegaSST."
-        << exit(FatalError);
 }
 
 BoundaryLayerInput boundaryLayerInput
@@ -347,7 +190,7 @@ sharedGasModel.validateNumerics
     !gpuScheduling.pureGasOnly,
     sstWallTreatment,
     boundaryLayerInput.model(),
-    true // gasUGKP and gasUGKPSteady share the paired physical-time source
+    true
 );
 
 #endif

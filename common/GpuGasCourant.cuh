@@ -86,7 +86,7 @@ int computeGasCurrentCourantField
     return 0;
 }
 
-// Host publication is optional: local pseudo-time consumes the resident field.
+
 template<class GasHostState,class Time,class MaximumReduction>
 int computeGasCurrentCourant
 (

@@ -1,5 +1,5 @@
-// Native resident geometry: change points and consume all results on device
-// across captured replays; publish once, then compare to the ordered host math.
+
+
 #include "common/gpu/PolyhedralGeometry.H"
 #include "common/gpu/ExtendedGeometryMath.H"
 #include <cuda_runtime.h>
@@ -85,8 +85,8 @@ void fixture(int count,bool tetra,double scale,bool skew,int wallMode){
             assert(actualDistance[iteration*count+c].invalidFace<0);close(distance,actualDistance[iteration*count+c].distance);
         }
     }
-    // The host adapter uses the same resident owner but remains an explicit
-    // publication boundary. Reconfigure its immutable topology and wall list.
+
+
     PolyhedralGeometry adapter;for(const auto& selected:std::vector<std::vector<int>>{walls,{},walls}){
         const auto result=adapter.rebuild(t,base,selected);assert(int(result.cells.size())==count);
         for(int c=0;c<count;++c)close(result.cells[c].volume,actualCells[c].volume);

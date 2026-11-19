@@ -4,8 +4,8 @@
 #include <new>
 #include "OrderedBisectionProbe.H"
 namespace ugkp { namespace gpu {
-// Each subteam owns an independent evaluator workspace. The complete block
-// follows one root trajectory; unconsumed probes never publish physical state.
+
+
 template<int Depth,class Subteam> struct OrderedBisectionTeam {
     static constexpr int probeDepth=Depth,probeCount=(1<<Depth)-1,width=probeCount*Subteam::width;
     template<class Value> struct Storage {
@@ -26,8 +26,8 @@ template<int Depth,class Subteam> struct OrderedBisectionTeam {
     __device__ void sync()const{__syncthreads();}
     __device__ bool broadcast(bool value)const{return __syncthreads_or(leader()&&value)!=0;}
 };
-// Scheduling uses the compiled kernel's actual residency, queried at setup.
-// It adds no mesh, material, tolerance, or user-facing scheduling parameter.
+
+
 template<class Kernel> inline cudaError_t residentProbeBlocks(Kernel kernel,int threads,
     std::size_t sharedBytes,int multiprocessors,int& total){
     int blocks=0;const auto error=cudaOccupancyMaxActiveBlocksPerMultiprocessor(&blocks,kernel,threads,sharedBytes);

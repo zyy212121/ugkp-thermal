@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Source OpenFOAM 10 first. The archive must come from the candidate CHT build.
+
 set -euo pipefail
 if [[ $# != 4 ]]; then
     echo "usage: $0 REPOSITORY FROZEN_BASELINE CANDIDATE_CUDA_ARCHIVE OUTPUT" >&2

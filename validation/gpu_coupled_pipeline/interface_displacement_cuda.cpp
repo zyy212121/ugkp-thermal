@@ -1,5 +1,5 @@
 #include "interface_displacement_probe.H"
-#include "mesh/Geometry.C" // frozen scalar geometry/normalization
+#include "mesh/Geometry.C"
 #include <random>
 #include <cstring>
 #include <iostream>
@@ -23,7 +23,7 @@ int main(){std::mt19937_64 random(971432);std::uniform_real_distribution<double>
             if(!film.empty()&&mode==2)film.front()+=.001*scale;
             if(mode==3)for(auto& p:end)p+=g::Point{.002*scale,-.003*scale,.001*scale};
             if(n&&mode==4)end.back().x=std::numeric_limits<double>::quiet_NaN();
-            if(n&&mode==5)end[0].z+=.001*scale; // unmapped solid motion still changes the guard
+            if(n&&mode==5)end[0].z+=.001*scale;
             bool unchanged=true;for(int p=0;p<n;++p)unchanged=unchanged&&chmt::mag(native(end[p])-native(solid[p]))==0;
             for(std::size_t f=0;f<film.size();++f)unchanged=unchanged&&film[f]==previous[f];
             std::vector<chmt::Vec3> normals(n),expected(ng);

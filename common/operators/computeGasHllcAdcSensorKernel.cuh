@@ -1,6 +1,6 @@
 #pragma once
 #include "GpuCellNeighbour.cuh"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<class GasState>
 __global__ void computeGasHllcAdcSensorKernel(GasState* sp)
 {

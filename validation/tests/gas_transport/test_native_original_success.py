@@ -112,7 +112,7 @@ int main(){for(int moving:{0,1})for(int turbulence:{0,3})for(int visc:{0,1})for(
  s.gasMu=visc?1e5:0;if(!visc){std::free(const_cast<double*>(s.gasSpecies.diffusivity));--allocations;s.gasSpecies.diffusivity=nullptr;}
  s.gasGeometry.enabled=moving;s.gasGeometry.oldVolume=oldVolume;s.gasGeometry.newVolume=newVolume;s.gasGeometry.faceSweptVolume=sweep;s.gasGeometry.interval=.001;s.gasGeometry.absoluteGeometryTolerance=s.gasGeometry.relativeGeometryTolerance=16*std::numeric_limits<double>::epsilon();
  if(zero){s.nFaces=0;s.nInternalFaces=0;for(int i=0;i<2;++i)s.cellPlaneCount[i]=0;}
- // Supply an original-valid moving mesh: volume change equals signed sweep.
+
  for(int c=0;c<2;++c)for(int i=0;i<s.cellPlaneCount[c];++i){const int f=s.cellFaceId[s.cellPlaneStart[c]+i];newVolume[c]+=(s.faceOwner[f]==c?1:-1)*sweep[f];}
  double value=-777;int rc=ugkwpGpuResidentStrictComputeGasCourant(&s,.001,.5,2.,&value);
  assert(rc==0);std::printf("CASE %d %d %d %d %d %a\n",moving,turbulence,visc,zero,rc,value);

@@ -1,9 +1,9 @@
 #pragma once
 #include "GpuParticleDirectoryGraph.H"
 #include "GpuParticleExecutionContext.H"
-// Captured stages contain no host decisions, floating-point update, random
-// sampling, allocation or diagnostic readback. Task readiness and automatic
-// scheduling remain outside this graph and execute in their original order.
+
+
+
 template<class State,class Submit>
 int submitParticleDirectoryGraph(State* s,int kind,int block,Submit&& submit)
 {
@@ -39,8 +39,8 @@ int submitParticleDirectoryGraph(State* s,int kind,int block,Submit&& submit)
             if(error!=cudaSuccess){ugkp::gpu::releaseParticleDirectoryGraph(entry);setLastError("instantiate particle directory graph",error);return 1;}
             entry.key=key;
         }
-        // The original particle owner uses the default stream. Replay stays in
-        // that stream, after injection/tracking and before pressure/moments.
+
+
         const auto error=cudaGraphLaunch(entry.executable,nullptr);
         if(error!=cudaSuccess){setLastError("replay particle directory graph",error);return 1;}
         return 0;

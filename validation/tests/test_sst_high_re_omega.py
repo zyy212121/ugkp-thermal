@@ -40,24 +40,24 @@ void checkLogState(const char*name,const DeviceState&s){
  check("rhoOmega matches current density",s.rhoOmega[0],s.rho[0]*s.omega[0]);
 }
 int main(){
- // The formula and equal-face corner averaging remain the existing production law.
+
  DeviceState s;s.sstWallTreatment=1;applySstWallFunctionStateKernel(&s);
  checkLogState("high-Re pre-stage",s);
  check("high-Re wall k remains zero-gradient",sstBoundaryValue(s,0,0,false),s.k[0]);
  check("wall omega zero normal difference",sstBoundaryValue(s,0,0,true)-s.omega[0],0);
  s.rho[0]=2;s.rhoK[0]=R(.4);s.rhoOmega[0]=18;recoverSstPrimitivesKernel(&s);
  checkLogState("recovery uses current density and k",s);
- // Mixed viscous/log branches at a corner: nu differs by face, not cell rho.
+
  s=DeviceState();s.sstWallTreatment=1;s.wallRho[0]=1;s.wallRho[1]=8;
  applySstWallFunctionStateKernel(&s);
  check("mixed-branch corner arithmetic average",s.omega[0],(R(1440)+logTarget(R(.1),R(.001)))/2);
  s.cellPlaneCount[0]=1;applySstWallFunctionStateKernel(&s);check("single viscous face",s.omega[0],1440);
  s.cellPlaneCount[0]=2;std::swap(s.cellFaceId[0],s.cellFaceId[1]);applySstWallFunctionStateKernel(&s);
  check("corner face order independent",s.omega[0],(R(1440)+logTarget(R(.1),R(.001)))/2);
- // A prescribed inlet and an internal face are never included in wall averaging.
+
  s.riemannBoundaryKind[0]=0;applySstWallFunctionStateKernel(&s);check("ignore nonwall face",s.omega[0],logTarget(R(.1),R(.001)));
  s.riemannBoundaryKind[0]=2;s.nInternalFaces=1;applySstWallFunctionStateKernel(&s);check("ignore internal face",s.omega[0],logTarget(R(.1),R(.001)));
- // Source/flux suppression and signed correction accounting at different dt.
+
  for(R dt:{R(1e-7),R(1e-5),R(1e-4)}){
   s=DeviceState();s.sstWallTreatment=1;applySstWallFunctionStateKernel(&s);
   R oldOmega=s.rhoOmega[0],oldK=s.rhoK[0];
@@ -74,8 +74,8 @@ int main(){
   check("suppression plus projection ledger",suppressed+projection,s.rhoOmega[0]-free.rhoOmega[0]);
   R after=s.rhoOmega[0];recoverSstPrimitivesKernel(&s);check("repeat recovery idempotent",s.rhoOmega[0]-after,0);
  }
- // Real production RK save/blend: the endpoint constraint must survive all
- // SSPRK2/3 blend weights, even when the saved state is not constrained.
+
+
  for(R weight:{R(.5),R(.25),R(2)/R(3)}){
   s=DeviceState();s.sstWallTreatment=1;saveGasConservativeStateKernel(&s);
   s.rho[0]=2;s.rhoK[0]=R(.8);s.rhoOmega[0]=123;s.rhoUx[0]=4;
@@ -88,11 +88,11 @@ int main(){
   R finalCorrection=s.rhoOmega[0]-rawBlend;
   check("RK projection ledger",rawBlend+finalCorrection,s.rhoOmega[0]);
  }
- // Low-Re behavior from current main is retained, including wall-nu averaging.
+
  s=DeviceState();applySstWallFunctionStateKernel(&s);check("low-Re target unchanged",s.omega[0],270);
  applySstFluxAndSourceKernel(&s,R(1e-5));check("low-Re RHS stays constrained",s.rhoOmega[0],270);
  s.rho[0]=2;recoverSstPrimitivesKernel(&s);check("low-Re recovery unchanged",s.omega[0],270);check("low-Re conservative unchanged",s.rhoOmega[0],540);
- // Disabled SST, both wall treatments in nonwall cells, and floors.
+
  s=DeviceState();s.sstWallTreatment=1;s.sstConfigured=0;
  applySstWallFunctionStateKernel(&s);applySstFluxAndSourceKernel(&s,R(.1));recoverSstPrimitivesKernel(&s);
  check("disabled omega untouched",s.rhoOmega[0],7);check("disabled k untouched",s.rhoK[0],R(.1));

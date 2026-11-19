@@ -59,8 +59,8 @@ int main(int argc,char** argv){
         std::cout<<"WINDOW_ENERGY "<<window<<' '<<energyChange<<'\n';
         if(!std::isfinite(energyChange)||std::abs(energyChange)>2e-8)return 2;
         forAll(temperature,c)std::cout<<"WINDOW_CELL "<<window<<' '<<c<<' '<<temperature[c]<<'\n';
-        // Native evaluation supplies an independent boundary/flux check at the
-        // same physical time; it is an output observer, not a device input.
+
+
         temperature.correctBoundaryConditions();
         const auto gradient=fvc::snGrad(temperature);
         forAll(gradient().boundaryField(),p){const auto& grad=gradient().boundaryField()[p];

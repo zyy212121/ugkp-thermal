@@ -2,18 +2,24 @@
 #define CHMT_CONFIGURATION_SOLVERCONTROLS_H
 #include "core/Configuration.H"
 #include "materials/CpuMaterialDriver.H"
-#include "../../../common/FoamSolverScheme.H"
+#include "../../../common/FoamGasTimeStepControls.H"
 #include "../../../common/FoamParticleSolverControls.H"
 #include "../../../common/FoamWallSolverControls.H"
 #include "../../../common/gasNumerics/FoamGasScalarSolverControls.H"
 namespace chmt { namespace io {
 inline void readModelSolverControls(ModelConfig& model,const Foam::Time& time,
-    const Foam::word& gasRegion,const Foam::word& solidRegion) {
+    const Foam::word& gasRegion,const Foam::word& solidRegion,
+    ugkp::solverControls::GasTimeStepControls& gasTime) {
     const auto& scheme=ugkp::solverControls::startupScheme(time);
     auto& p=model.physics;
     scheme.read("gasTimeStep","minDeltaT",p.minDt,"default",gasRegion);
-    scheme.read("gasTimeStep","maxDeltaT",p.maxDt,"default",gasRegion);
-    scheme.read("gasTimeStep","maxCo",p.cfl,"default",gasRegion);
+    gasTime.adjustTimeStep=true;
+    gasTime.courantUpdateInterval=1;
+    gasTime.maxDeltaT=p.maxDt;
+    gasTime.maxCo=p.cfl;
+    gasTime=ugkp::solverControls::readGasTimeStepControls(time,gasRegion,gasTime);
+    p.maxDt=gasTime.maxDeltaT;
+    p.cfl=gasTime.maxCo;
     scheme.read("chmt.tolerances","absoluteMass",p.tolerances.absoluteMass,"default",solidRegion);
     scheme.read("chmt.tolerances","relativeMass",p.tolerances.relativeMass,"default",solidRegion);
     scheme.read("chmt.tolerances","absoluteEnergy",p.tolerances.absoluteEnergy,"default",solidRegion);
@@ -66,6 +72,7 @@ inline CpuMaterialControls readMaterialSolverControls(const Foam::Time& time,con
     scheme.read("chmt.material","reactionMaxSubstep",controls.reactionMaxSubstep,"default",region);
     scheme.read("chmt.material","driveRelativeTolerance",controls.driveRelativeTolerance,"default",region);
     scheme.read("chmt.material","driveSourceFraction",controls.driveSourceFraction,"default",region);
+    scheme.read("chmt.material","driveSourceDiagnosticSamples",controls.driveSourceDiagnosticSamples,"default",region);
     scheme.read("chmt.material","driveTractionScale",controls.driveTractionScale,"default",region);
     scheme.read("chmt.material","maxSubsteps",controls.maxSubsteps,"default",region);
     scheme.read("chmt.material.conduction","nonlinearMaxIterations",controls.nonlinearMaxIterations,"default",region);

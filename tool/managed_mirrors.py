@@ -20,7 +20,7 @@ def safe_path(root, relative):
     if rel.is_absolute() or '..' in rel.parts or not rel.parts:
         raise ValueError('unsafe manifest path: ' + relative)
     target = root.joinpath(*rel.parts)
-    # The leaf itself may be a managed symbolic link. Its parent may not escape.
+
     if root.resolve() not in (target.parent.resolve(), *target.parent.resolve().parents):
         raise ValueError('manifest parent escapes checkout: ' + relative)
     return target
@@ -110,7 +110,7 @@ def main():
     errors, drift, planned = [], [], []
     available = {repo: pair / repo for repo in REPOS} if paired else {}
     if not paired:
-        # Each shipped manifest is identical: discover identity from the supported input roots.
+
         name = 'ugkp-thermal' if (local / 'applications/CHT').is_dir() else 'gpu-riemann-gkp-main'
         available = {name: local}
     declared = {repo: {repository_path(manifest, repo, p) for p in manifest['local_only'][repo]} for repo in REPOS}
@@ -142,7 +142,7 @@ def main():
                         observed.add(relative)
         expected = {p for p in declared[repo] if any(p.startswith(s + '/') for s in manifest['inventory_roots'])}
         errors.extend('unmanaged: ' + repo + '/' + p for p in sorted(observed - expected))
-        # sync can restore a missing downstream leaf, but cannot invent local/upstream data.
+
         recoverable = {dst.relative_to(root).as_posix() for _, dst in planned if root in dst.parents} if args.sync else set()
         errors.extend('missing declared input: ' + repo + '/' + p for p in sorted(expected - observed - recoverable))
         for relative in sorted(declared[repo] - expected):
@@ -153,7 +153,7 @@ def main():
         print('\n'.join(errors))
         return 1
     if args.sync:
-        # All paths and inventory have been validated before the first mutation.
+
         for src, dst in planned:
             dst.parent.mkdir(parents=True, exist_ok=True)
             if dst.is_symlink():

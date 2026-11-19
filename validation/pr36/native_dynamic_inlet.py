@@ -27,8 +27,8 @@ def main():
     for varying in (False, True):
         case = out/('varying' if varying else 'constant')
         matrix.prepare(ROOT/'validation/molecular_transport/fixtures/cht-contact', case, meta)
-        # The parent contact fixture is a closed box; turn its left wall into
-        # an actual inlet so the imposed pressure can establish gas flow.
+
+
         path = case/'constant/polyMesh/boundary'
         text, changed = re.subn(r'(left\s*\{\s*type\s+)wall', r'\1patch', path.read_text())
         assert changed == 1
@@ -38,7 +38,7 @@ def main():
         matrix.entry(path, 'gpuResidentParticleCapacity', 8192)
         path = case/'constant/particleProperties'
         matrix.entry(path, 'parcelMass', 1e-9)
-        # Keep U at rest, with zeroGradient inlet and no particle velocity override.
+
         path = case/'0/U'
         path.write_text(path.read_text().replace(
             'left{type fixedValue;value uniform (0 0 0);}',
@@ -65,8 +65,8 @@ def main():
         matrix.entry(case/'constant/scheme', 'maxDeltaT', 1e-6)
         matrix.run([args.solver.resolve(), '-case', case], case/'run.log')
         final = matrix.times(case)[-1]
-        # A zero-particle result is only a useful counterexample if gas flow
-        # really developed; reject a closed-wall or unchanged-rest fixture.
+
+
         velocity = (final/'U').read_text().split('internalField', 1)[1].split('boundaryField', 1)[0]
         vectors = re.findall(r'\(([-+0-9.eE]+)\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)\)', velocity)
         maximum_gas_ux = max(float(v[0]) for v in vectors)

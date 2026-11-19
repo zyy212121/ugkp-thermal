@@ -67,7 +67,7 @@ int main(){
   for(int c=0;c<2;++c){
    for(int k=0;k<3;++k)s.gasSpecies.rho[k*2+c]=0;
    s.gasSpecies.rho[carrier*2+c]=1;s.Ux[c]=10;recover(s,c);
-   // Tangential slopes supplied by the wider multidimensional stencil.
+
    s.gasSpecies.gradY[trace*2+c]=1e-100*(c+1);
    s.gasSpecies.gradY[carrier*2+c]=-s.gasSpecies.gradY[trace*2+c];
    threadIdx.x=c;computeGasGradientLimiterKernel(&s);

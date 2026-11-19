@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Source OpenFOAM 10 first. Run from any directory, with a new output directory.
+
 set -euo pipefail
 R=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 O=${1:?usage: run_native.sh NEW_OUTPUT_DIRECTORY}

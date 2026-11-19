@@ -27,8 +27,8 @@ int main(int argc,char**argv){
  const char* selectedWall=std::getenv("GAS_MODEL_TEST_WALL");
  const bool moving=std::getenv("GAS_MODEL_TEST_MOVING")!=nullptr;
  model.validateNumerics(1,1,0,2,selectedWall?3:0,false,selectedWall?std::atoi(selectedWall):0);
- // Native gas frontend has no moving-mesh argument. Exercise the shared ALE
- // capability directly, with Euler so wall-family scope causes the rejection.
+
+
  if(moving){
   ugkwp::GasCapabilityRequest request;request.mode=model.model().mode;
   request.fluxScheme=1;request.reconstruction=1;request.timeIntegrator=1;

@@ -22,7 +22,7 @@ ClosedReactorInput<double,10> base;std::cin>>base.volume;for(double& x:base.spec
 for(int k=0;k<count;++k){double target;std::cin>>target;ClosedReactorResult<double,10> out;auto status=advanceClosedReactor(base,target-time,thermo,mechanism,controls,out);
 if(!status){std::cerr<<"code="<<int(status.code)<<" reaction="<<status.reaction<<" target="<<target<<" attempted="<<status.attemptedSteps<<" rejected="<<status.rejectedSteps<<'\n';return 1;}
 double mol=0;for(int s=0;s<10;++s)mol+=out.speciesMass[s]/thermo.species[s].molarMass;double p=mol*universalGasConstant<double>()*out.temperature/base.volume;
-// Test-only invariants measured from actual published physical state.
+
 double massResidual=-base.totalMass,maximumElementResidual=0;
 for(double mass:out.speciesMass)massResidual+=mass;
 for(int e=0;e<thermo.elementCount;++e){double before=0,after=0;
@@ -53,8 +53,8 @@ def test_full_h2o2_histories_and_invariants(runner,case):
     rows=integrate(runner,case,1e-6)
     for row,ref in zip(rows,case['states']):
         assert row[0]==ref['time']
-        # Includes published NASA7 midpoint energy discontinuity (~0.00012 K)
-        # in the independent reference; our own U invariant remains strict.
+
+
         assert row[1]==pytest.approx(ref['temperature'],rel=3e-5,abs=3e-3)
         assert row[2]==pytest.approx(ref['pressure'],rel=4e-5,abs=.03)
         for y,expected in zip(row[3:13],ref['massFractions']):

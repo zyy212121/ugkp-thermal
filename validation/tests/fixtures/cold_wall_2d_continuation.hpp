@@ -1,5 +1,5 @@
-// Independent serial 8x8 reference for the production eight-lane explicit solve.
-// Constant solid properties make the stability partition independently known.
+
+
 double reference_sum8(const double* v) {
  double a[8];std::copy(v,v+8,a);
  for(int d:{4,2,1})for(int j=0;j<8-d;++j)a[j]+=a[j+d];
@@ -30,7 +30,7 @@ void full_2d_interval(bool tinyTail,bool reverse=false,bool negativeGas=false,bo
   }
  }
  const double dt=stable*(reverse?-.25:(tinyTail?300./(1.-5.e-13):320.25));
- // Long-double remaining time is independent bookkeeping, never a larger step.
+
  long double remaining=std::abs(dt);std::vector<double> referenceTimes;
  while(remaining>0.) {
   const double step=(reverse?-1.:1.)*(remaining<stable?double(remaining):stable);

@@ -1,6 +1,9 @@
+#include <functional>
+#include "../../../common/gpu/AdvanceState.H"
 #ifndef GPU_THERMAL_GPU_SOLID_THERMAL_COUPLER_H
 #define GPU_THERMAL_GPU_SOLID_THERMAL_COUPLER_H
 
+#include "../../../common/GpuPrecisionTypes.H"
 #include "GpuSolidThermalProperties.H"
 #include "../../../common/gpu/SparseConjugateGradient.H"
 #include "../../../common/gpu/SolidThermalProperties.H"
@@ -35,13 +38,13 @@ public:
 struct GpuSolidThermalControls
 {
     label nonlinearMaxIterations{50};
-    scalar nonlinearRelativeTolerance{1e-10};
-    scalar energyRelativeTolerance{1e-8};
-    scalar energyAbsoluteTolerance{1e-10};
+    GpuReal nonlinearRelativeTolerance{GpuReal(1e-10)};
+    GpuReal energyRelativeTolerance{GpuReal(1e-8)};
+    GpuReal energyAbsoluteTolerance{GpuReal(1e-10)};
     bool nonlinearAitken{false};
-    scalar nonlinearInitialRelaxation{1};
-    scalar nonlinearMinimumRelaxation{0.05};
-    scalar nonlinearMaximumRelaxation{1};
+    GpuReal nonlinearInitialRelaxation{1};
+    GpuReal nonlinearMinimumRelaxation{GpuReal(0.05)};
+    GpuReal nonlinearMaximumRelaxation{1};
 };
 
 scalar clampedAitkenRelaxation
@@ -59,7 +62,7 @@ scalarField coupledPatchOwnerTemperature
     label patchI
 );
 
-// Gas/contact/radiation need the accepted surface, not the owner node.
+
 scalarField coupledPatchSurfaceTemperature
 (
     const volScalarField& solidTemperature,
@@ -71,7 +74,7 @@ class GpuSolidThermalCandidate
     autoPtr<volScalarField> temperature_;
 
 public:
-    scalar integratedEnergyResidualJ{0};
+    GpuReal integratedEnergyResidualJ{0};
     label nonlinearIterations{0};
 
     GpuSolidThermalCandidate
@@ -129,6 +132,10 @@ public:
     void acceptResidentContact() const { residentAdvanced_=true; }
     bool residentPrepared() const { return bool(residentGraph_); }
     bool residentAdvanced() const { return residentAdvanced_; }
+    ugkp::gpu::SolidThermalIterationGraph* residentIteration()const { return residentGraph_.get(); }
+    ugkp::gpu::ThermalInterfaceStateDeviceView prepareParentInterface
+    (const labelList& contactPairIds,label pairs,bool includeEmissivity) const;
+    void enqueueParentInterface(void* stream,ugkp::diagnostics::DeviceContext*)const;
     void advanceResident(void* producerStream) const;
     void publishResident(volScalarField&) const;
 
@@ -148,8 +155,10 @@ class GpuSolidThermalCouplerData;
 
 struct GpuThermalCouplingResult
 {
+    std::uint64_t heatEvents=0,radiationEvents=0;
     bool coupled{false};
     bool radiationCoupled{false};
+    double completedCouplingTimeS{0};
     scalar elapsedCouplingTimeS{0};
     scalar elapsedRadiationTimeS{0};
 };
@@ -172,6 +181,10 @@ public:
 
     void initialiseWallTemperatureBeforeFirstAdvance(volScalarField& Tgas);
 
+    bool configureDeviceAdvance(volScalarField& Tgas);
+    double nextCouplingTime() const;
+    GpuThermalCouplingResult collectDeviceEvents(const ugkp::gpu::AdvanceState&);
+
     GpuThermalCouplingResult exchangeIfDue
     (
         Time& runTime,
@@ -189,9 +202,11 @@ public:
         volVectorField& Us,
         volScalarField& theta,
         volScalarField& Tp,
-        volScalarField& dMeanCell
+        volScalarField& dMeanCell,
+        bool finalExchange=false
     );
 
+    void finishWrites();
     label persistAtWriteTime
     (
         Time& runTime,
@@ -210,13 +225,14 @@ public:
         volScalarField& theta,
         volScalarField& Tp,
         volScalarField& dMeanCell,
-        bool thermalCouplingWrite
+        bool thermalCouplingWrite,
+        const std::function<void()>& onFrozen={}
     );
 };
 
 #endif
 
-}                        
-}                  
+}
+}
 
 #endif

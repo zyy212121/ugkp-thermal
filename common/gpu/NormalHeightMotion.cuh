@@ -1,4 +1,4 @@
-// Included by PolyhedralGeometry.cu; shares its allocation/error utilities.
+
 #include "NormalHeightMotion.H"
 namespace ugkp { namespace gpu { namespace geometry { namespace {
 __global__ void normalHeightWalls(int count,TopologyView topology,const int* faces,

@@ -7,8 +7,8 @@
 #define UGKP_INJECTION_SEQUENCE_HD
 #endif
 namespace ugkwp {
-// A configured sample sequence is independent of the frozen boundary clock.
-// Unconfigured callers retain the existing physical-time position stream.
+
+
 template<class State>
 UGKP_INJECTION_SEQUENCE_HD inline unsigned long long particleInjectionPositionSeed
 (const State& state,unsigned long long seed,int face,double time,int ordinal,

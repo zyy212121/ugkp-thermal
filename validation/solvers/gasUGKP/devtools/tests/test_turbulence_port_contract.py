@@ -13,6 +13,8 @@ def read(relative: str) -> str:
 def test_four_turbulence_modes_and_openfoam_sst_semantics() -> None:
     configuration = read("readGpuGasConfiguration.H")
     assert 'fvSolutionDict.found("UGKP")' in configuration
+    assert '#include "FoamGasTurbulenceControls.H"' in configuration
+    configuration=(SOURCE_ROOT/'common/FoamGasTurbulenceControls.H').read_text()
     for token in (
         'simulationType == "laminar"',
         'gasTurbulenceModelName == "WALE"',

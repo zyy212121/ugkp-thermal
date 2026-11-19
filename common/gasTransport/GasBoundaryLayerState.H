@@ -6,39 +6,39 @@
 
 namespace ugkwp
 {
-// Compact, application-owned stage outputs. Fluxes use the ordinary common
-// gas convention: outward from the owner, integrated over the physical face.
-// Species flux is species-major [species*count+slot], in kg/s. These are total
-// physical-wall species fluxes, never matching-plane fluxes or reaction rates.
+
+
+
+
 template<class Real> struct GasBoundaryLayerExchange
 {
     Real mass=0, momentumX=0, momentumY=0, momentumZ=0, energy=0;
     Real k=0;
-    // Thermodynamic/BVP pressure used in the published force/work. The face
-    // operator replaces only this mechanical contribution with local pressure.
+
+
     Real matchingPressure=0;
     bool ready=false;
 };
 template<class Real> struct GasBoundaryLayerSstClosure
 {
-    Real wallShearStress=0;  // magnitude of numerical-wall traction, Pa
-    Real ownerOmega=0;       // representative omega at the owner centre, s^-1
-    Real volume=0;           // stage owner volume, m^3
-    Real ownerDistance=0;    // physical wall to owner centre, m
-    // Volume-projected SST closure: source evaluated from the same profile,
-    // destruction linearised in the sole macro rho*k inventory.
+    Real wallShearStress=0;
+    Real ownerOmega=0;
+    Real volume=0;
+    Real ownerDistance=0;
+
+
     Real nonDestructiveKSource=0;
     Real normal[3]{};
     const Real* kFluxHeight=nullptr;
     const Real* kTransportFlux=nullptr;
     const Real* omegaDiffusiveFlux=nullptr;
     int kFluxCount=0;
-    Real kDestructionRate=0; // integral(rho*betaStar*k*omega)/integral(rho*k), s^-1
-    Real normalMassFlux=0; // prescribed relative mass through the wall, positive into gas
+    Real kDestructionRate=0;
+    Real normalMassFlux=0;
 };
-// k uses total normal transport (m*k - Dk'); omega retains diffusion.
-// Both use the same converged BVP control faces. The macro k operator removes
-// only the prescribed normal-mass part of its upwind advection.
+
+
+
 template<class R> UGKWP_GAS_HD inline R boundaryLayerSstFlux(
  const GasBoundaryLayerSstClosure<R>& closure,R y,bool omega=false){
     const R* flux=omega?closure.omegaDiffusiveFlux:closure.kTransportFlux;
@@ -50,25 +50,25 @@ template<class R> UGKWP_GAS_HD inline R boundaryLayerSstFlux(
 template<class Real> struct GasBoundaryLayerState
 {
     bool enabled=false;
-    // The gas FV adapter evolves its own SST inventories. Its steady BVP
-    // supplies wall exchange, not volume sources or internal-face transport
-    // from an independently solved k/omega state. Other adapters opt in.
+
+
+
     bool useMacroSstInventory=false;
     int count=0;
-    bool preparedFirstStage=false; // host trial-phase cache, cleared on consume/rollback
+    bool preparedFirstStage=false;
     unsigned long long preparedGeneration=0;
     unsigned long long generation=0;
     double preparedTime=0,preparedInterval=0;
-    const int* faceSlot=nullptr;  // nFaces; -1 means not a selected wall
-    const int* ownerSlot=nullptr; // nCells; -1 means unconstrained; unique owner
+    const int* faceSlot=nullptr;
+    const int* ownerSlot=nullptr;
     int* status=nullptr;
     GasBoundaryLayerExchange<Real>* exchange=nullptr;
     GasBoundaryLayerSstClosure<Real>* sst=nullptr;
     Real* speciesFlux=nullptr;
-    // No second chemical inventory exists here. The auxiliary reaction integral
-    // stays with model diagnostics and is never sent to the bulk source update.
-    // omega source/transport audit channels describe the replaced coarse-grid
-    // discrete row. They are not integrals of the singular smooth-wall profile.
+
+
+
+
 };
 template<class State,class=void> struct GasBoundaryLayerCapability:std::false_type{};
 template<class State> struct GasBoundaryLayerCapability<State,
@@ -112,11 +112,11 @@ template<class State,class=void> struct GasWallKModelCapability:std::false_type{
 template<class State> struct GasWallKModelCapability<State,
     std::void_t<decltype(std::declval<State>().gasBoundaryLayerModel.config.model)>>:std::true_type{};
 
-// EquilibriumOde has no local k equation. Keep the independently evolved
-// macro inventory: suction removes owner k with the actual outward mass flux.
-// The current wall inlet assumption is zero injected TKE, not kMin. The
-// selected wall model uses zero normal k gradient, hence no added diffusion.
-// Other wall models retain their explicitly published total k exchange.
+
+
+
+
+
 template<class State,class R> UGKWP_GAS_HD inline R gasBoundaryLayerWallKFlux(
  const State& state,int slot,R outwardMass,R ownerK){
     if constexpr(GasWallKModelCapability<State>::value){
@@ -125,9 +125,9 @@ template<class State,class R> UGKWP_GAS_HD inline R gasBoundaryLayerWallKFlux(
     }
     return state.gasBoundaryLayer.exchange[slot].k;
 }
-// The equilibrium ODE supplies wall stress/heat, not a local k-omega system.
-// Its auxiliary omega must never replace the independently evolved macro SST
-// inventory (in particular at a quiescent wall, where that auxiliary is zero).
+
+
+
 template<class Wall,class Model> inline void configureEquilibriumOdeMacroSst(Wall& wall,Model& model){
     if(model.config.model!=gaswall::BoundaryLayerModel::EquilibriumOde)return;
     wall.useMacroSstInventory=true;

@@ -3,7 +3,7 @@
 #include "fvMesh.H"
 #include <vector>
 namespace Foam {
-// Application adapter only: polygon mathematics and sampling live in common.
+
 struct BoundaryInjectionGeometry {
     std::vector<int> offsets{0},vertices;
     std::vector<ugkp::gpu::geometry::Point> points;

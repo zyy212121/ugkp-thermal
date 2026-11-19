@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Source OpenFOAM 10 first; use the preserved 88bc checkout as the oracle.
+
 set -euo pipefail
 if [[ $# != 3 ]]; then echo "usage: $0 REPOSITORY FROZEN_BASELINE OUTPUT" >&2; exit 2; fi
 root=$(realpath "$1"); baseline=$(realpath "$2"); out=$(realpath -m "$3")

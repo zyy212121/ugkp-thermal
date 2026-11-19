@@ -1,6 +1,6 @@
 #pragma once
 #include "GpuMaterialEnthalpyMoment.cuh"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 __global__ void accumulateParticleMomentsAtomicKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;

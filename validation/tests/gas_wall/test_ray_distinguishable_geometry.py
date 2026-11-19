@@ -32,14 +32,14 @@ def test_shared_triangles_and_actual_distinct_face_tie(tmp_path):
  wallGeometryDetail::Context<double>ctx;WallStatus s;
  assert(wallGeometryDetail::prepare(m,ctx,s,options));
  WallGeometryDescriptor<double>d;d.ownerCell=0;d.wallFace=0;d.origin={.5,.5,0};d.normal={0,0,1};d.maximumOwnerDistance=1;
- // Both diagonal-adjacent triangles of each horizontal face meet this ray.
+
  assert(wallGeometryDetail::matching(m,ctx,d,s,options,1.));assert(d.matchingCells==std::vector<int>{1});
  d=WallGeometryDescriptor<double>{};d.ownerCell=0;d.wallFace=0;d.origin={.5,.5,0};d.normal={.5-1e-14,0,1};d.maximumOwnerDistance=1;
- // Close but distinct top/right crossings delimit a real positive donor segment.
+
  assert(wallGeometryDetail::matching(m,ctx,d,s,options,1.));assert(d.matchingCells==std::vector<int>{1});
  assert(d.matchingDistance>1&&d.matchingDistance<1+1e-13);
  d=WallGeometryDescriptor<double>{};d.ownerCell=0;d.wallFace=0;d.origin={.5,.5,0};d.normal={.5,0,1};d.maximumOwnerDistance=1;
- // The ray reaches top and right faces together: there is no unique next cell.
+
  assert(!wallGeometryDetail::matching(m,ctx,d,s,options,1.));assert(s.code==WallCode::InvalidGeometry);
 ''')
 

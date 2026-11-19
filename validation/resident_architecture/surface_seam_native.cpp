@@ -67,8 +67,8 @@ int main(){
         for(int c=0;c<cells;++c){s.solidFace.push_back(6*c+1);if(periodic){m.boundaryKind[6*c+2]=m.boundaryKind[6*c+3]=chmt::BoundaryKind::Periodic;m.periodicPartner[6*c+2]=6*c+3;m.periodicPartner[6*c+3]=6*c+2;}}
         compare(m,s,periodic);
     }
-    // Two overlapping, individually valid disconnected cells expose ambiguous
-    // seam candidates; the native routine does not assume global separation.
+
+
     auto overlap=boxes(2,1.,false);for(int p=8;p<16;++p)overlap.points[p]=overlap.points[p-8];
     overlap.periodicPartner.assign(overlap.owner.size(),-1);for(int c=0;c<2;++c){overlap.boundaryKind[6*c+2]=overlap.boundaryKind[6*c+3]=chmt::BoundaryKind::Periodic;overlap.periodicPartner[6*c+2]=6*c+3;overlap.periodicPartner[6*c+3]=6*c+2;}
     chmt::SurfaceMesh s;s.solidFace={1,7};compare(overlap,s);

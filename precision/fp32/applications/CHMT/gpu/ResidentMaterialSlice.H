@@ -6,15 +6,6 @@ namespace chmt {
 
 
 
-CHMT_HD inline ExchangePacket materialHistoryPacket(const CoupledSurfaceDownload& r,unsigned slot){
-    if(slot==0)return r.primary;
-    if(slot==1)return r.pore;
-    ExchangePacket p{};p.kind=ExchangeKind::ParticleWall;
-    p.step=r.primary.step;p.geometry=r.primary.geometry;p.face=r.primary.face;
-    p.stage=2;p.gasCell=r.primary.gasCell;p.solidCell=r.primary.solidCell;
-    p.filmFace=r.primary.filmFace;p.consumerMask=ConsumeParticle;
-    p.energy=p.conductive=r.particleWallEnergy;return p;
-}
 struct MaterialSliceAccumulators {
     ExchangePacket* packets=nullptr;
     EnergyReal* radiation=nullptr;

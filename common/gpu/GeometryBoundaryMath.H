@@ -11,9 +11,9 @@ namespace boundaryDetail {
 template<class Vec> UGKP_GEOMETRY_BOUNDARY_HD inline double length(Vec p){return ::sqrt(p.x*p.x+p.y*p.y+p.z*p.z);}
 template<class Vec> UGKP_GEOMETRY_BOUNDARY_HD inline double coordinate(Vec p,int axis){return axis==0?p.x:axis==1?p.y:p.z;}
 }
-// Existing translational periodic geometry contract. The first partner within
-// tolerance is selected, then checked for duplicate use by the owning face.
-// This deliberately is not a nearest-neighbour or best-fit correspondence.
+
+
+
 template<class Vec>
 UGKP_GEOMETRY_BOUNDARY_HD inline bool periodicAreaMatches(Vec a,Vec b){
     const double first=boundaryDetail::length(a),second=boundaryDetail::length(b);

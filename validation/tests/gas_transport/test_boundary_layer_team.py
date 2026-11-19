@@ -9,8 +9,8 @@ from validation.tests.gas_wall.test_wall_team_equivalence import TEAM
 
 BODY=r"""
 #include <iostream>
-// Fault injection at the publication boundary still invokes the real publisher:
-// unavailable thermochemistry must return false, rather than a mocked status.
+
+
 #define publishGasBoundaryLayerOutput originalPublishGasBoundaryLayerOutput
 #include "gasTransport/GasBoundaryLayerEvaluation.H"
 #undef publishGasBoundaryLayerOutput
@@ -73,12 +73,12 @@ int main(int argc,char**argv){
 def slot_programs(tmp_path_factory):
     tmp=tmp_path_factory.mktemp('wall-slot-team');oracle=tmp/'oracle'
     shutil.copytree(ROOT/'common',oracle/'common')
-    # Compare current scalar and cooperative execution under the same model
-    # and storage ABI; mixing only two HEAD headers with current dependencies
-    # is neither a frozen historical build nor a valid ownership oracle.
+
+
+
     src=fixture().replace('ugkwp::GasSpeciesState<Real,2> gasSpecies;};','ugkwp::GasSpeciesState<Real,2> gasSpecies;ugkwp::GasBoundaryLayerModelState<Real,2> gasBoundaryLayerModel;int testPublishFailureSlot=-1;};')
     src='#include "gasTransport/GasBoundaryLayerModelState.H"\n'+src
-    # Define the fault boundary wrapper before ModelState is first instantiated.
+
     types=TEAM.split('template<int Capacity>')[0].replace('#include "common/gasTransport/GasBoundaryLayerModelState.H"','')
     body=BODY.replace('FIXTURE',src).replace('TEAM_TYPES',types)
     pre=(HERE/'gas_state_probe.cpp').read_text().split('void hashBytes')[0]

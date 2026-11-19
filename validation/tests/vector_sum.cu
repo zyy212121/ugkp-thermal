@@ -1,4 +1,4 @@
-// nvcc -std=c++17 -O2 --fmad=false -Icommon validation/tests/vector_sum.cu -o vector-sum
+
 #include "GpuVectorSum.cuh"
 #include <algorithm>
 #include <cassert>
@@ -13,7 +13,7 @@ struct Source {
     const double* values;const int* active;int stride;
     __device__ int count()const{return *active;}
     __device__ void add(int i,double* q)const{
-        // Sparse active entries, signed moment cancellation, multiple scales.
+
         if(i%7==0)return;
         for(int k=0;k<6;++k)q[k]+=values[size_t(k)*stride+i];
     }
@@ -53,7 +53,7 @@ int main(int argc,char** argv){
             if(error>2e-14*double(magnitude)+1e-30){std::fprintf(stderr,"sum mismatch %d %d %d %.17g\n",n,split,k,error);return 2;}
         }
     }
-    // Replay uses the current device count, including a later enlarged inventory.
+
     check(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));
     check(cudaMemsetAsync(output,0,6*sizeof(double),stream));
     check(ugkwp::accumulateVectorSum<6>(source,parts,workspace,output,1.,stream));

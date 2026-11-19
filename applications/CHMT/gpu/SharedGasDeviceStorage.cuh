@@ -23,7 +23,7 @@
 #include <climits>
 namespace chmt {
 struct SharedGasDeviceView:ugkwp::GasStateView<Real,Real,ugkwp::SstCoefficients> {
-    // Borrowed from the common particle owner; null is the particle-free phase.
+
     const Real* gasVolumeFraction=nullptr;
     ugkp::thermal::ParticleWallExchangeView particleWall;
     ugkwp::GasResidentInterval gasResidentInterval;
@@ -43,7 +43,7 @@ template<class T>struct GasAllocation<T*> {
     void rebindFault(CudaFault& fault)noexcept{values.rebindFault(fault);}
     bool release(){return values.release();}
 };
-// Allocation and marshaling only. No numerical gas, chemistry or RK formula.
+
 class SharedGasDeviceStorage {
     using Time=Real;using Energy=Real;using SstCoefficients=ugkwp::SstCoefficients;
     CudaFault fault_;
@@ -109,8 +109,8 @@ class SharedGasDeviceStorage {
     }
     template<class T>bool allocateSpecies(Buffer<T>& owner,T*& pointer,std::size_t n){const bool fresh=owner.size()!=n;if(!owner.resize(n,fault_)||(fresh&&!owner.zero(transfers_.stream())))return false;pointer=owner.data();return true;}
     static bool meshField(const char* name){
-        // Boundary configuration and its evaluated mirrors keep ownership across
-        // coordinate-only mesh updates; topology changes rebuild the storage.
+
+
         if(!std::strncmp(name,"gasBoundary",11)||!std::strncmp(name,"riemannBoundary",15))return false;
         const char* fields[]={"Cx","Cy","Cz","V","cellLength","sstWallDistance","cellPlaneStart","cellPlaneCount","cellFaceId","faceOwner","faceNeighbour","facePeriodicPair","Sfx","Sfy","Sfz","magSf","faceCx","faceCy","faceCz","facePeriodicDx","facePeriodicDy","facePeriodicDz","deltaCoeffs","faceWeight","gasBoundaryKind","riemannBoundaryKind","sstBoundaryK","sstBoundaryOmega","sstBoundaryKMode","sstBoundaryOmegaMode","gasBoundaryRho","gasBoundaryP","gasBoundaryT","gasBoundaryUx","gasBoundaryUy","gasBoundaryUz","gasBoundaryUFix","gasBoundaryTFix","gasBoundaryRhoFix","gasBoundaryPFix","riemannBoundaryRho","riemannBoundaryP","riemannBoundaryT","riemannBoundaryUx","riemannBoundaryUy","riemannBoundaryUz","riemannBoundaryUFix","riemannBoundaryTFix","riemannBoundaryRhoFix","riemannBoundaryPFix","gasBoundaryPWave","gasBoundaryPWaveGamma","gasBoundaryPWaveFieldInf","gasBoundaryPWaveLInf","riemannBoundaryPWave","riemannBoundaryPWaveGamma","riemannBoundaryPWaveFieldInf","riemannBoundaryPWaveLInf"};
         for(const char* field:fields)if(!std::strcmp(name,field))return true;
@@ -315,8 +315,8 @@ public:
     }
     ~SharedGasDeviceStorage(){transfers_.drain();}
     void bindStream(cudaStream_t stream){transfers_.bindStream(stream);}
-    // Complete all sparse/full reads and the diagnostic snapshot together.
-    // Callers publish candidate numerical data only after this succeeds.
+
+
     bool observeDiagnostics(){
         ugkp::diagnostics::DeviceContext context{};
         if(diagnostics_&&!transfers_.download(&context,diagnostics_->device(),1)){
@@ -378,7 +378,7 @@ public:
             error=fault_.message;return false;
         }
 #else
-        // Host-only CUDA shims preserve the same raw-status contract.
+
         std::vector<int> cells,faces;
         if(!enqueueRead(cellStatus_.data(),cellStatus_.size(),cells)
             ||!enqueueRead(faceStatus_.data(),faceStatus_.size(),faces)||!observeDiagnostics()){error=fault_.message;return false;}
@@ -412,7 +412,7 @@ public:
         bool publishing=false,prepared=false;
         try{prepared=next->configureImpl(model,gas,mechanism,state,error,!retain,!sameMesh,publishing);}
         catch(const std::exception& failure){error=failure.what();}
-        // Candidate uploads must finish before rollback swaps or frees owners.
+
         if(!next->transfers_.drain()){prepared=false;error=next->error();}
         if(!prepared){
             if(next->previousWorkspace_.data())next->wallWorkspace_.swap(next->previousWorkspace_);
@@ -505,7 +505,7 @@ private:
         view_.gasPrClamped=1;
         view_.gasThermalConductivity=model.physics.gasConductivity;
         view_.gasScalarSolvers=model.physics.gasScalarSolvers;
-        // CHMT uses zero for disabled conduction, never a negative unset sentinel.
+
         view_.gasThermalConductivityConfigured=true;
         view_.turbulentPrandtl=model.physics.sst.turbulentPrandtl;
         view_.sstCoefficients=ugkwp::defaultSstCoefficients();
@@ -552,8 +552,8 @@ public:
                 ||!fault_.check(cudaDeviceGetAttribute(&multiprocessors,cudaDevAttrMultiProcessorCount,device),"query wall workspace multiprocessors")){error=fault_.message;return false;}
             sizing=ugkwp::resolveBoundaryLayerWorkspace(view_.gasBoundaryLayer.count,physics.wallWorkspaceSlots,multiprocessors,0,bytes);
 #else
-            // Host CUDA shims do not represent a GPU. A serial worker gives a
-            // deterministic functional test without pretending device sizing.
+
+
             sizing=ugkwp::resolveBoundaryLayerWorkspace(view_.gasBoundaryLayer.count,1,1,bytes,bytes);
 #endif
             if(sizing.slots==0){error="boundaryLayer workspace has no compiled capacity or its byte count is not representable";return false;}
@@ -740,9 +740,9 @@ public:
             if(view_.sstConfigured){k[c]=state.sst[c].rhoK/v;omega[c]=state.sst[c].rhoOmega/v;}
         }
         if(!upload(view_.rho,rho)||!upload(view_.rhoUx,px)||!upload(view_.rhoUy,py)||!upload(view_.rhoUz,pz)||!upload(view_.rhoE,energy)||(!state.gasTemperature.empty()&&!upload(view_.Tgas,state.gasTemperature))||(view_.gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&!upload(view_.gasSpecies.rho,species))||!upload(view_.rhoK,k)||!upload(view_.rhoOmega,omega)||!clearTrialStatus()){error=fault_.message;return false;}
-        // Restore wave pressure history independently of immutable boundary
-        // configuration. Ordinary window transfers preserve the device values;
-        // restart/import receives the accepted pressure saved in HostMesh.
+
+
+
         if(state.gasMesh.gasBoundary){
             for(std::size_t f=0;f<state.gasMesh.gasBoundary->faces.size();++f)if(state.gasMesh.gasBoundary->faces[f].wave){
                 const Real pressure=state.gasMesh.boundaryPrimitive.at(f).pressure;
@@ -763,8 +763,8 @@ public:
         if(state.gasMesh.gasBoundary)for(const auto& face:state.gasMesh.gasBoundary->faces)wave=wave||face.wave;
         if(wave&&!enqueueRead(view_.gasBoundaryP,view_.nFaces,boundaryPressure)){error=fault_.message;return false;}
         if(!observeDiagnostics()){error=fault_.message;return false;}
-        // Geometry reads may join this same publication. Install their host
-        // representation before converting resident densities to inventories.
+
+
         publishGeometry();
         if(wave)for(std::size_t f=0;f<boundaryPressure.size();++f)if(state.gasMesh.gasBoundary->faces[f].wave)
             state.gasMesh.boundaryPrimitive[f].pressure=boundaryPressure[f];

@@ -1,7 +1,7 @@
 #pragma once
 #include "gasTransport/GasGeometryValidation.H"
 #include "gasTransport/MixtureThermo.H"
-// Diagnose topology at the producer, before any indexed physical read.
+
 template<class GasState>
 __device__ bool gasStencilIndexFailure(const GasState& s,int c,int index,unsigned site)
 {
@@ -11,15 +11,15 @@ __device__ bool gasStencilIndexFailure(const GasState& s,int c,int index,unsigne
     ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage);
     return false;
 }
-// A face-array consumer (for example the unsigned spectral-radius sum) has
-// no dependency on owner/neighbour labels. Check only the array index it reads.
+
+
 template<class GasState>
 __device__ bool gasStencilFaceIndexValid(const GasState& s,int c,int f)
 {
     return f>=0 && f<s.nFaces ? true : gasStencilIndexFailure(s,c,f,30000);
 }
-// Classification and periodic mapping need the coupling metadata, not an owner
-// cell. Keep this separate from consumers which actually dereference cells.
+
+
 template<class GasState>
 __device__ bool gasStencilFaceCouplingValid(const GasState& s,int c,int f)
 {
@@ -29,7 +29,7 @@ __device__ bool gasStencilFaceCouplingValid(const GasState& s,int c,int f)
     return true;
 }
 template<class GasState>
-// Consume a face whose index/coupling was already checked in this invocation.
+
 __device__ bool gasStencilFaceCellsValid(const GasState& s,int c,int f)
 {
     if(!s.faceOwner)
@@ -66,8 +66,8 @@ __device__ bool gasStencilRangeValid(const GasState& s,int c,int start,int count
     return true;
 }
 
-// Report actual finite inventory flooring, not a predicted timestep bound.
-// Recording never changes the inventory, floor, or transport status.
+
+
 template<class GasState,class Scalar,class Floor>
 __device__ void gasInventoryFloorWarning(const GasState& s,int c,Scalar value,
     Floor floor,int component,unsigned site,unsigned op,

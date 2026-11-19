@@ -15,9 +15,9 @@ int main(){
     Test cases[9]{};
     const Point concave[6]={{0,0,0},{3,0,0},{3,1,0},{1,1,0},{1,3,0},{0,3,0}};
     for(int j=0;j<5;++j){auto& c=cases[j];c.n=6;for(int i=0;i<6;++i){c.p[i]=concave[i];c.ids[i]=j==1?5-i:i;}}
-    // A changed concavity requires rebuilding, rather than fixed fan diagonals.
+
     cases[2].p[3]={.3,.4,0};
-    // Actual 3D wedge-like radial plane: anisotropic embedding, not XY area.
+
     for(int i=0;i<6;++i){auto& p=cases[3].p[i];p.z=2*p.y;p.x*=.1;}
     cases[3].area={0,-2,1};
     cases[4].n=7;cases[4].p[6]={0,1.5,0};cases[4].ids[6]=6;
@@ -26,16 +26,16 @@ int main(){
     cases[5].p[2]={3,.3,0};cases[5].p[3]={1,.1,0};
     for(int i=0;i<4;++i)cases[5].ids[i]=i;
 
-    // Warping must not alter the projected concave domain or its area weights.
+
     cases[6]=cases[0];
     for(int i=0;i<6;++i)cases[6].p[i].z=(i%2?-.01:.01);
-    // A,B,C are not collinear in 3D, but their projection is collinear.
+
     cases[7].n=5;
     const Point projectedCollinear[5]={{0,0,0},{1,0,.1},{2,0,0},{2,1,.05},{0,1,-.05}};
     for(int i=0;i<5;++i){cases[7].p[i]=projectedCollinear[i];cases[7].ids[i]=i;}
     assert(std::abs(ugkp::gpu::geometry::magnitude(ugkp::gpu::geometry::cross(
         cases[7].p[1]-cases[7].p[0],cases[7].p[2]-cases[7].p[0]))-.2)<1e-15);
-    // Explicit oblique Sf/Cf, not a plane inferred from the warped vertices.
+
     using namespace ugkp::gpu::geometry;
     const Point normal=Point{1,2,3}/std::sqrt(14.),u=Point{2,-1,0}/std::sqrt(5.),v=cross(normal,u);
     cases[8].n=6;cases[8].centre={7,8,9};cases[8].area=normal*5;
@@ -64,8 +64,8 @@ int main(){
         assert(std::abs(meanX/200000-1.1)<.01&&std::abs(meanY/200000-1.1)<.01);
         assert(std::abs(vertical/200000.-.4)<.005);
     }
-    // A true wedge inlet trapezoid has width proportional to radius.
-    // Area-uniform sampling must not become uniform in radial coordinate.
+
+
     const auto& wedge=cases[5];
     assert(std::abs(wedge.t[wedge.count-1].cumulativeArea-.8)<1e-12);
     double radialMean=0;int outer=0;
@@ -83,7 +83,7 @@ int main(){
     Point line[3]={{0,0,0},{1,0,0},{2,0,0}};int ids[3]={0,1,2},scratch[3];BoundaryInjectionTriangle t[3];
     assert(!ugkwp::buildBoundaryInjectionTriangles(line,ids,3,scratch,t,{},Point{0,0,1},{}));
 
-    line[1].z=.1; // A nonzero 3D area still collapses in the tracking plane.
+    line[1].z=.1;
     assert(!ugkwp::buildBoundaryInjectionTriangles(line,ids,3,scratch,t,{},Point{0,0,1},{}));
     assert(!ugkwp::buildBoundaryInjectionTriangles(concave,ids,3,scratch,t,{},Point{},{}));
     double fallbackX=4,fallbackY=5,fallbackZ=6;

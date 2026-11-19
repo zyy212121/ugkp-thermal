@@ -5,12 +5,12 @@
 #include <limits>
 #include <cmath>
 namespace chmt {
-// Ratios only rank/report finite geometric residuals. Their representability
-// must not decide whether a physical trajectory is valid.
+
+
 inline double geometryResidualRatio(double residual,double tolerance) {
     return ugkp::gpu::geometry::sweepResidualRatio(residual,tolerance);
 }
-// Caller-owned per-operation context, drained at the existing host boundary.
+
 inline void geometryWarning(ugkp::diagnostics::DeviceContext* context,double observed,
     double reference,int entity,bool conservation=true,
     ugkp::diagnostics::EntityKind kind=ugkp::diagnostics::EntityKind::Face) {

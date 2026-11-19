@@ -54,7 +54,7 @@ namespace chmt {
             p.nElements = elementNames.size();
             for (int e = 0; e<Ne&&e<p.nElements; ++e)m.elementNames[e] = elementNames[e];
             p.enableGas = flag(d, "enableGas", true);
-            // Dry CPU material model: legacy film ABI fields remain inactive.
+
             p.enableReactions = flag(d, "enableReactions");
 
             p.permeability = readNumber(d, "permeability", 0);

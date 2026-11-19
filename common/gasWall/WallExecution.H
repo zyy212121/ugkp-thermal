@@ -1,11 +1,11 @@
 #pragma once
 #include "../gasTransport/GasModel.H"
 namespace ugkwp { namespace gaswall { namespace detail {
-// Shared host/device launch contract; device primitive implementation is separate.
+
 constexpr int wallWarpWidth=32;
-// Host API and one-thread callers retain the original execution order.
-// A cooperative team supplies rank/size, a full-team barrier, all and broadcast.
-// Every member must enter and leave each collective in the same order.
+
+
+
 struct SerialWallTeam {
     UGKWP_GAS_HD int rank()const{return 0;}
     UGKWP_GAS_HD int size()const{return 1;}

@@ -1,8 +1,8 @@
 #pragma once
 #include "WallModelTypes.H"
 namespace ugkwp { namespace gaswall { namespace detail {
-// Typed borrowed views retain their actual storage type. Only scalar values
-// are promoted; no mechanism copy, pointer reinterpretation, or allocation.
+
+
 template<class S,int N> UGKWP_GAS_HD inline WallInput<WallReal,N,S> wallComputationInput(const WallInput<S,N>& src){
     WallInput<WallReal,N,S> dst;
     dst.diagnostics=src.diagnostics;dst.diagnosticEntity=src.diagnosticEntity;dst.diagnosticNode=src.diagnosticNode;
@@ -42,8 +42,8 @@ template<class S,int N> UGKWP_GAS_HD inline bool publishWallPrecision(const Wall
 
 
 
-    // Inspect the values actually published, including narrowing overflow.
-    // An unavailable chemistry mismatch is the sole intentional NaN sentinel.
+
+
     const S scalars[]={dst.traceTemperature,dst.traceDensity,dst.conductiveHeatFlux,
         dst.ownerOmega,dst.wallKFlux};
     for(int i=0;i<5;++i)if(!gasFinite(scalars[i]))

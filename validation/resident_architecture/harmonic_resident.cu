@@ -42,8 +42,8 @@ void motionFixture(int n,bool penalty,bool represented,bool bad){
     HarmonicPointMotion motion(initial,offsets,neighbour,fixed,1e-12,limit);
     Buffer<Point> points(n),boundary(n),savedPoints(n*replays);Buffer<MotionPenalty> penalties(n);
     Buffer<int> phase(1);phase.upload({0});Buffer<double> tolerance(1);Buffer<HarmonicDeviceStatus> savedStatus(replays);
-    // Error samples do not publish a position payload; initialize archive so
-    // its unused entries are not uninitialized device reads at final output.
+
+
     if(n)check(cudaMemset(savedPoints.p,0,n*replays*sizeof(Point)));
     cudaStream_t stream;check(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
     check(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));
@@ -61,8 +61,8 @@ void motionFixture(int n,bool penalty,bool represented,bool bad){
         assert(reports[step].iterations==expected.iterations);close(reports[step].residual,expected.residual);
         if(expected.errorPoint<0)for(int i=0;i<n;++i)close(actual[step*n+i],expected.points[i]);
     }
-    // Reusing the resident entry must not corrupt the host publication path's
-    // cached geometry weights. Invoke it after the final moving-coordinate solve.
+
+
     std::vector<Point> originalBoundary;for(int i=0;i<n;++i)originalBoundary.push_back(boundaryValue(i,0));
     const auto original=referenceMotion(initial,originalBoundary,offsets,neighbour,fixed,{},1e-12,limit,represented);
     for(int publication=0;publication<2;++publication){
@@ -70,8 +70,8 @@ void motionFixture(int n,bool penalty,bool represented,bool bad){
         assert(published.errorPoint==original.errorPoint&&published.iterations==original.iterations);
         for(int i=0;i<n;++i)close(published.points[i],original.points[i]);
         if(!publication){
-            // Replaying a previously captured solve cannot update host cache
-            // metadata. A publication between replays must not stale weights.
+
+
             phase.upload({0});
             for(int i=0;i<replays;++i)check(cudaGraphLaunch(executable,stream));
             check(cudaStreamSynchronize(stream));

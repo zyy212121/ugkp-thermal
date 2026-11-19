@@ -1,4 +1,4 @@
-// Included by PolyhedralGeometry.cu; shares geometry storage utilities.
+
 #include "InterfacePointDisplacement.H"
 namespace ugkp { namespace gpu { namespace geometry { namespace {
 __device__ double interfaceThickness(InterfaceThicknessField field,int i){

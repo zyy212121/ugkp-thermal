@@ -13,7 +13,7 @@ PROBE=r'''
 #include <iostream>
 #include <iomanip>
 #include <iterator>
-// Compatibility only for the frozen pre-change red probe.
+
 template<class Thermo> auto read(const std::string& text,const Thermo& thermo,
  const std::vector<std::string>& names,int)
  -> decltype(ugkwp::parseGasMechanismProperties<2>(text,thermo,"test",names))

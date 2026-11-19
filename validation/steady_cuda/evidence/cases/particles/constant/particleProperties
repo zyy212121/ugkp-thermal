@@ -8,5 +8,5 @@ particleTemperatureTransport true; particleRho 1000; particleCp 1000; particleTM
 gpuResidentInjectionTheta 0.01; gpuResidentInjectionTp 300.0;
 gpuResidentCollisionalPressure false; gpuResidentJammingPressure false;
 
-// CPU reference uses absorbing streamwise parcel boundaries.
+
 particleWallCoeffs { default 1; left 0; right 0; }

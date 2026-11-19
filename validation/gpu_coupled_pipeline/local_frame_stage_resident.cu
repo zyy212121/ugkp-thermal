@@ -9,7 +9,7 @@ template<class T>struct Device {T* p=nullptr;explicit Device(const std::vector<T
 }
 std::vector<g::LocalFrameStageResult> probeLocalFrameStage(g::LocalFrameStageGeometry& owner,const g::LocalFrameStageDefinition& d,const std::vector<g::Point>& endpoint,g::StageGeometryControls controls){
     Device<g::Point> world(d.worldOld),local(d.localOld),end(endpoint);
-    check(cudaStreamSynchronize(nullptr)); // Borrowed inputs must be ready before a nonblocking consumer stream.
+    check(cudaStreamSynchronize(nullptr));
     std::vector<g::LocalFrameStageResult> results;results.push_back(owner.solveBorrowed(end.p,controls));
     Device<g::LocalFrameStageInput> input(std::vector<g::LocalFrameStageInput>{{world.p,local.p,end.p,controls}});
     check(cudaStreamSynchronize(nullptr));

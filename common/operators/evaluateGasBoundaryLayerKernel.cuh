@@ -1,8 +1,8 @@
 #pragma once
 #include "../gpu/WorkPlan.H"
 #include "gasTransport/GasBoundaryLayerModelState.H"
-// One sparse worker owns one bounded scratch slot and walks distinct faces.
-// Expensive profile scratch scales with workspaceCount, not wall-face count.
+
+
 template<bool Capture=false,class GasState>
 __global__ void evaluateGasBoundaryLayerKernel(GasState* state,const unsigned char* active=nullptr)
 {
@@ -20,7 +20,7 @@ __global__ void evaluateGasBoundaryLayerKernel(GasState* state,const unsigned ch
 
 #if defined(__CUDACC__)
 #include "gasWall/WallCudaTeam.cuh"
-// Full CTA entry/exit is uniform even when nodes<32 or an evaluation fails.
+
 template<bool Capture,int Capacity,class GasState>
 __device__ inline void evaluateGasBoundaryLayerTeamWorker(GasState*,const unsigned char*,
     std::false_type){}
@@ -34,7 +34,7 @@ __device__ inline void evaluateGasBoundaryLayerTeamWorker(GasState* state,const 
     for(int slot=worker;slot<state->gasBoundaryLayer.count;slot+=workers)
         if(!active||active[slot])ugkwp::evaluateGasBoundaryLayerSlot<Capture,Capacity>(*state,slot,worker,team);
 }
-// Node-parallel nonlinear BVP; scalar/analytic kernel remains available above.
+
 template<bool Capture=false,int Capacity=0,class GasState>
 __global__ __launch_bounds__(ugkwp::gaswall::detail::wallWarpWidth) void evaluateGasBoundaryLayerTeamKernel(GasState* state,const unsigned char* active=nullptr)
 {
@@ -42,8 +42,8 @@ __global__ __launch_bounds__(ugkwp::gaswall::detail::wallWarpWidth) void evaluat
     evaluateGasBoundaryLayerTeamWorker<Capture,Capacity>(state,active,
         typename ugkwp::GasBoundaryLayerModelCapability<GasState>::type{});
 }
-// Nodes 0..7 occupy a tile; each tile owns a distinct scratch slot. A partial
-// final block returns entire tiles only, never individual participating lanes.
+
+
 template<bool Capture=false,class GasState>
 __global__ void evaluateGasBoundaryLayerTile8Kernel(GasState* state,const unsigned char* active=nullptr)
 {
@@ -59,9 +59,9 @@ __global__ void evaluateGasBoundaryLayerTile8Kernel(GasState* state,const unsign
     }
 }
 
-// All application adapters submit the same resident wall pool. The optional
-// mask selects whole wall teams, preserving accepted/candidate history for
-// unchanged slots without letting individual lanes skip a collective.
+
+
+
 template<bool Capture=false,class GasState,class Model>
 inline cudaError_t launchGasBoundaryLayerPool(GasState* state,const Model& model,
     int wallCount,cudaStream_t stream,const unsigned char* active=nullptr)

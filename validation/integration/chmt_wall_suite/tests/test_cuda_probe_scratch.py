@@ -66,8 +66,8 @@ return 0;
     assert 'alignas(Wide)' in source and 'sizeof(Wide)' in source
     assert 'alignas(Small)' in source and 'sizeof(Small)' in source
     assert all('workspace_' + str(i) in source for i in range(3))
-    # Compile the exact emitted storage and device body as C++ to check actual
-    # object lifetime, alignment, disjoint slots and loop reinitialization.
+
+
     portable = source[:source.index('__global__')]
     portable = portable.replace('#include <cuda_runtime.h>', '')
     portable = portable.replace('__device__', '').replace('__host__', '').replace('__forceinline__', 'inline')

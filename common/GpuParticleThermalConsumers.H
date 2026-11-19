@@ -14,9 +14,9 @@ struct ParticleWallThermalPublication
     double wallEnergy;
 };
 
-// The existing lumped implicit wall law, evaluated against effective material
-// state. Publish through the same bounded carry representation as gas heat.
-// Callers may work on a local candidate and commit after other checks succeed.
+
+
+
 template<class Storage, class Caloric>
 UGKWP_THERMAL_CONSUMER_HD inline ParticleWallThermalPublication publishFiniteWallThermalHeat
 (
@@ -40,7 +40,7 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleWallThermalPublication publishFiniteWal
     const double oldTemperature = caloric.temperature(oldEnthalpy);
     if (!finiteThermalCarry(oldEnthalpy) || !finiteThermalCarry(oldTemperature)) return {false,0.};
     if (conductanceIntegral==0.) return {true,0.};
-    // Preserve the small enthalpy carry without subtracting absolute enthalpies.
+
     const double anchorCorrection=caloric.enthalpyIncrement(double(state.temperature),
         oldTemperature-double(state.temperature))-state.specificEnthalpyResidual;
     const double delta=wallTemperature-oldTemperature;
@@ -55,18 +55,18 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleWallThermalPublication publishFiniteWal
             const double middle=lower+.5*(upper-lower);
             if(middle==lower||middle==upper)break;
             const double heat=caloric.enthalpyIncrement(oldTemperature,middle)+anchorCorrection;
-            // Scale by the dominant coefficient; neither G*dT nor m*dh can overflow.
+
             const double residual=strong ? (physicalMass/conductanceIntegral)*heat+(middle-delta)
                 : heat-(conductanceIntegral/physicalMass)*(delta-middle);
             if(!finiteThermalCarry(residual))return {false,0.};
             if(residual<0.)lower=middle;else upper=middle;
         }
         const double solvedDelta=lower+.5*(upper-lower);
-        // Heat from enthalpy in the strong limit, from flux in the weak limit.
+
         proposedSpecificHeat=strong ? caloric.enthalpyIncrement(oldTemperature,solvedDelta)+anchorCorrection
             : (conductanceIntegral/physicalMass)*(delta-solvedDelta);
     }
-    // Positive infinite conductance represents the zero-resistance ideal contact limit.
+
     auto candidate=state;
     const auto publication=publishParticleThermalHeatImpl<true>
         (candidate,proposedSpecificHeat,minimumTemperature,maximumTemperature,caloric);
@@ -96,7 +96,7 @@ UGKWP_THERMAL_CONSUMER_HD inline ParticleThermalPublication publishAffineRadiati
     const double proposedTemperature = oldTemperature + temperatureIncrement;
     if (!finiteThermalCarry(oldTemperature) || !finiteThermalCarry(proposedTemperature))
         return {false, false, 0.0};
-    // Integrate the small interval before adding it to the large thermal state.
+
     const double proposedSpecificHeat = caloric.enthalpyIncrement(oldTemperature, temperatureIncrement);
 
 

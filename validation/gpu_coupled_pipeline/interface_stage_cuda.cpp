@@ -48,7 +48,7 @@ int main(){int cases=0;
     for(double scale:{1e-3,1.,1e3}){
         auto mesh=twoHexahedra(0);for(auto& p:mesh.points)p=p*scale;
         std::string error;require(chmt::rebuildGeometry(mesh,error),error);
-        // Identify the two extrusion layers by their original coordinates.
+
         for(std::size_t f=0;f<mesh.owner.size();++f)if(mesh.neighbour[f]<0){bool horizontal=true;const int lo=mesh.faceOffsets[f],hi=mesh.faceOffsets[f+1];
             const double z=mesh.points[mesh.facePoints[lo]].z;for(int k=lo;k<hi;++k)horizontal=horizontal&&mesh.points[mesh.facePoints[k]].z==z;
             if(horizontal)mesh.boundaryKind[f]=chmt::BoundaryKind::Empty;}

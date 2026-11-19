@@ -12,8 +12,8 @@
 #include <vector>
 
 namespace chmt { namespace sweep_detail {
-// Track correction-owned allocation requests (not process RSS). Legacy byte
-// budgets do not reject work: only actual size overflow or allocation failure does.
+
+
 struct WorkspaceLimit : std::bad_alloc {};
 inline std::size_t product(std::size_t a,std::size_t b) {
     if(b && a>std::numeric_limits<std::size_t>::max()/b)throw WorkspaceLimit{};
@@ -40,7 +40,7 @@ template<class T> struct Allocator {
     T* allocate(std::size_t n) {
         const std::size_t bytes=product(n,sizeof(T));
         if(!budget)throw WorkspaceLimit{};
-        budget->check(bytes); // size accounting must remain representable
+        budget->check(bytes);
         T* result=std::allocator<T>{}.allocate(n);
         budget->acquired(bytes);
         return result;
@@ -56,9 +56,9 @@ using Reals=Vector<Real>;
 using Points=Vector<Vec3>;
 using Rows=Vector<Reals>;
 
-// One solve-local, sorted adjacency. Summation order, inverse-edge weights,
-// Jacobi iteration and stopping criterion match harmonicPointMotion. There is
-// no topology cache surviving a geometry update or checkpoint restart.
+
+
+
 class HarmonicModes {
     using Edge=std::pair<int,int>;
     const HostMesh& mesh_;
@@ -97,7 +97,7 @@ public:
             const int other=edges_[k].second;
             if(!fixed_[p]) {
                 const Real length=mag(mesh.points[p]-mesh.points[other]);
-                // The initial public harmonic solve already validates this.
+
                 weights_[k]=1/length;totals_[p]+=weights_[k];
             }
 #endif

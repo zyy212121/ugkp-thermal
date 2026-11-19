@@ -1,6 +1,6 @@
 #pragma once
-// Application-owned allocation only. All physical evaluations remain common.
-// Include after the resident allocation/copy/error helpers.
+
+
 #include <limits>
 #include <type_traits>
 #include <utility>

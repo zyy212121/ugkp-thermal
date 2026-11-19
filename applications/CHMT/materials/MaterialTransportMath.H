@@ -5,7 +5,7 @@
 #include "materials/MaterialReconstruction.H"
 #include "coupling/Coordinator.H"
 namespace chmt {
-// Non-owning views. Geometry and topology belong to the resident backend.
+
 struct MaterialMeshView {
     int cells=0,faces=0;
     const Real* volumes=nullptr;
@@ -19,12 +19,12 @@ struct MaterialMeshView {
     const int* cellFaceOffsets=nullptr;
     const int* cellFaces=nullptr;
     const int* cellFaceSigns=nullptr;
-    // Unique physical faces, in original global-face order within each cell.
-    // A periodic pair contributes only its lower face ID. A self-periodic cell
-    // has both entries, left before right, exactly as the original face loop.
+
+
+
     const int* diffusionOffsets=nullptr;
     const int* diffusionFaces=nullptr;
-    const int* diffusionSides=nullptr; // 0: owner loss; 1: neighbour/periodic loss.
+    const int* diffusionSides=nullptr;
 };
 struct MaterialTransportWorkspace {
     MaterialPrimitive* primitive=nullptr;
@@ -145,8 +145,8 @@ CHMT_HD inline MaterialTransportError face(const MaterialMeshView& m,const Solid
                 normalPressureGradient,.5*(a.poreDensity+b.poreDensity),dot(p.gravity,normal));
             auto poreLeft=dryAdapter::poreState(q[left],a),poreRight=dryAdapter::poreState(q[right],b);
             dryAdapter::completePorePair(poreLeft,poreRight);
-            // Diffusion uses original cell gradients. Reconstruct only the
-            // advective donor; otherwise second-order advection would alter J.
+
+
             std::array<double,Ns> diffusivity{};
             for(int species=0;species<Ns;++species)diffusivity[species]=p.poreEffectiveDiffusivity[species];
             struct FaceCalorics {
@@ -154,18 +154,18 @@ CHMT_HD inline MaterialTransportError face(const MaterialMeshView& m,const Solid
                 const dry::PoreFaceState<Ns>& a;
                 const dry::PoreFaceState<Ns>& b;
                 CHMT_HD double enthalpy(std::size_t species,double T)const {
-                    // Inactive historical tables need not be configured.
+
                     return (a.density==0&&b.density==0)||(a.massFraction[species]==0&&b.massFraction[species]==0)
                         ? 0 : speciesH(p.species[species],T);
                 }
             } calorics{p,poreLeft,poreRight};
-            // Native implicit fvScalarMatrix conduction owns the conductive
-            // channel; passing k=0 avoids counting the same heat flux twice.
+
+
             auto poreFlux=dry::poreFaceFlux(poreLeft,poreRight,distance,velocity,diffusivity,0,calorics);
-            // Bound the explicit operator, not just current net mass outflow:
-            // at almost uniform composition, q/outflow misses diffusion stiffness.
-            // Total pore inventory is the storage for the mass fractions. Sum
-            // face losses before combining with Darcy/ALE stiffness above.
+
+
+
+
             Real leftMass=0,rightMass=0;
             for(int species=0;species<Ns;++species){leftMass+=q[left].pore[species];rightMass+=q[right].pore[species];}
             if(leftMass>0)w.faceDiffusionLossLeft[f]=area*poreFlux.diffusionLossLeft/leftMass;
@@ -195,8 +195,8 @@ CHMT_HD inline MaterialTransportError face(const MaterialMeshView& m,const Solid
 CHMT_HD inline void gatherCell(const MaterialMeshView& m,const SolidQ* q,
     const PhysicsConfig& p,Real cfl,int c,const MaterialTransportWorkspace& w) {
     w.rates[c]={};SolidQ outgoing;Real dtLimit=std::numeric_limits<Real>::max();
-    // Preserve the original ascending global-face accumulation, independently
-    // of the cell-face stencil order used below for rates and reconstruction.
+
+
     for(int e=m.diffusionOffsets[c];e<m.diffusionOffsets[c+1];++e){
         const int f=m.diffusionFaces[e];
         w.stabilityRate[c]+=m.diffusionSides[e]==0?w.faceDiffusionLossLeft[f]:w.faceDiffusionLossRight[f];
@@ -231,6 +231,6 @@ inline const char* errorMessage(MaterialTransportError code) {
     }
     return "invalid material transport result";
 }
-} // namespace materialTransport
-} // namespace chmt
+}
+}
 #endif

@@ -1,4 +1,4 @@
-// Shared input/material/contact preparation; included inside each precision wrapper.
+
         const int c = s.pCellId[i];
         if (c < 0 || c >= s.nCells)
         {
@@ -17,9 +17,9 @@
         const GpuReal physicalMass = material.densityKgM3*physicalVolume;
         const GpuReal parcelMultiplicity = s.pm[i]/physicalMass;
 #ifdef GPU_PAIRED_PARTICLE_HEAT
-        // Freeze the original material mass/geometry before the paired source;
-        // its uniform H increment then enters the existing wall solve once.
-        __syncwarp(mask); // Every lane must finish its old-state material loads.
+
+
+        __syncwarp(mask);
         if (lane == 0) publishPairedParticleGasHeat(s, i, dt);
         __syncwarp(mask);
 #endif
@@ -36,7 +36,7 @@
          && s.solveParticleTemperature != 0
          && s.particleGasHeatTransferModelId != 0
 #ifdef GPU_PAIRED_PARTICLE_HEAT
-         && false // The common paired publisher already applied this gas heat.
+         && false
 #endif
         )
         {
@@ -104,9 +104,9 @@
 
         if (!(activeDt > GPU_R(0.0)) || !(intrinsicArea > GPU_R(0.0)))
         {
-            // A finite contact may retract below its accumulated damage, or
-            // expire inside this step. Gas exchange still spans the full dt;
-            // the later generic finalizer alone performs the state transition.
+
+
+
             GpuReal gasOnlyMeanTemperature = GPU_R(0.0);
             const bool gasOnlyValid = advanceColdWall1DGasOnlyGroup
             (

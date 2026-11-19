@@ -33,6 +33,9 @@ __global__ void beginThermalWindow(SolidThermalIteration* state,SolidThermalIter
 __global__ void beginThermalIteration(SolidThermalIteration* state){if(!threadIdx.x)++state->iteration;}
 __global__ void checkThermalLinearReport(const ConjugateGradientReport* report,diagnostics::DeviceContext* context){
     using namespace diagnostics;if(threadIdx.x)return;
+    if(report->preconditionerFallbackBlocks>0)
+        recordWarning(context,makeRecord(Code::MethodFallback,36010,0,report->iterations,
+            EntityKind::None,-1,-1,report->preconditionerFallbackBlocks,0,0,Quantity::LinearSystem));
     if(!isfinite(report->finalResidual))recordFatal(context,makeRecord(Code::NonFinite,34012,0,report->iterations,
         EntityKind::None,-1,-1,report->finalResidual,report->initialResidual,0,Quantity::LinearSystem));
     else if(!report->converged){
@@ -42,29 +45,36 @@ __global__ void checkThermalLinearReport(const ConjugateGradientReport* report,d
     }
 }
 __global__ void finishThermalIteration(SolidThermalIteration* state,const SolidThermalConvergence* metrics,
-    SolidThermalIterationControls controls,diagnostics::DeviceContext* context,cudaGraphConditionalHandle handle){
-    if(threadIdx.x)return;state->convergence=*metrics;const auto& value=*metrics;
+    SolidThermalIterationControls controls,const ConjugateGradientReport* linear,int* stage,
+    diagnostics::DeviceContext* context,cudaGraphConditionalHandle handle){
+    if(threadIdx.x)return;
+    const auto& value=*metrics;
     auto residual=value.enthalpyChange;residual.merge(value.interfaceEnergy.negated());residual.merge(value.externalEnergy.negated());
     auto incoming=value.interfaceEnergy.magnitude();incoming.merge(value.externalEnergy.magnitude());
     auto scale=value.enthalpyChange.magnitude();if(scale.lessEqual(incoming))scale=incoming;
     ScaledThermalSum unity;unity.add(1);if(scale.lessEqual(unity))scale=unity;
     auto limit=scale.multiplied(controls.energyRelativeTolerance);limit.add(controls.energyAbsoluteTolerance);
+    const auto& previous=state->convergence;
+    const bool repeated=state->iteration>=3 && linear->converged && linear->iterations==0
+        && value.temperatureChange==0 && previous.temperatureChange==0
+        && !value.boundaryChanged && !previous.boundaryChanged
+        && state->energyResidual.lessEqual(residual) && residual.lessEqual(state->energyResidual);
+    state->convergence=value;
     state->energyResidual=residual;state->energyLimit=limit;state->valid=!diagnostics::hasFatal(context);
     state->converged=state->valid&&value.temperatureChange<=controls.relativeTolerance
         &&fmax(value.surfaceChange,value.surfaceFluxChange)<=controls.relativeTolerance&&residual.magnitude().lessEqual(limit);
-    const bool again=state->valid&&!state->converged&&state->iteration<(controls.maximumIterations>1?controls.maximumIterations:1);
+    const bool again=state->valid&&!state->converged&&!repeated&&state->iteration<(controls.maximumIterations>1?controls.maximumIterations:1);
     cudaGraphSetConditional(handle,again);
+    *stage=again?1:3;
     if(state->valid&&!state->converged&&!again){using namespace diagnostics;
-        if(!residual.magnitude().lessEqual(limit))recordWarning(context,makeRecord(Code::ConservationResidual,34014,0,state->iteration,EntityKind::None,-1,-1,
+        if(!residual.magnitude().lessEqual(limit))recordWarning(context,makeRecord(Code::ConservationResidual,repeated?34028:34014,0,state->iteration,EntityKind::None,-1,-1,
             residual.binary64(),limit.binary64(),0,Quantity::Conservation));
         const double change=fmax(value.temperatureChange,fmax(value.surfaceChange,value.surfaceFluxChange));
-        if(!(change<=controls.relativeTolerance))recordWarning(context,makeRecord(Code::AccuracyResidual,34015,0,state->iteration,EntityKind::None,-1,-1,
+        if(!(change<=controls.relativeTolerance))recordWarning(context,makeRecord(Code::AccuracyResidual,repeated?34029:34015,0,state->iteration,EntityKind::None,-1,-1,
             change,controls.relativeTolerance,0,Quantity::Accuracy));
     }
 }
-__global__ void finishThermalStage(int* stage,const SolidThermalIteration* report,SolidThermalIterationControls controls){
-    if(!threadIdx.x)*stage=report->valid&&!report->converged&&report->iteration<(controls.maximumIterations>1?controls.maximumIterations:1)?1:3;
-}
+
 
 }
 struct SolidThermalIterationGraph::Implementation {
@@ -132,8 +142,7 @@ ExecutionGraphNode SolidThermalIterationGraph::appendTo(ExecutionGraph graph,Exe
         const auto metrics=properties.enqueueResidentConvergence(problem.cells,problem.surfaceProperties,diffusion.deviceVolume(),
             diffusion.deviceBoundaryFlux(),diffusion.deviceBoundaryTemperature(),diffusion.deviceBoundaryGradient(),diffusion.deviceBoundaryEnergy(),
             diffusion.deviceBoundaryArea(),problem.interval,d.stream,&d.report->interval);
-        finishThermalIteration<<<1,1,0,d.stream>>>(d.report,metrics,problem.controls,d.diagnostics,handle);
-        finishThermalStage<<<1,1,0,d.stream>>>(d.stage,d.report,problem.controls);
+        finishThermalIteration<<<1,1,0,d.stream>>>(d.report,metrics,problem.controls,sparse.deviceReport(),d.stage,d.diagnostics,handle);
       });
     });
     appendCaptured(body,{finished},d.stream,[&]{thermalResumeLoop<<<1,1,0,d.stream>>>(d.stage,sparse.capacityPendingDevice(),handle);});
@@ -155,8 +164,8 @@ void SolidThermalIterationGraph::enqueue(void* producer){
         for(auto stream:state.owners)checked(cudaStreamWaitEvent(stream,state.ready,0));
     });
 }
-const SolidThermalIteration* SolidThermalIterationGraph::deviceReport()const{awaitCompletion();return data_->report;}
-void* SolidThermalIterationGraph::producerStream()const{awaitCompletion();return data_->stream;}
+const SolidThermalIteration* SolidThermalIterationGraph::deviceReport()const{return data_->report;}
+void* SolidThermalIterationGraph::producerStream()const{return data_->stream;}
 SolidThermalIteration SolidThermalIterationGraph::collect(diagnostics::DeviceContext* diagnosticOutput){
     awaitCompletion();auto& d=*data_;if(!d.resultReady)throw std::logic_error("resident solid iteration output requested before enqueue");
     SolidThermalIteration result;checked(cudaMemcpyAsync(&result,d.report,sizeof(result),cudaMemcpyDeviceToHost,d.stream));
@@ -178,7 +187,7 @@ __global__ void beginContactWindow(SolidContactIteration* report,diagnostics::De
 __global__ void finishContactIteration(SolidContactIteration* report,const SolidContactConvergence* metrics,
     SolidContactIterationControls controls,diagnostics::DeviceContext* context,cudaGraphConditionalHandle handle){
     if(threadIdx.x)return;++report->iteration;report->convergence=*metrics;report->valid=!diagnostics::hasFatal(context);
-    const double energy=metrics->energyDifference/metrics->energyScale;
+    const auto energy=metrics->energyDifference/metrics->energyScale;
     report->converged=report->valid&&metrics->temperatureChange<=controls.temperatureTolerance&&energy<=controls.energyTolerance;
     const bool again=report->valid&&!report->converged&&report->iteration<(controls.maximumIterations>1?controls.maximumIterations:1);
     cudaGraphSetConditional(handle,again);
@@ -219,36 +228,49 @@ void SolidThermalIterationGraph::acceptExternalExecution(void* producerStream){
 }
 diagnostics::DeviceContext* SolidThermalIterationGraph::diagnosticsContext()const{return data_->diagnostics;}
 struct SolidContactIterationGraph::Implementation {
-    GraphContinuationTask task;
+    GraphContinuationTask task;std::shared_future<void> externalCompletion;
+    SolidContactIterationControls controls;
+    double interval=0;const double* deviceInterval=nullptr;
     cudaStream_t stream=nullptr;cudaEvent_t ready=nullptr;cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;
     SolidThermalIterationGraph *primary=nullptr,*auxiliary=nullptr;SolidThermalContact* contact=nullptr;
     SolidContactIteration* report=nullptr;bool resultReady=false;int* stage=nullptr;
     Implementation(){checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));checked(cudaEventCreateWithFlags(&ready,cudaEventDisableTiming));checked(cudaMalloc(reinterpret_cast<void**>(&report),sizeof(*report)));}
-    ~Implementation(){task.reset();if(stream)cudaStreamSynchronize(stream);if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);
+    ~Implementation(){if(externalCompletion.valid())externalCompletion.wait();task.reset();if(stream)cudaStreamSynchronize(stream);if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);
         if(stage)cudaFree(stage);if(report)cudaFree(report);if(ready)cudaEventDestroy(ready);if(stream)cudaStreamDestroy(stream);}
     void waitFor(void* owner){checked(cudaEventRecord(ready,static_cast<cudaStream_t>(owner)));checked(cudaStreamWaitEvent(stream,ready,0));}
 };
 SolidContactIterationGraph::SolidContactIterationGraph(SolidThermalIterationGraph& primary,SolidThermalIterationGraph& auxiliary,
     SolidThermalContact& contact,const SolidContactIterationControls& controls,double interval,const double* deviceInterval):data_(new Implementation){
     auto& d=*data_;d.primary=&primary;d.auxiliary=&auxiliary;d.contact=&contact;
+    d.controls=controls;d.interval=interval;d.deviceInterval=deviceInterval;
     auto* context=primary.diagnosticsContext();
     if(context!=auxiliary.diagnosticsContext())throw std::invalid_argument("coupled solid graphs require one shared diagnostic owner");
+
+
+    primary.awaitCompletion();auxiliary.awaitCompletion();
     d.waitFor(primary.producerStream());d.waitFor(auxiliary.producerStream());d.waitFor(contact.primaryEnergy().producerStream);
-    checked(cudaGraphCreate(&d.graph,0));cudaGraphConditionalHandle handle;
-    checked(cudaGraphConditionalHandleCreate(&handle,d.graph,0,cudaGraphCondAssignDefault));
+    checked(cudaMalloc(reinterpret_cast<void**>(&d.stage),sizeof(int)));
+    checked(cudaMemsetAsync(d.stage,0,sizeof(int),d.stream));
+    checked(cudaGraphCreate(&d.graph,0));appendTo(d.graph);
+    checked(cudaGraphInstantiateWithFlags(&d.executable,d.graph,0));
+}
+ExecutionGraphNode SolidContactIterationGraph::appendTo(ExecutionGraph graph,ExecutionGraphNode dependency){
+    auto& d=*data_;auto& primary=*d.primary;auto& auxiliary=*d.auxiliary;auto& contact=*d.contact;
+    const auto& controls=d.controls;const double interval=d.interval;const double* deviceInterval=d.deviceInterval;
+    auto* context=primary.diagnosticsContext();cudaGraphConditionalHandle handle;
+    checked(cudaGraphConditionalHandleCreate(&handle,graph,0,cudaGraphCondAssignDefault));
     using executionGraphDetail::appendCaptured;using executionGraphDetail::addWhile;
-    checked(cudaMalloc(reinterpret_cast<void**>(&d.stage),sizeof(int)));checked(cudaMemsetAsync(d.stage,0,sizeof(int),d.stream));
-    const auto initialized=thermalStage(d.graph,nullptr,d.stream,d.stage,0,nullptr,[&](cudaGraph_t initial){
+    const auto initialized=thermalStage(graph,dependency,d.stream,d.stage,0,nullptr,[&](cudaGraph_t initial){
       appendCaptured(initial,{},d.stream,[&]{
         primary.enqueueContactWindowStart(d.stream);auxiliary.enqueueContactWindowStart(d.stream);contact.enqueueWindowStart(d.stream);
         beginContactWindow<<<1,1,0,d.stream>>>(d.report,context,handle);
         contactInitialStage<<<1,1,0,d.stream>>>(d.stage,d.report);
       });
     });
-    const auto resumed=appendCaptured(d.graph,{initialized},d.stream,[&]{
+    const auto resumed=appendCaptured(graph,{initialized},d.stream,[&]{
         contactResume<<<1,1,0,d.stream>>>(d.stage,primary.capacityPendingDevice(),auxiliary.capacityPendingDevice(),handle);
     });
-    cudaGraph_t body=nullptr;addWhile(d.graph,handle,{resumed},body);
+    cudaGraph_t body=nullptr;const auto loop=addWhile(graph,handle,{resumed},body);
     const auto exchange=thermalStage(body,nullptr,d.stream,d.stage,1,nullptr,[&](cudaGraph_t exchangeGraph){
       appendCaptured(exchangeGraph,{},d.stream,[&]{
         contact.enqueueEvaluate(primary.contactState(),auxiliary.contactState(),interval,deviceInterval,d.stream);
@@ -272,20 +294,37 @@ SolidContactIterationGraph::SolidContactIterationGraph(SolidThermalIterationGrap
     appendCaptured(body,{finished},d.stream,[&]{
         contactResume<<<1,1,0,d.stream>>>(d.stage,primary.capacityPendingDevice(),auxiliary.capacityPendingDevice(),handle);
     });
-    checked(cudaGraphInstantiateWithFlags(&d.executable,d.graph,0));
+    return loop;
 }
 SolidContactIterationGraph::~SolidContactIterationGraph()=default;
-void SolidContactIterationGraph::awaitCompletion()const{data_->task.wait();}
+void SolidContactIterationGraph::resetContinuation(void* stream){
+    thermalStageSet<<<1,1,0,static_cast<cudaStream_t>(stream)>>>(data_->stage,0);
+}
+const int* SolidContactIterationGraph::continuationStage()const{return data_->stage;}
+bool SolidContactIterationGraph::servicePendingCapacity(){
+    const bool first=data_->primary->servicePendingCapacity();
+    const bool second=data_->auxiliary->servicePendingCapacity();return first||second;
+}
+void SolidContactIterationGraph::acceptExternalCompletion(const std::shared_future<void>& completion){
+    auto& d=*data_;d.externalCompletion=completion;
+    d.primary->acceptExternalCompletion(completion);d.auxiliary->acceptExternalCompletion(completion);
+}
+void SolidContactIterationGraph::acceptExternalExecution(void* producerStream){
+    auto& d=*data_;d.resultReady=true;
+    d.primary->acceptExternalExecution(producerStream);d.auxiliary->acceptExternalExecution(producerStream);
+    checked(cudaEventRecord(d.ready,static_cast<cudaStream_t>(producerStream)));
+    checked(cudaStreamWaitEvent(d.stream,d.ready,0));
+    checked(cudaStreamWaitEvent(static_cast<cudaStream_t>(d.contact->primaryEnergy().producerStream),d.ready,0));
+}
+const SolidContactIteration* SolidContactIterationGraph::deviceReport()const{return data_->report;}
+void* SolidContactIterationGraph::producerStream()const{return data_->stream;}
+void SolidContactIterationGraph::awaitCompletion()const{
+    auto& d=*data_;d.task.wait();if(d.externalCompletion.valid())d.externalCompletion.get();
+}
 void SolidContactIterationGraph::enqueue(void* producerStream){
-    auto& d=*data_;awaitCompletion();d.primary->awaitCompletion();d.auxiliary->awaitCompletion();d.waitFor(producerStream);thermalStageSet<<<1,1,0,d.stream>>>(d.stage,0);d.resultReady=true;
-    d.task.start(d.stream,d.executable,[this]{
-        const bool first=data_->primary->servicePendingCapacity();
-        const bool second=data_->auxiliary->servicePendingCapacity();return first||second;
-    },[this]{
-        auto& state=*data_;state.primary->acceptExternalExecution(state.stream);state.auxiliary->acceptExternalExecution(state.stream);
-        checked(cudaEventRecord(state.ready,state.stream));
-        checked(cudaStreamWaitEvent(static_cast<cudaStream_t>(state.contact->primaryEnergy().producerStream),state.ready,0));
-    });
+    auto& d=*data_;awaitCompletion();d.primary->awaitCompletion();d.auxiliary->awaitCompletion();d.externalCompletion={};d.waitFor(producerStream);resetContinuation(d.stream);d.resultReady=true;
+    d.task.start(d.stream,d.executable,[this]{return servicePendingCapacity();},
+        [this]{acceptExternalExecution(data_->stream);});
     d.primary->acceptExternalCompletion(d.task.result());d.auxiliary->acceptExternalCompletion(d.task.result());
 }
 SolidContactIteration SolidContactIterationGraph::collect(){

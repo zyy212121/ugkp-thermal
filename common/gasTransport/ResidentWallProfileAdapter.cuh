@@ -1,6 +1,6 @@
 #pragma once
-// Optional diagnostic storage and strategy are selected once during startup.
-// The solve kernel captures its real workspace before the worker reuses it.
+
+
 extern "C" int ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(void* handle)
 {
     DeviceState* s=asState(handle);
@@ -20,7 +20,7 @@ extern "C" int ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(void* handle)
         &configured,sizeof(configured),cudaMemcpyHostToDevice);
     if(error!=cudaSuccess)
     {
-        // Preserve allocation ownership for teardown even on a failed publication.
+
         model.profile=profile;
         setLastError("publish wall profile storage",error);return 1;
     }

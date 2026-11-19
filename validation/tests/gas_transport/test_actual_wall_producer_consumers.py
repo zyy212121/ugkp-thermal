@@ -50,8 +50,8 @@ ck(ex.ready&&ex.k==0,"profile completion or high-Re k failed");
 ck(wall.output.traceTemperature==500&&wall.output.wallSpeciesFlux[0]==.007,"actual profile fields lost");
 const Real correction=s.p[0]-wall.input.pressure;
 Real expected[5]={ex.mass,ex.momentumX+correction*s.Sfx[1],ex.momentumY,ex.momentumZ,ex.energy};
-// Stationary face has no pressure correction sweep; publisher's prescribed
-// wall motion remains the actual physical trace/work in its exchange.
+
+
 threadIdx.x=1;computeGasInternalFaceFluxKernel<false>(&s,Real(.001));
 Real got[5]={s.gasPhiRho[1],s.gasPhiRhoUx[1],s.gasPhiRhoUy[1],s.gasPhiRhoUz[1],s.gasPhiRhoE[1]};
 for(int i=0;i<5;++i)ck(got[i]==expected[i]||(std::isnan(got[i])&&std::isnan(expected[i])),"selected actual bulk tail missing");

@@ -1,9 +1,9 @@
 #pragma once
 #include "gasTransport/GasPseudoTime.H"
 #include "gasTransport/GasConservativeMatching.H"
-// Separate primitive/gradient/limiter buffers for PB. No writes to Q while
-// evaluating its reference operator; shared geometry and property tables are
-// read-only.
+
+
+
 struct WallProjectionView
     : ugkwp::GasStateView<double, double, ugkwp::SstCoefficients> {
   ugkwp::GasSpeciesState<double, 2> gasSpecies;
@@ -56,8 +56,8 @@ __global__ void initializeWallProjectionView(State *state) {
   auto &s = *state;
   auto &d = s.gasBoundaryLayerModel.conservative;
   auto &v = *static_cast<WallProjectionView *>(d.projectedState);
-  // This metadata must exist even when a prior stage failed: subsequent shared
-  // kernels read the projected view's diagnostic pointer before any arrays.
+
+
   v.diagnostics = s.diagnostics;
   if(ugkp::diagnostics::hasFatal(s.diagnostics))return;
 #define UGKWP_GAS_STATE_FIELD(Type, Name) v.Name = s.Name;
@@ -71,7 +71,7 @@ __global__ void initializeWallProjectionView(State *state) {
   v.gasThermalConductivityConfigured = true;
   v.gasThermalConductivity = 0;
   v.gasMu = 0;
-  v.gasViscosity = {}; // PB reference operator remains inviscid.
+  v.gasViscosity = {};
   v.turbulenceModel = 0;
   v.sstWallTreatment = 3;
   if constexpr (ugkwp::compiledGasSpecies == 2)

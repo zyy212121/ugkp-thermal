@@ -1,6 +1,6 @@
 #pragma once
 #include "GpuHardwareReductionTile.cuh"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 __global__ void updateDynamicHeavyPolicyKernel
 (
     DeviceState* sp,

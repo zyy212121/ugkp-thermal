@@ -18,37 +18,7 @@ struct CoupledSurfaceInput {
 __global__ void archiveMaterialDriveInterval(const CoupledGasInterval* current,ResidentMaterialDriveInterval* output){
     if(!threadIdx.x&&!blockIdx.x)*output={current->localBegin,current->localEnd,current->actualDt};
 }
-struct CoupledSurfaceRecord {
-    CoupledSurfaceSample sample{};
-    GasWallResult rates{};
-    WallFaceSample acceptedWall{};
-    GasQ raw{};
-    ExchangePacket primary{},pore{};
-    GasWallMatchingSample matching{};
-    EnergyReal radiationEnergy=0,particleHeatAtBegin=0;
-    unsigned radiationReceiver=0;
-    int failed=0,wallTransportCode=0;
-    ugkwp::gaswall::WallStatus wallStatus{};
-};
-__global__ void packCoupledSurfaceKernel(const CoupledSurfaceRecord* records,int count,
-    const int* faces,ugkp::thermal::ParticleWallExchangeView particle,
-    CoupledSurfaceDownload* output,CoupledWallDownload* wallOutput,
-    CoupledRecordFailure* failure,int solids,int films){
-    const int slot=blockIdx.x*blockDim.x+threadIdx.x;if(slot>=count)return;
-    const auto& in=records[slot];auto& out=output[slot];
-    out.bulk=in.sample.primitive;out.gradient=in.sample.gradient;out.traction=in.rates.traction;
-    out.primary=in.primary;out.pore=in.pore;out.acceptedWall=in.acceptedWall;
-    out.radiationEnergy=in.radiationEnergy;out.radiationReceiver=in.radiationReceiver;
-    out.failed=in.failed;
-    out.particleWallEnergy=particle.depositedEnergy
-        ?particle.depositedEnergy[faces[slot]]+particle.reflectedEnergy[faces[slot]]-in.particleHeatAtBegin:0;
-    if(wallOutput){auto& wall=wallOutput[slot];
-        wall.matching=in.matching;
-        wall.transportCode=in.wallTransportCode;wall.status=in.wallStatus;
-    }
-    if(in.failed)atomicMin(&failure->wall,slot);
-    if(coupledRecordOwnerFailure(out,solids,films))atomicMin(&failure->owner,slot);
-}
+#include "gpu/CoupledSurfaceArchive.inc"
 __global__ void packCoupledWallDiagnosticsKernel(const CoupledSurfaceRecord* records,int count,
     ugkwp::gaswall::WallExchangeOutput<EnergyReal,Ns>* output){
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;

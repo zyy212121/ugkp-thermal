@@ -16,9 +16,9 @@ using namespace ugkp::gpu;
 void check(cudaError_t code){if(code!=cudaSuccess)throw std::runtime_error(cudaGetErrorString(code));}
 __global__ void updateInterval(double* interval,int window){if(!threadIdx.x)*interval=.5*(window+1);}
 __device__ void verifyWindow(const double* temperature,const SolidThermalIteration* report,int window,bool aitken,bool limited,int* failure){
-    // Two insulated unit-volume cells, rho*Cp=2 and k=1.
-    // The mean stays 350 K and the half difference shrinks by
-    // 1/(1+dt) at every implicit interval, including changing dt.
+
+
+
     double difference=50;for(int i=0;i<=window;++i)difference/=1+.5*(i+1);
     if(!report->valid||report->converged==limited||fabs(temperature[0]-(350-difference))>2e-6
        ||fabs(temperature[1]-(350+difference))>2e-6||(!aitken&&report->iteration!=(limited?1:2))) *failure=window+1;
@@ -42,8 +42,8 @@ int main(){
         const int coefficients=properties.prepareResidentEvaluation({{300,300},{400,400}},{-1,-2},2,ThermalCapacity|ThermalConductivity,true);
         const int convergence=properties.prepareResidentEvaluation({}, {},2,ThermalEnergy|ThermalTemperatureChange,false);
         properties.prepareResidentIteration(2);
-        // Initialization only: produce valid coefficients before preparing the
-        // discretization and all graph-owned buffer addresses.
+
+
         std::vector<ThermalPropertyResult> ignored;
         properties.evaluateResidentCells({{300,300},{400,400}},diffusion.deviceTemperature(),nullptr,2,
             ThermalCapacity|ThermalConductivity,true,stream,ignored);

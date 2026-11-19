@@ -8,14 +8,14 @@ def test_fixed_and_adaptive_window_steps(tmp_path):
 #include <cassert>
 template<class R> void check(){
  const R fixed=R(.125), cap=R(.01), maximum=R(.02), tail=R(.03125);
- // Fixed mode ignores an old adaptive seed and the adaptive CFL/maxDt caps.
+
  const R requested=chmt::requestedGasMicrostep(false,fixed,R(.001),cap,maximum);
  assert(requested==fixed);
  const auto end=chmt::selectGasMicrostep(false,requested,tail,R(.001),R(1.1),maximum,true);
  assert(end.accepted==tail && end.next==fixed);
  const auto next=chmt::selectGasMicrostep(false,end.next,R(1),R(.001),R(1.1),maximum,true);
  assert(next.accepted==fixed && next.next==fixed);
- // Adaptive mode is exactly the existing selector, not a revised algorithm.
+
  const R proposal=chmt::requestedGasMicrostep(true,fixed,R(.008),cap,maximum);
  assert(proposal==R(.008));
  const auto actual=chmt::selectGasMicrostep(true,proposal,tail,R(.006),R(1.1),maximum,true);

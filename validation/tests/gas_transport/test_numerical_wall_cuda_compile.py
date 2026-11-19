@@ -24,8 +24,8 @@ def test_full_sst_source_kernels_compile_with_double_time(tmp_path):
         pytest.skip('CUDA compiler not installed; this test never claims CUDA runtime')
     probe=((VALIDATION_ROOT / 'tests/gas_transport/gas_state_probe.cpp')).read_text()
     prefix=probe.split('void hashBytes',1)[0]
-    # Use the shared fixture's actual operator includes with native CUDA
-    # annotations and launch indices, rather than its serial host adapters.
+
+
     host_adapters=('#define __host__','#define __global__','#define __device__',
                    '#define __forceinline__','#define asm(', 'struct ThreadIndex ')
     prefix='\n'.join(line for line in prefix.splitlines()

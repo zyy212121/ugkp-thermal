@@ -170,7 +170,7 @@ inline Definition read(const fvMesh& mesh,const volScalarField& rho,const volVec
             f.value[Density]=rp[i];f.value[Pressure]=pm==2?p0[i]:ppv[i];f.value[Temperature]=tm==2?T0[i]:tp[i];
             vector velocity=up[i];
             if(inletOutlet)velocity=refCast<const inletOutletFvPatchField<vector>>(up).refValue()[i];
-            if(um==4)velocity=vector::zero; // optional tangential program is projected on device
+            if(um==4)velocity=vector::zero;
             f.value[Ux]=velocity.x();f.value[Uy]=velocity.y();f.value[Uz]=velocity.z();
             if(pm==2) {
                 f.pressureGamma=pd.lookupOrDefault<scalar>("gamma",1);

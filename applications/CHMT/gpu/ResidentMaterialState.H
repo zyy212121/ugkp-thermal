@@ -1,9 +1,9 @@
 #pragma once
 #include "materials/MaterialTransportMath.H"
 namespace chmt {
-// Device-owned bindings; the buffers themselves belong to MaterialBackend.
-// A material substep changes accepted/candidate ownership on the producer
-// stream, rather than returning pointer parity or inventory to the host.
+
+
+
 struct ResidentMaterialState {
     SolidQ* current=nullptr;
     SolidQ* candidate=nullptr;

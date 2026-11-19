@@ -1,4 +1,4 @@
-// Host scaffold only. All tested pressure arithmetic is included from production.
+
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -23,8 +23,8 @@ using std::sqrt;
 struct Dim { int x; };
 Dim blockIdx{0}, blockDim{1}, threadIdx{0}, gridDim{1};
 inline void __syncthreads() {}
-// A block reduction is the identity for this harness's single executing lane.
-// GPU reduction ordering and synchronization are deliberately not simulated.
+
+
 template<int N> void blockReduceComponentSums(PressureReal (&)[N],PressureReal*) {
     if(blockDim.x!=1||threadIdx.x!=0)std::abort();
 }
@@ -180,8 +180,8 @@ int main(int argc,char** argv) {
         R d[4];pressureDeltaFromLimitedFaces(s,0,1,d);
         check(d[0]==0&&d[3]==0,"original finite delta fallback missing");
     } else if(mode=="scaling_subnormals") {
-        // Gradual-underflow host contract only. FTZ/DAZ does not preserve
-        // subnormal inputs, so the separate FTZ test uses normal inputs.
+
+
         const R tiny=std::numeric_limits<R>::denorm_min(),small=std::numeric_limits<R>::min();
         volatile R values[]={tiny,tiny*R(17),small/R(2),small,R(1),std::numeric_limits<R>::max()};
         for(int i=0;i<6;++i)for(int j=0;j<6;++j) {
@@ -247,7 +247,7 @@ int main(int argc,char** argv) {
             DeviceState s;if(zero)delta(s,0,0,0,0);
             if(mixed){s.pStuck[1]=Foam::gpuThermal::particleWallDeposited;s.pTheta[1]=R(77);}
             compactCopy(s);
-            // No preflight is called. A stale delta cache must never be read.
+
             s.pressureDeltaMomX[0]=R(999);s.pressureDeltaEnergy[0]=R(-999);
             if(full)project<true>(s,route);else project<false>(s,route);
             verifyActualClosure(s,route=="compact");

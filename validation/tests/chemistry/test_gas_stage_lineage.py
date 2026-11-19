@@ -48,7 +48,7 @@ def build(folder, label, root, source):
     src = folder / (label + '.cpp')
     exe = folder / label
     if root != ROOT:
-        # Immutable historical archives retain their original mechanism layout.
+
         source = source.replace("tool/chemistry/mechanisms/GeneratedH2O2.H",
                                 "common/chemistry/mechanisms/GeneratedH2O2.H")
         source = source.replace('advanceClosedReactor(', 'testOriginalReactor(')

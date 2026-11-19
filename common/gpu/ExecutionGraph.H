@@ -6,8 +6,8 @@
 struct CUgraph_st;
 struct CUgraphNode_st;
 namespace ugkp { namespace gpu {
-// Exact captured argument identity. Device contents may change in place;
-// addresses, extents and by-value controls must match before graph replay.
+
+
 struct ExecutionGraphSignature {
     std::vector<unsigned char> bytes;
     ExecutionGraphSignature(){add(workPlan());}
@@ -19,7 +19,7 @@ struct ExecutionGraphSignature {
     void append(const ExecutionGraphSignature& value){bytes.insert(bytes.end(),value.bytes.begin(),value.bytes.end());}
     bool operator==(const ExecutionGraphSignature& other)const{return bytes==other.bytes;}
 };
-// CUDA handle declarations without a toolkit dependency for host adapters.
+
 using ExecutionGraph = CUgraph_st*;
 using ExecutionGraphNode = CUgraphNode_st*;
 }}

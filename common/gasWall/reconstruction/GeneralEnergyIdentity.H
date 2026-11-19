@@ -1,5 +1,5 @@
 #pragma once
-// Shared reduced-BVP energy identity. Species flux is supplied by its operator.
+
 #include "../ReactingWallLayer.H"
 #include "PhysicalPrimitiveFlux.H"
 namespace ugkwp { namespace gaswall { namespace coherent_energy {
@@ -9,9 +9,9 @@ template<class R> struct Integral {
  UGKWP_GAS_HD void add(R weight,const Terms<R>& t){R r=weight/t.conductivity;resistance+=r;advective+=r*t.advective;stress+=r*t.stress;}
  UGKWP_GAS_HD R energy(R temperatureJump)const{return (advective+stress-temperatureJump)/resistance;}
 };
-// Species flux is explicit: caller can supply the SAME flux representation used
-// by its species operator. This avoids silently imposing constant species flux
-// on a reacting interval. No extra material evaluations or rejection policy.
+
+
+
 template<class R,int N,class T>
 UGKWP_GAS_HD Terms<R> terms(const ugkwp::gaswall::WallInput<R,N,T>&in,
  const ugkwp::gaswall::WallModelConfig<R>&cfg,
@@ -27,8 +27,8 @@ UGKWP_GAS_HD Terms<R> terms(const ugkwp::gaswall::WallInput<R,N,T>&in,
  out.conductivity=(in.model.molecularPrandtl>0?wallMolecularViscosity(in,v.T,v.Y)*cp/wallMolecularPrandtl(in,v.Y):in.model.conductivity)+v.rho*nut*cp/cfg.turbulentPrandtl;
  return out;
 }
-// Optional pointwise physical species flux, using exactly the existing corrected
-// diffusion helper. Return value forwards its existing availability semantics.
+
+
 template<class R,int N,class T>
 UGKWP_GAS_HD bool physicalSpecies(const ugkwp::gaswall::WallInput<R,N,T>&in,
  const ugkwp::gaswall::WallModelConfig<R>&cfg,
@@ -53,4 +53,4 @@ UGKWP_GAS_HD R wallTransport(const WallInput<R,N,T>& in,
  const detail::LayerContext<R,N>& ctx,const detail::LayerPoint<R,N>& wall){
  return detail::wallTransportEnergy(in,ctx,wall);
 }
-}}} // namespace ugkwp::gaswall::coherent_energy
+}}}

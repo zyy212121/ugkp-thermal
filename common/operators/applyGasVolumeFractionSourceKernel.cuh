@@ -1,7 +1,7 @@
 #pragma once
 #include "ParticleResidentInterval.H"
 #include "gasTransport/GasEnergy.H"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 __global__ void applyGasVolumeFractionSourceKernel
 (
     DeviceState* sp,
@@ -94,8 +94,8 @@ __global__ void applyGasVolumeFractionSourceKernel
 
     if (s.sstConfigured != 0)
     {
-        // rho*k and rho*omega carry the same phase-volume weight as rho.
-        // This is a physical source, distinct from numerical density repair.
+
+
         s.rhoK[c] = rhoKCandidate;
         s.rhoOmega[c] = rhoOmegaCandidate;
     }

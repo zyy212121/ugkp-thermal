@@ -30,7 +30,7 @@ int main(int argc,char**argv){
   assert(advanceGasChemistryCell(s,0,1e-6,volume));assert(status&&cell==0);
   for(int i=0;i<3;++i)assert(partial[i]==original[i]);
   if(mode=="repair"){
-   // The attempted largest-carrier correction crosses the target by one ULP.
+
    double independent=original[0]+original[2],proposed=rho-independent;
    assert(proposed!=original[1]);assert(original[0]+proposed+original[2]!=rho);
    assert(original[0]+original[1]+original[2]!=rho);

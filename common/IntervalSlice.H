@@ -16,10 +16,10 @@ struct IntervalSlicePlan {
     IntervalSliceError error=IntervalSliceError::None;
     UGKP_SLICE_HD bool hasRecords()const{return begin.record<past;}
 };
-// This is the temporal part of consuming extensive accepted transfers. The
-// history owns the intervals; callers keep old/candidate accumulators distinct
-// until the physical consumer accepts a slice. A final piece uses the original
-// transfer minus prior pieces, rather than another rounded time fraction.
+
+
+
+
 template<class History>
 UGKP_SLICE_HD inline IntervalSlicePlan planIntervalSlice(const History& h,
     IntervalSliceCursor cursor,CompensatedTime target){

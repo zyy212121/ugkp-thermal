@@ -2,9 +2,9 @@
 #define UGKWP_CONSERVATIVE_REACTOR_H
 #include "GasJacobian.H"
 namespace ugkwp { namespace gasChemistryDetail {
-// Equilibrate each equation by its own row norm before partial pivoting.
-// Independent kinetic modes can have arbitrarily different rate/time scales;
-// a unit slow-mode pivot must not be compared with a 1e100 fast-mode diagonal.
+
+
+
 
 
 template<class R, int N, bool Refinement=false, bool Complete=!Refinement>
@@ -74,9 +74,9 @@ UGKWP_GAS_HD inline bool solveDense(int n, R* a, R* b,bool* evaluated=nullptr,De
     if(evaluated)*evaluated=true;
     return finite;
 }
-// A read-only evaluation view shares the already prepared stoichiometric map.
-// Mathematical trials may change their thermo diagnostic destination without
-// copying an additional N*N inverse into each CUDA thread's local scratch.
+
+
+
 template<class R,int N,class TableReal=R> struct ReactorEvaluation {
  const ClosedReactorInput<R,N>& base;
  const SpeciesThermoView<TableReal,N>& thermo;
@@ -158,7 +158,7 @@ template<class R,int N,class TableReal=R> struct ReactorEvaluation {
 template<class R,int N,class TableReal=R> struct ReactorContext : ReactorEvaluation<R,N,TableReal> {
  using Evaluation=ReactorEvaluation<R,N,TableReal>;
  using Evaluation::base;using Evaluation::thermo;using Evaluation::mechanism;using Evaluation::controls;
- // Preserve the caller-visible owned array and its former extent.
+
  R leftInverse[N*N];
  UGKWP_GAS_HD ReactorContext(const ClosedReactorInput<R,N>& b,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& c,bool=false) noexcept
  :Evaluation(b,t,m,c,leftInverse),leftInverse{}{}
@@ -186,7 +186,7 @@ template<class R,int N,class TableReal=R> struct ReactorContext : ReactorEvaluat
 }}
 namespace ugkwp {
 
-// basis; masses=baseMass+W*volume*B*z. The fixed formation-inclusive U closes T.
+
 template<class R,int N,class TableReal> UGKWP_GAS_HD inline ChemistryStatus evaluateConservativeReactor
 (const ClosedReactorInput<R,N>& base,const R* z,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,const ChemistryControls<R>& controls,R* f,R& temperature,R* jacobian) noexcept {
  ChemistryStatus st;

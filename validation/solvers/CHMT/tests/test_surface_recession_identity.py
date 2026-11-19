@@ -42,11 +42,11 @@ int main(){
  std::string error;auto t=targets(s,p,{a},error);
  assert(error.empty());assert(t.size()==2);
  auto terminal=targets(s,p,{a},error,true);assert(error.empty()&&terminal==t);
- assert(std::abs(t[0]+.005)<1e-15 && t[1]==0); // occupied=.8, phi=.2; (2/1000+4/2000)/.8
+ assert(std::abs(t[0]+.005)<1e-15 && t[1]==0);
  auto next=a;next.step=1;auto doubled=targets(s,p,{a,next},error);assert(error.empty()&&std::abs(doubled[0]+.01)<1e-15);
  auto missing=a;missing.face=999;error.clear();targets(s,p,{missing},error);assert(!error.empty());
  auto duplicate=s;duplicate.surface.persistentId[1]=73;error.clear();auto duplicateTargets=targets(duplicate,p,{a},error);assert(error.empty()&&std::abs(duplicateTargets[0]+.005)<1e-15);
- error.clear();targets(duplicate,p,{},error);assert(error.empty()); // first insertion retains original resolution
+ error.clear();targets(duplicate,p,{},error);assert(error.empty());
  auto wrong=a;wrong.solidCell=1;error.clear();targets(s,p,{wrong},error);assert(error.empty());
  auto inactive=s;inactive.surface.gasFace[0]=-1;error.clear();targets(inactive,p,{a},error);assert(error.empty());
  auto badDensity=p;badDensity.condensed[1].rho=0;error.clear();targets(s,badDensity,{a},error);assert(!error.empty());
@@ -62,7 +62,7 @@ int main(){
   if(change==2)changed.surface.solidCell[1]=0;
   if(change==3)changed.solidMesh.topologyHash=1;
   error.clear();assert(map.build(s,changed,error));}
- // A fresh candidate may use new, validated ordering and moving metrics.
+
  changed=s;changed.surface.persistentId={29,73};changed.surface.solidCell={1,0};changed.surface.area={4,5};
  error.clear();assert(map.build(changed,changed,error));assert(map.gasSolidIndex(changed,a,index,error)&&index==1);
  std::cout<<"surface ID, duplicate/missing, donor and material-volume contracts passed\n";

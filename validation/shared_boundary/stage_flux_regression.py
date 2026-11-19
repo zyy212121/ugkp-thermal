@@ -51,7 +51,7 @@ for solver,model,parcels in routes:
             env=dict(os.environ,UGKP_GAS_GRAPH=str(graph),GAS_UGKP_CUDA_STACK_BYTES='65536',CHT_CUDA_STACK_BYTES='65536',OMP_NUM_THREADS='2')
             with (c/'run.log').open('w') as log:status=subprocess.run([R/'bin'/solver,'-case',c],stdout=log,stderr=subprocess.STDOUT,env=env).returncode
             text=(c/'run.log').read_text();assert status==0,(name,status,text[-4000:])
-            # Tuning probes precede ToolB1 completion and are not time steps.
+
             if 'ToolB1:' in text:text=text.split('ToolB1:',1)[1]
             rows=[list(map(float,x.split())) for x in re.findall(r'^BOUNDARY_FLUX_INPUT (.*)$',text,re.M)]
             assert rows,(name,'no native probe output; rebuild with trace macro')

@@ -53,7 +53,7 @@ static __global__ void balancePhase(int count,int directions,MieOpticalTableView
         __syncthreads();
         if(!threadIdx.x){
             MiePhaseMetrics result;
-            // Preserve ordered max (including IEEE NaNs), not a reordered reduction.
+
             for(int row=0;row<directions;++row){
                 result.rowError=orderedMaximum(result.rowError,rows[row]);
                 result.columnError=orderedMaximum(result.columnError,columns[row]);

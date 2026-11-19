@@ -21,7 +21,7 @@ void runCase(std::vector<int> base,std::vector<int> inj,int tile,int kind) {
 int main() {
  for(int tile:{1,3,31,32,255,256,1024,1073741824,INT_MAX}){
   for(int kind=0;kind<(HAS_BASE?3:2);++kind){
-   // Keep symbolic descriptor count small, never allocate particle backing.
+
    if(tile>=1073741824){runCase({0,0,0},{0,1,INT_MAX},tile,kind);runCase({0,1,INT_MAX},{0,0,0},tile,kind);runCase({0,INT_MAX-1},{0,1},tile,kind);}
    runCase({0,0,1,2,31},{0,1,4,20,30},tile,kind);
   }

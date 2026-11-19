@@ -1,5 +1,5 @@
-// Compare with the parent revision by compiling this same source with
-// -DUGKP_LEGACY_INLET_BUILDER and that revision's header first in -I.
+
+
 #include "BoundaryInjectionSampling.H"
 #include <algorithm>
 #include <cassert>

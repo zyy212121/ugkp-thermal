@@ -26,6 +26,8 @@ struct SharedGasTrialPolicy
     static int complete(DeviceState* s)
     {
 
+        if(s->advanceRecording)return 0;
+
 
         const auto error=s->diagnosticOwner
             ?s->diagnosticOwner->observeCompletedWork(s->gasCaptureStream)

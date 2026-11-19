@@ -21,7 +21,7 @@ struct Model {
  auto& t=in.model.thermo;t.species=sp;t.coefficients=coef;t.coefficientCount=6;t.elementCount=1;t.elementComposition=elements;t.speciesOrderHash=1;
  rx[0].reactantCount=1;rx[0].productCount=1;rx[0].highRate.preExponential=2;re[0].species=0;re[0].coefficient=1;pr[0].species=1;pr[0].coefficient=1;
  auto& m=in.model.mechanism;m.reactions=rx;m.reactionCount=1;m.reactants=re;m.reactantTermCount=1;m.products=pr;m.productTermCount=1;m.referencePressure=101325;m.speciesOrderHash=1;m.stoichiometricBasis=basis;m.independentRank=1;
- in.integrateOwnerKSource=true; // This fixture explicitly tests auxiliary source integrals.
+ in.integrateOwnerKSource=true;
  in.pressure=101325;in.temperature=300;in.normal[1]=1;in.matchingDistance=.01;in.ownerDistance=.004;
  in.matching.temperature=500;in.matching.velocity[0]=10;in.matching.massFraction[0]=.7;in.matching.massFraction[1]=.3;
  in.model.viscosity=2e-5;in.model.conductivity=.04;in.model.diffusivity[0]=in.model.diffusivity[1]=1e-5;
@@ -42,7 +42,7 @@ def test_constant_limits_and_failure_atomicity(tmp_path):
  WallWorkspace<double,2,32> w;WallOutput<double,2> o;WallStatus s;
  assert(evaluateWallModel(m.in,c,w,o,s));
  assert(near(o.traction[0],.02));assert(near(o.traction[1],0));
- // Dissipation heats the gas: linear conduction plus half the shear work.
+
  assert(near(o.conductiveHeatFlux,-800-.1));
  assert(near(o.traceTemperature,300));
  m.in.matching.velocity[0]=0;m.in.massFlux[0]=.0007;m.in.massFlux[1]=.0003;
@@ -135,8 +135,8 @@ def test_exothermic_differential_diffusion_independent_bvp(tmp_path):
     reference=solve_bvp(ode,bc,y,guess,tol=1e-7,max_nodes=10000)
     assert reference.success,reference.message
     wallY=reference.y[0,0];heat=reference.y[3,0];edgeJ=reference.y[1,-1]
-    # This grid-refinement oracle specifies its original stretch explicitly;
-    # application defaults (currently stretch=3) are a separate resolution choice.
+
+
     compile_run(tmp_path, f'''
  Model m;m.in.temperature=500;m.in.matching.temperature=700;m.in.matching.velocity[0]=0;
  m.coef[2]=100000;m.rx[0].highRate.preExponential=50;m.in.model.mode=GasMode::MixtureChemistry;
@@ -167,9 +167,9 @@ def test_exact_zero_creation_ten_species(tmp_path):
  if(!evaluateWallModel(in,c,w,o,s)){std::cerr<<int(s.code)<<" iteration "<<s.iteration;return 2;}
  assert(o.traceMassFraction[9]>.1);double sum=0;for(int j=0;j<10;++j){assert(o.traceMassFraction[j]>=0);sum+=o.traceMassFraction[j];}
  assert(near(sum,1));for(int j=1;j<9;++j)assert(o.traceMassFraction[j]<1e-12);
- // At a simplex corner the global dependent reactant is exhausted while
- // eight independent inert species are exactly zero. A tangent basis using
- // the local nonzero species must still yield a valid Jacobian.
+
+
+
  detail::LayerContext<double,10> ctx;detail::makeContext(in,c,ctx);
  for(int i=0;i<c.nodes;++i){for(int j=0;j<9;++j)w.state[i][3+j]=0;w.state[i][11]=1;}
  double norm=0;assert(detail::allResidual(in,c,ctx,w.state,w.y,w.residual,norm));
@@ -243,8 +243,8 @@ def test_near_wall_bridge_independent_advection_ode(tmp_path):
     from scipy.integrate import solve_bvp
     p=.5*(1+np.sqrt(1+24*.09/.075))
     lines=[]
-    # Normalize first-cell distance to one. The dimensionless equation retains
-    # advection, unlike the leading Euler reconstruction used in production.
+
+
     for pe in (.0005,.05):
         ell=10.
         x=np.linspace(0,1,80)

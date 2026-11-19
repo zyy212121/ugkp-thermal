@@ -15,7 +15,7 @@ def test_shared_flux_jacobian_and_manufactured_omega(tmp_path):
  d::LayerContext<double,2> ctx;d::makeContext(m.in,c,ctx);double f[128][6],norm;assert(d::allResidual(m.in,c,ctx,w.state,w.y,f,norm));
  double summed=0,sourceSum=0;for(int i=2;i<c.nodes-1;++i){d::LayerPoint<double,2> p;assert(d::evaluatePoint(m.in,c,ctx,w.state,w.y,i,p));double vol=(w.y[i+1]-w.y[i-1])/2,yl=(w.y[i-1]+w.y[i])/2,yr=(w.y[i]+w.y[i+1])/2;
  double fit=std::pow(w.y[i],4)*(1/std::pow(yl,3)-1/std::pow(yr,3))/(3*vol),des=p.rho*sstBeta(p.f1,m.in.model.sstCoefficients)*p.omega*p.omega;
- // Reconstruct the current directed cross diffusion independently.
+
  d::LayerPoint<double,2> a,b;assert(d::evaluatePoint(m.in,c,ctx,w.state,w.y,i-1,a));assert(d::evaluatePoint(m.in,c,ctx,w.state,w.y,i+1,b));
  const double hl=w.y[i]-w.y[i-1],hr=w.y[i+1]-w.y[i];
  const double dk=(hr*(p.k-a.k)/hl+hl*(b.k-p.k)/hr)/(hl+hr);
@@ -31,7 +31,7 @@ def test_shared_flux_jacobian_and_manufactured_omega(tmp_path):
  static double denseJ[768][768]{};for(int j=0;j<c.nodes;++j)for(int v=0;v<6;++v){double old=w.state[j][v],re=std::sqrt(std::numeric_limits<double>::epsilon()),vs=v==2?100.:1.;if(v==4)vs=std::sqrt(m.in.matching.k)*re;if(v==5)vs=re/std::sqrt(m.in.matching.omega);double h=re*std::max(std::abs(old),vs);w.state[j][v]=old+h;h=w.state[j][v]-old;double full[128][6],pn;assert(d::allResidual(m.in,c,ctx,w.state,w.y,full,pn));w.state[j][v]=old;for(int i=0;i<c.nodes;++i)for(int q=0;q<6;++q)denseJ[i*6+q][j*6+v]=(full[i][q]-w.residual[i][q])/h;}
  assert(d::newtonStep(m.in,c,ctx,w));double linearDefect=0;for(int i=0;i<c.nodes;++i)for(int q=0;q<6;++q){double r=w.residual[i][q];for(int j=0;j<c.nodes;++j)for(int v=0;v<6;++v)r+=denseJ[i*6+q][j*6+v]*w.delta[j][v];linearDefect=std::max(linearDefect,std::abs(r));}
  std::cout<<"full dense Jacobian Newton relative defect="<<linearDefect/norm<<"\n";assert(linearDefect/norm<1e-10);
- // Exact manufactured omega diffusion/destruction with k=0; equal beta disables F1 dependence.
+
  m.in.matching.velocity[0]=0;m.in.matching.k=0;m.in.model.sstCoefficients.gamma1=m.in.model.sstCoefficients.gamma2=0;m.in.model.sstCoefficients.beta2=m.in.model.sstCoefficients.beta1;
  d::LayerPoint<double,2> wall;assert(d::pointState(m.in,c,ctx,w.state[0],wall));double A=6*m.in.model.viscosity/(wall.rho*m.in.model.sstCoefficients.beta1);m.in.matching.omega=A/(.01*.01);d::makeContext(m.in,c,ctx);
  for(int i=0;i<c.nodes;++i){w.state[i][0]=w.state[i][1]=w.state[i][4]=0;w.state[i][2]=0;w.state[i][3]=.3;w.state[i][5]=w.y[i]/std::sqrt(A);}

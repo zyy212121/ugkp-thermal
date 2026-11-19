@@ -35,7 +35,7 @@ def test_muscl_face_uses_one_limited_reconstruction_and_consistent_eos(tmp_path)
 int main(){State s;initialise(s);s.gasReconstruction=1;s.gasLimiter=0;
 auto* m=const_cast<ugkwp::SpeciesThermoData<Real>*>(s.gasSpecies.thermo.species);m[1].molarMass=.044;
 for(int c=0;c<2;++c){Real r[2]={s.gasSpecies.rho[c],s.gasSpecies.rho[2+c]};s.rhoE[c]=ugkwp::mixtureEnergy(r,Real(700),s.gasSpecies.thermo);threadIdx.x=c;recoverGasPrimitivesKernel(&s);computeGasPrimitiveGradientsKernel(&s);}
-// The original slope limiter remains; no later candidate-alpha search is used.
+
 s.gasSpecies.gradX[0]=-20;s.gasSpecies.gradX[2]=20;s.gradPx[0]=-100*s.p[0];
 threadIdx.x=0;computeGasGradientLimiterKernel(&s);Real before[3]={s.rho[0],s.rhoE[0],s.gasSpecies.rho[0]};
 Real y[2];GasPrimDevice p;ck(reconstructGasMixtureFace(s,0,1,p,y),"joint admissibility failed");
@@ -45,7 +45,7 @@ const Real requestedP=s.p[0]+s.gasGradientLimiterP[0]*s.gradPx[0]*(s.faceCx[1]-s
 ck(p.p==requestedP,"a candidate-alpha search changed the limited pressure increment");
 Real R=ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo);ck(std::abs(p.p-p.rho*R*p.T)<Real(1e-6)*p.p,"face EOS inconsistent");
 ck(s.rho[0]==before[0]&&s.rhoE[0]==before[1]&&s.gasSpecies.rho[0]==before[2],"face reconstruction repaired conserved inputs");
-// Extrapolated boundary composition follows reconstructed owner composition.
+
 s.riemannBoundaryKind[1]=0;s.riemannBoundaryUFix[1]=0;s.gasSpecies.compositionBoundaryFixed[1]=0;
 s.gradPx[0]=0;s.gasSpecies.gradX[0]=-.2;s.gasSpecies.gradX[2]=.2;computeGasGradientLimiterKernel(&s);
 ck(reconstructGasMixtureFace(s,0,1,p,y),"boundary reconstruction failed");threadIdx.x=1;computeGasInternalFaceFluxKernel<false>(&s,1e-6);
@@ -104,7 +104,7 @@ auto right=riemannBoundaryState(s,1,left,faceY);ck(s.gasSpecies.faceStatus[1]==0
 Real mass,mx,my,mz,energy;
 ck(computeRiemannGasFaceFluxDevice<false>(s,1,mass,mx,my,mz,energy),"premature cell-composition boundary EOS rejected valid MUSCL face");
 ck(s.gasSpecies.faceStatus[1]==0&&std::isfinite(energy),"valid MUSCL boundary left failure status");
-// The actual reconstructed composition also supports finite extrapolation.
+
 s.riemannBoundaryP[1]=ugkwp::mixtureGasConstant(desiredY,s.gasSpecies.thermo)*4000;
 ck(computeRiemannGasFaceFluxDevice<false>(s,1,mass,mx,my,mz,energy)&&s.gasSpecies.faceStatus[1]==0&&std::isfinite(energy),"finite extrapolated boundary flux not published");
 }

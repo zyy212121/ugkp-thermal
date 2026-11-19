@@ -31,9 +31,9 @@ def candidate_executable(tmp_path_factory):
     (build / "Make").mkdir()
     shutil.copy((VALIDATION_ROOT / 'tests/fixtures/cht_surface/candidate.cpp'), build / "candidate.C")
     production = (THERMAL / "GpuSolidThermalCoupler.C").read_text()
-    # Retain the original completed-interval CPU expression as the thermal
-    # candidate input oracle. Production exchange now executes it on CUDA;
-    # test_cht_interface_exchange exercises that backend against this order.
+
+
+
     (build / "CompletedIntervalEnergy.inc").write_text("""
         scalarField combined(gasPreview[pairI]);
         forAll(combined, faceI)
@@ -45,9 +45,9 @@ def candidate_executable(tmp_path_factory):
         }
     """)
 
-    # Runtime observers live only in the generated test translation unit.
-    # They count real field materializations in the production solve, without
-    # changing its values, iteration ordering, or OpenFOAM dependencies.
+
+
+
     observed = production.replace(
         "scalarField surface(patch);",
         "scalarField surface(patch); ++chtSurfaceMaterializations;",
@@ -57,8 +57,8 @@ def candidate_executable(tmp_path_factory):
         r"\1++chtSurfaceSnapshots;\n\1\2",
         observed,
     )
-    # Inject into the state actually consumed by the resident physical operator.
-    # CPU mirrors no longer feed the resident nonlinear iteration.
+
+
     observed = observed.replace(
         "        finalSurfaceResidual = scalar(0);",
         """        if (chtSurfaceFault == 2 || chtSurfaceFault == 4 || chtSurfaceFault == 5)
@@ -84,8 +84,8 @@ def candidate_executable(tmp_path_factory):
         }
         auto equation=ugkp::gpu::residentImplicitThermalEquation""",
     )
-    # Finite arbitrary publication values exercise the read-only publication
-    # contract after the converged mathematical boundary has been recovered.
+
+
     observed = re.sub(r"return GpuSolidThermalCandidate\s*\(\s*candidate,",
         "return GpuSolidThermalCandidate(chtPublishFault(candidate,coupledPatchIds_),",observed)
     prologue = """#include "GpuSolidThermalCoupler.H"
@@ -142,7 +142,7 @@ def test_production_surface_closure(candidate_executable, tmp_path, q, variable,
 
 def test_gas_contact_and_radiation_use_surface_but_solid_solid_uses_owner():
     source = (THERMAL / "GpuSolidThermalCoupler.C").read_text()
-    # Gas/contact data flow is exercised by the native mapping regression below.
+
     radiation = source.split("List<scalarField> fluidWallEmissivity() const", 1)[1].split("};\n\nGpuSolidThermalCoupler::GpuSolidThermalCoupler", 1)[0]
     assert "coupledPatchSurfaceTemperature(Tsolid(), solidPatchI)" in radiation
     solid_solid = source.split("GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue", 1)[1].split("const label auxiliaryPatchI =", 1)[1].split("commitPhaseStarted = true;", 1)[0]
@@ -153,7 +153,7 @@ def test_gas_contact_and_radiation_use_surface_but_solid_solid_uses_owner():
 
 
 def test_only_particle_and_only_radiation_energy(candidate_executable, tmp_path):
-    # Execute the production energy-aggregation block before the real candidate.
+
     for channel in ("particle", "radiation", "mixed"):
         case = tmp_path / channel
         make_case(case, 750, variable=True)
@@ -272,9 +272,9 @@ def test_startup_reconstructs_nonzero_gradient_ignoring_stale_value(candidate_ex
 def test_convergence_does_not_materialize_surface_fields_each_iteration(
     candidate_executable, tmp_path, aitken
 ):
-    # Restoring the old gather/copy/scan path makes this native runtime test fail.
-    # Variable conductivity needs several nonlinear iterations, so copying an
-    # unchanged snapshot at each iteration cannot accidentally satisfy the count.
+
+
+
     make_case(tmp_path, 1000, variable=True)
     with (tmp_path / "constant/testProperties").open("a") as stream:
         stream.write(f"checkSurfaceWork true; aitken {str(aitken).lower()};\n")
@@ -307,8 +307,8 @@ def test_multiface_variable_conductivity_preserves_patch_ownership(
 def test_convergence_rejects_invalid_completed_surface_on_late_face(
     candidate_executable, tmp_path, fault
 ):
-    # The injected nonfinite state must reach an existing physical consumer.
-    # A read-only surface accessor does not add its own validation gate.
+
+
     make_case(tmp_path, 600, transverse_cells=3)
     with (tmp_path / "constant/testProperties").open("a") as stream:
         stream.write(f"surfaceFault {fault};\n")

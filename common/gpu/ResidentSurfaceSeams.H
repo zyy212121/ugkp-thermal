@@ -10,10 +10,10 @@ struct SurfaceSeamStatus {
 struct SurfaceSeamDeviceView {
     int capacity=0;const SurfaceEdgeMap* edges=nullptr;const SurfaceSeamStatus* status=nullptr;
 };
-// Raw, non-periodic surface adjacency and the first incident cyclic patch per
-// edge depend only on topology and are installed once. Geometric seam pairing
-// retains the native greedy order, ambiguity checks and scale-relative tolerance
-// on each update. Candidate searches within that order run cooperatively.
+
+
+
+
 class ResidentSurfaceSeams {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:

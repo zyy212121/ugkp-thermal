@@ -10,10 +10,10 @@ struct GasFaceGeometry {
     ugkp::gpu::geometry::Point periodicShift{};
     double area=0,delta=0,weight=.5;
 };
-// The two-point metric policy used by the common CHMT gas adapter. Topology
-// distinguishes internal, translational-periodic and ordinary boundary faces;
-// a periodic face uses its mapped neighbour centre and paired face centre.
-// Keep the original chord/projection arithmetic, including the 5% skew floor.
+
+
+
+
 UGKP_GAS_MESH_HD inline GasFaceGeometry gasFaceGeometry(
     ugkp::gpu::geometry::Point areaVector,ugkp::gpu::geometry::Point faceCentre,
     ugkp::gpu::geometry::Point ownerCentre,bool neighbour,

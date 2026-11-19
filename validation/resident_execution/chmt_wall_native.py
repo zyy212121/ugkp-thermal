@@ -30,7 +30,7 @@ def prepare(work):
             matrix.entry(case/"constant/scheme", "maxDeltaT", interval/4)
             if model == "constantTransport":
                 props.write_text(props.read_text().replace("model reactingSst;", "model constantTransport;").replace("enableSst true;", "enableSst false;"))
-                # The analytic constant-transport wall model requires constant viscosity.
+
                 (case/"constant/gasTransportProperties").unlink()
     (work/"input-provenance.json").write_text(json.dumps(dict(
         source_fixture="validation/molecular_transport/fixtures/chmt-moving-short",

@@ -8,15 +8,15 @@
 #define UGKP_EXT_HD
 #endif
 namespace ugkp { namespace numerics {
-// Ordered binary arithmetic with a 64-bit significand, matching the x86
-// extended accumulator used by the original material inventory accounting.
-// Integer guard/sticky bits retain cancellation and range beyond binary64;
-// neither atomics nor a different summation order are introduced.
+
+
+
+
 struct ExtendedAccumulator {
     std::uint64_t significand=0;
     int exponent=0;
     bool negative=false;
-    unsigned kind=0; // finite, infinity, NaN
+    unsigned kind=0;
 
     UGKP_EXT_HD static std::uint64_t bits(double x) {
 #if defined(__CUDA_ARCH__)

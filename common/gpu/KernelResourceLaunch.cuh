@@ -47,7 +47,7 @@ struct KernelGridSelection {
     KernelGridBuckets buckets{};cudaGraphConditionalHandle handle{};
     const int* valid=nullptr;const int* active=nullptr;const int* mode=nullptr;
 };
-// Stored by value in graph kernel parameters: no external descriptor lifetime.
+
 struct KernelGridPublication {int count=0;KernelGridSelection selections[16]{};};
 static __global__ void publishKernelGrids(KernelGridPublication publication){
     const int i=threadIdx.x;

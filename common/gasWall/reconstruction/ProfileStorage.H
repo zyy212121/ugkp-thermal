@@ -41,6 +41,6 @@ template <class T> struct BorrowedVector
     UGKWP_GAS_HD T *end() { return data + count; }
     UGKWP_GAS_HD void push_back(const T &v) { data[count++] = v; }
 };
-} // namespace reconstruction
-} // namespace gaswall
-} // namespace ugkwp
+}
+}
+}

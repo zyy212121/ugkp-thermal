@@ -1,4 +1,4 @@
-# Three real moving finite-contact models, gas-only ODE, DO radiation and restart.
+
 import sys,re
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
@@ -8,8 +8,8 @@ free_particles='--free-particles' in sys.argv
 if free_particles:sys.argv.remove('--free-particles')
 csr_auto='--csr-auto' in sys.argv
 if csr_auto:sys.argv.remove('--csr-auto')
-# Geometry assertions cover attached parcels; the checkpoint comparator still
-# covers every free parcel and every thermal state.
+
+
 existing.PROBE=existing.PROBE.replace('for(size_t i=0;i<state.particles.size();++i){const auto& p=state.particles[i];if(i)std::cout',
  'bool comma=false;for(size_t i=0;i<state.particles.size();++i){const auto& p=state.particles[i];if(!p.state)continue;if(comma)std::cout').replace("<<',';\n  const auto center", "<<',';comma=true;\n  const auto center")
 prepare_original=existing.m.prepare

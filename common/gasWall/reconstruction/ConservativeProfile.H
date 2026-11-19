@@ -11,7 +11,7 @@ using Input = ugkwp::gaswall::WallInput<double, 2>;
 using Config = ugkwp::gaswall::WallModelConfig<double>;
 using Work = ugkwp::gaswall::WallWorkspace<double, 2, 128>;
 namespace d = ugkwp::gaswall::detail;
-using Q = Array<double, 9>; // rho,rhoU3,rhoE,rhok,rhoomega,rhoY0,rhoY1
+using Q = Array<double, 9>;
 struct Primitive {
   double rho, U[3], T, k, omega, Y[2];
 };
@@ -38,10 +38,10 @@ struct Sample {
 };
 struct ProfileScratch {
   Sample samples[128 * 8];
-  // Worker-owned active slope cache, shared by the same node team as samples.
+
   double transformSlope[128][3];
-  // One bounded worker buffer. Points are evaluated cooperatively, then the
-  // original quadrature-order FP64 sum is retained by the leader.
+
+
   Q orderedTerms[128 * 8];
   Q baseMeans[2];
 };
@@ -50,8 +50,8 @@ struct Profile {
     const double *y;
     const double (*state)[6];
   };
-  // Optional borrowed coherent slope cache; no cache is needed by the legacy
-  // representation. Coherent callers without storage compute slopes on demand.
+
+
   const double (*transformSlope)[3];
   const Input &in;
   const Config &cfg;
@@ -59,7 +59,7 @@ struct Profile {
   d::LayerContext<double, 2> ctx;
   FixedVector<Segment, 2> segments;
   double maxResidual = 0, wallSlopeDelta[3]{}, wallSpeciesSlopeDelta0 = 0;
-  // Frozen-mixture/no-blow/equal-D accuracy choice; other existing paths remain.
+
   bool affineHelpersOk=true,affineRawFinite=true;
   int affineSpeciesMode=0, affineMomentEvaluations=0, affineIterations=0, affineSamples=0;
   double affineSpeciesA=0, affineSpeciesB=0, affineInterface=0, affineMobilityLeft=0, affineMobilityRight=0;
@@ -69,8 +69,8 @@ struct Profile {
                        double (*slopes)[3] = nullptr, const Team &team = Team{})
       : transformSlope(c.coherentDiscretization ? slopes : nullptr), in(i), cfg(c), w{v.y, v.state} {
     d::makeContext(in, cfg, ctx);
-    // All cooperative callers supply the same storage and enter this barrier.
-    // No cache is required by the existing three-argument scalar interface.
+
+
     if (cfg.coherentDiscretization && slopes) {
       for (int index = team.rank(); index < 3 * cfg.nodes;
            index += team.size()) {
@@ -132,8 +132,8 @@ struct Profile {
       wallSpeciesSlopeDelta0 = -(in.massFlux[0] - ctx.mass * wall.Y[0]) / D -
                                (edge.Y[0] - wall.Y[0]) / dy;
   }
-  // Snapshot only coefficients independent of auxiliary q/traction. The caller
-  // owns its lifetime and must rebuild it when the input or workspace changes.
+
+
   struct WallFluxBasis {
     double tangentSlope[2], temperatureSlope, conductivity, viscosity, speciesSlope = 0;
     bool correctSpecies = false;
@@ -189,8 +189,8 @@ struct Profile {
                 (t*t*t-2*t*t+t)*h*ga+(t*t*t-t*t)*h*gb,
             6*t*(1-t)*(b-a)/h+(3*t*t-4*t+1)*ga+(3*t*t-2*t)*gb};
   }
-  // Selected coherent representation: log-shear U and PCHIP sqrt(k), z.
-  // Temperature remains piecewise linear outside the first interval.
+
+
   UGKWP_GAS_HD bool hermiteField(int j) const {
     return cfg.coherentDiscretization && (j < 2 || j == 4 || j == 5);
   }
@@ -522,7 +522,7 @@ struct Profile {
         for (int j = 0; j < 9; ++j)
           if (j != 6 || !s.algebraicOmega)
             q[j] += scratch.orderedTerms[index][j];
-    // Publish the reads before another segment reuses the worker buffer.
+
     team.sync();
     return q;
   }
@@ -653,8 +653,8 @@ struct Profile {
     }
   }
 
-  // Cooperative fitting uses the same quadrature and scalar brackets as the
-  // delivered CPU implementation. Each lane owns disjoint cached samples.
+
+
   template <class Team>
   UGKWP_GAS_HD bool fitLegacyTeam(ProfileScratch &scratch, const Team &team) {
     maxResidual = 0;
@@ -676,8 +676,8 @@ struct Profile {
         x.by = speciesBubble((y - s.lo) / (s.hi - s.lo), s.lo == 0);
         scratch.samples[index] = x;
         localMax = d::max(localMax, x.p.k);
-        // Positive density and nonnegative Y cannot integrate to zero
-        // when the unfitted continuous profile contains this species.
+
+
         for (int j = 0; j < 2; ++j)
           if (s.target[7 + j] == 0 && x.p.Y[j] > 0)
             incompatible = 1;
@@ -772,7 +772,7 @@ struct Profile {
       if(in.matching.massFraction[0]==0&&in.matching.massFraction[1]==1&&segments[0].target[7]==0&&segments[1].target[7]==0)requested=2;
       if(in.matching.massFraction[0]==1&&in.matching.massFraction[1]==0&&segments[0].target[8]==0&&segments[1].target[8]==0)requested=3;
     }
-    if(!requested)return fitLegacyTeam(scratch,team); // Existing general computation; not a new rejection.
+    if(!requested)return fitLegacyTeam(scratch,team);
     maxResidual=0;int offsets[3]{},cell=0;
     for(auto &seg:segments) {
       seg.aY=seg.aT=0;Segment plain=seg;plain.aRho=plain.aT=plain.aK=plain.aOmega=plain.aY=0;for(auto &u:plain.aU)u=0;
@@ -797,7 +797,7 @@ struct Profile {
       auto evaluate=[&](double a,double b){++affineMomentEvaluations;SpeciesEvaluation e;for(int c=0;c<2;++c){double value=0,j0=0,j1=0;int count=offsets[c+1]-offsets[c];for(int i=team.rank();i<count;i+=team.size()){const auto&x=scratch.samples[offsets[c]+i];double Y=speciesLogistic(x.speciesBaseLogit+a*x.speciesBasis[0]+b*x.speciesBasis[1]),w=x.weight*x.rho;value+=w*Y;double dY=w*Y*(1-Y);j0+=dY*x.speciesBasis[0];j1+=dY*x.speciesBasis[1];}e.f[c]=team.sum(value)-segments[c].target[7];e.j[c][0]=team.sum(j0);e.j[c][1]=team.sum(j1);affineRawFinite=affineRawFinite&&std::isfinite(e.f[c])&&std::isfinite(e.j[c][0])&&std::isfinite(e.j[c][1]);e.norm=d::max(e.norm,::fabs(e.f[c])/d::max(1.,::fabs(segments[c].target[7])));}return e;};
       auto e=evaluate(0,0);for(int k=0;k<cfg.maxIterations;++k){double det=e.j[0][0]*e.j[1][1]-e.j[0][1]*e.j[1][0],da=(-e.f[0]*e.j[1][1]+e.f[1]*e.j[0][1])/det,db=(-e.j[0][0]*e.f[1]+e.j[1][0]*e.f[0])/det,scale=1;bool improved=false;for(int line=0;line<cfg.numerics.maximumLineSearchIterations;++line){double a=affineSpeciesA+scale*da,b=affineSpeciesB+scale*db;if(a==affineSpeciesA&&b==affineSpeciesB)break;auto next=evaluate(a,b);if(next.norm<e.norm){affineSpeciesA=a;affineSpeciesB=b;e=next;improved=true;break;}scale*=cfg.numerics.lineSearchReduction;}++affineIterations;if(!improved)break;}
     }
-    // Last numerical fit remains publishable: observations do not add a gate.
+
     affineSpeciesMode=requested;
     for(int c=0;c<2;++c){auto&seg=segments[c];int begin=offsets[c],count=offsets[c+1]-begin;for(int i=team.rank();i<count;i+=team.size()){auto&x=scratch.samples[begin+i];x.Y[0]=requested==2?0:requested==3?1:speciesLogistic(x.speciesBaseLogit+affineSpeciesA*x.speciesBasis[0]+affineSpeciesB*x.speciesBasis[1]);x.Y[1]=1-x.Y[0];}team.sync();monotonic(seg.aT,seg.target[4],[&](){double value=0;for(int i=team.rank();i<count;i+=team.size()){const auto&x=scratch.samples[begin+i];value+=x.weight*x.rho*(ugkwp::mixtureEnergy(x.Y,x.p.T*::exp(seg.aT*x.b),in.model.thermo)+x.kinetic);}return team.sum(value);});}
     for(const auto&seg:segments){auto q=averageTeam(seg,scratch,team);if(team.leader())for(int j=0;j<9;++j)if(j!=6||!seg.algebraicOmega)maxResidual=d::max(maxResidual,::fabs(q[j]-seg.target[j])/d::max(1.,::fabs(seg.target[j])));}maxResidual=team.broadcast(maxResidual);return true;
@@ -825,7 +825,7 @@ struct Profile {
     return {team.sum(k), team.sum(omega)};
   }
 
-  // One-sided micro derivatives, recovered symmetrically at shared macro faces.
+
   UGKWP_GAS_HD Primitive derivativeRaw(double y, const Segment &s,
                                         const Primitive *basePoint = nullptr) const {
     if (y == 0 && s.lo == 0) {
@@ -974,7 +974,7 @@ struct Profile {
     if (y == 0 || !s.endpointOverride) {
       auto g=derivativeRaw(y,s,basePoint);if(affineSpeciesMode){double Y=(basePoint ? basePoint->Y[0] : base(y).Y[0]);g.Y[0]=affineGradient(y,Y,g.Y[0],side);g.Y[1]=-g.Y[0];}return g;
     }
-    // Evaluate the base derivative directly: no recursive Profile copy on GPU.
+
     Segment plain = s;
     plain.endpointOverride = false;
     plain.seedK = 0;
@@ -1089,8 +1089,8 @@ struct Profile {
   UGKWP_GAS_HD physical::Primitive<double, 2>
   physicalPrimitive(double y, int side = 0) const {
     const auto &s = segments[segment(y, side)];
-    // These consumers observe the same immutable query state. Reuse the exact
-    // base value instead of repeating its interpolation and thermochemistry.
+
+
     const auto basePoint = base(y);
     auto p = pointIn(y, s, &basePoint), g = derivative(y, side, &basePoint);
     physical::Primitive<double, 2> v;
@@ -1183,9 +1183,9 @@ struct Profile {
     physical::Source<double, 2> src;
     physical::evaluatePrimitive(in, cfg, p, y, in.normal, meshNormal, f, src);
     if(affineShared){
-      // Preserve the common constitutive species flux, not an averaged gradient
-      // evaluated with a different nonlinear SST mobility. Keep all unrelated
-      // averaged momentum/conduction terms and correct the same enthalpy flux.
+
+
+
       double species[2]={f.mass*p.Y[0]+commonJ,f.mass*p.Y[1]-commonJ};
       for(int j=0;j<2;++j){f.energy+=ugkwp::speciesH(j,p.T,in.model.thermo)*(species[j]-f.species[j]);f.species[j]=species[j];}
     }
@@ -1212,7 +1212,7 @@ struct Profile {
     return out;
   }
 };
-} // namespace reconstruction
+}
 
-} // namespace gaswall
-} // namespace ugkwp
+}
+}

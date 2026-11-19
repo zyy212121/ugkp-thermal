@@ -21,10 +21,10 @@ template<> struct Arithmetic<extended::Wide> {
     UGKP_TRAJECTORY_HD static double value(extended::Wide a){return extended::value(a);}
 };
 }
-// The cubic is represented by its actual endpoint Bernstein controls. Keep
-// stable quadratic derivative roots and De Casteljau evaluation; do not infer
-// the endpoint by subtracting nearly cancelling displacement powers. CUDA uses
-// scaled FP64 pairs for the extended intermediate range of the native oracle.
+
+
+
+
 template<class Extended>
 UGKP_TRAJECTORY_HD inline void trajectoryPolynomialBounds(const double* control,double& minimum,double& maximum){
     using A=trajectoryDetail::Arithmetic<Extended>;

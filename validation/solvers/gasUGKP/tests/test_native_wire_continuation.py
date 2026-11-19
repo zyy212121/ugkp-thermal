@@ -83,7 +83,7 @@ int fixed[]={2,-1};double boundary[]={-.3,.4,1.3,.6};
 assert(ugkwpGpuResidentStrictUploadSpeciesBoundaryV1(&state,&identity,fixed,boundary)==0);
 for(int i=0;i<2;++i)assert(device.gasSpecies.compositionBoundaryFixed[i]==fixed[i]);
 for(int i=0;i<4;++i)assert(device.gasSpecies.boundaryMassFraction[i]==boundary[i]);
-// Configuration replacement keeps pending state; failed allocation and sync keep old views live.
+
 auto* accepted=state.gasSpecies.rho;failAfter=1;
 assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)!=0);
 assert(allocations==count&&state.gasSpecies.rho==accepted&&device.gasSpecies.rho==accepted);failAfter=-1;
@@ -149,7 +149,7 @@ RequestHeader incoming{};assert(readObject(sockets[0],incoming));readingFrame=tr
 assert(handleGasOnly(sockets[0],incoming,s));assert(gotDt==-.25-frame&&gotTime==4.5+frame);
 assert(discardRequest(sockets[0]));assert(frameRemaining==0);
 ResponseHeader reply{};assert(readObject(sockets[1],reply));assert(reply.status==0);}
-// Actual scalar missing from body must not read bytes from a future frame.
+
 RequestHeader shortRequest{magic,protocolMajor,protocolMinor,unsigned(Op::advanceGasOnly),0,7};
 assert(writeAll(sockets[1],"short!!",7));readingFrame=true;frameRemaining=7;assert(!handleGasOnly(sockets[0],shortRequest,s));readingFrame=false;
 close(sockets[0]);close(sockets[1]);
@@ -174,7 +174,7 @@ ConstView in{};MutableView out{};in.count=out.count=3;DECLARATIONS
 std::ostringstream wire(std::ios::binary);Foam::gpuThermalRestart::write<DISK>(wire,in);
 std::istringstream input(wire.str(),std::ios::binary);std::string marker;std::size_t n;std::uint32_t bound;input>>marker>>n>>bound;
 Foam::gpuThermalRestart::readPayload<DISK>(input,0,out);CHECKS
-// The actual narrowing consumer still reports finite-to-infinite overflow.
+
 double huge=std::numeric_limits<double>::max();std::ostringstream bad(std::ios::binary);bool failed=false;
 try{Foam::gpuThermalRestart::writeConverted<float>(bad,&huge,0,1);}catch(const std::runtime_error&){failed=true;}assert(failed);
 float sentinel=99;std::ostringstream raw(std::ios::binary);Foam::gpuThermalRestart::writeArray(raw,&huge,0,1);
@@ -357,9 +357,9 @@ assert(std::memcmp(source,output,sizeof(source))==0);}
 
 
 def test_gas_direct_owner_replaces_the_removed_wire_layer():
-    # Retire five gas IPC tests: that transport layer no longer exists. Species
-    # configuration/reupload is exercised by the actual adapter probe above.
-    # FSH retains IPC, but its separate tests are outside current maintenance.
+
+
+
     assert not (ROOT/'applications/gasUGKP/gpu/GpuBackendClient.C').exists()
     assert not (ROOT/'applications/gasUGKP/private_backend/GpuBackendServer.C').exists()
     owner=(ROOT/'applications/gasUGKP/private_backend/GpuResidentStrict.cu').read_text()

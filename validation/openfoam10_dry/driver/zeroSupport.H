@@ -1,5 +1,5 @@
-// Native transient FV regression for unequal-D, three-species zero support.
-// No flooring, limiter, rejected step or fallback is used in this fixture.
+
+
 void zeroSupportCase(Time& runTime,fvMesh& mesh,scalar dt,scalar end,std::ofstream& out){
  Gas gas;using State=dry::MaterialState<1,3>;std::vector<State> q(mesh.nCells());
  std::array<dry::CondensedThermo,1> solid{};solid[0].density=1000;solid[0].cp0=1000;

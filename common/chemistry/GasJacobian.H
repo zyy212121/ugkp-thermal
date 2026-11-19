@@ -8,9 +8,9 @@
 #define UGKWP_CHEMISTRY_DEVICE_LEAF inline
 #endif
 namespace ugkwp {
-// Fixed-temperature concentration Jacobian, row-major [species*Ns+variable],
-// and independent temperature derivative. The conservative reactor combines
-// these with the exact fixed-U thermal feedback derivative.
+
+
+
 template<class R,int N,class TableReal,bool Complete=true> UGKWP_GAS_HD UGKWP_CHEMISTRY_DEVICE_LEAF bool evaluateGasRateDerivatives
 (R T,const R* c,const SpeciesThermoView<TableReal,N>& t,const GasMechanismView<TableReal,N>& m,R* jacobian,R* thermal,ChemistryStatus& status,bool* evaluated=nullptr) noexcept {
  if(evaluated)*evaluated=false;

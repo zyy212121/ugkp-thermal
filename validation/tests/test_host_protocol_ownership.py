@@ -95,7 +95,7 @@ class SharedHostMaintenanceTest(unittest.TestCase):
                         f"{app}/{name} did not consume the edit to {owner.relative_to(REPO)}; "
                         f"its independently maintained definition is {app_owner.relative_to(REPO)}",
                     )
-                # One-application distributions must still consume a common owner.
+
                 self.assertTrue(
                     owner.is_relative_to(REPO / "common"),
                     f"{name} is still owned by an application-local implementation",

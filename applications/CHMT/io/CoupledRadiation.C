@@ -7,6 +7,7 @@
 #include "surfaceFields.H"
 #include <set>
 #include <iostream>
+#include <cmath>
 namespace chmt {
 struct CoupledRadiation::Data {
     Foam::fvMesh& mesh;const ModelConfig& model;int frequency;
@@ -16,7 +17,7 @@ struct CoupledRadiation::Data {
     std::unique_ptr<Foam::gpuThermal::GpuParticleRadiationCoupler> coupler;
     Foam::labelList patches;Foam::volScalarField wallTemperature;
     Foam::List<Foam::scalarField> wallEmissivity;
-    std::vector<Vec3> previousPoints;
+    std::vector<Vec3> previousPoints;bool parentPrepared=false;
     Data(Foam::Time& time,Foam::fvMesh& mesh_,const ModelConfig& config,const HostState& state,int every)
       :mesh(mesh_),model(config),frequency(every),
        properties(Foam::IOobject("radiationProperties",time.constant(),time,Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE)),
@@ -45,6 +46,7 @@ struct CoupledRadiation::Data {
             wallEmissivity[p].setSize(mesh.boundary()[p].size(),value);
         }
 
+
         solver.reset(new Foam::gpuThermal::MieDoRadiationSolver(mesh,d,*table,patches,Foam::gpuThermal::readRadiationControls(d)));
         coupler.reset(new Foam::gpuThermal::GpuParticleRadiationCoupler(mesh,*table,*solver,patches,
             config.particlePhase.minimumTemperature,config.particlePhase.maximumTemperature));
@@ -53,12 +55,56 @@ struct CoupledRadiation::Data {
 CoupledRadiation::CoupledRadiation(Foam::Time& time,Foam::fvMesh& mesh,const ModelConfig& config,const HostState& state,int frequency)
  :data_(new Data(time,mesh,config,state,frequency)){}
 CoupledRadiation::~CoupledRadiation()=default;
+void CoupledRadiation::freezeWarmStart(ugkp::gpu::RadiationWarmStart& slot,void* nextWriter) const {
+    data_->coupler->freezeWarmStart(slot,nextWriter);
+}
 bool CoupledRadiation::readWarmStart(const std::string& path){return data_->coupler->readWarmStart(path);}
 bool CoupledRadiation::writeWarmStart(const std::string& path)const{return data_->coupler->writeWarmStart(path);}
 
-bool CoupledRadiation::advance(Backend& backend,const WallProgram& program,HostState& state,Real& externalHeat,std::string& error){
+bool CoupledRadiation::due(const CouplingInterval& window,const CouplingControls& controls,const HostState& accepted,bool output)const{
+    return ugkp::gpu::radiationDueAt(accepted.radiationTime,window.end,controls.scheduleOrigin,controls.interval,
+        data_->frequency,window.identity.sequence,output);
+}
+
+bool CoupledRadiation::prepareParent(Backend& backend,const WallProgram& program,const HostState& state,std::string& error){
+    auto& d=*data_;d.parentPrepared=false;
+    const double elapsed=program.interval.end-state.radiationTime;
+    if(!std::isfinite(elapsed)||!(elapsed>0)){error="radiation interval does not advance";return false;}
+    if(!d.model.physics.enableParticles)return true;
+    ParticleRadiationState material;
+    if(!borrowRadiationState(backend,material,error))return false;
+    if(!material.resident.enabled)return true;
+
+
+    const auto& endpoint=program.knots.back().gasPoints;
+    if(endpoint.size()!=state.gasMesh.points.size()){error="radiation endpoint point layout is incomplete";return false;}
+    bool changed=d.previousPoints.size()!=endpoint.size();
+    if(!changed)for(std::size_t i=0;i<d.previousPoints.size();++i){const auto& a=d.previousPoints[i];const auto& b=endpoint[i];if(a.x!=b.x||a.y!=b.y||a.z!=b.z){changed=true;break;}}
+    if(changed){Foam::pointField points(endpoint.size());
+        forAll(points,i){const auto& p=endpoint[i];points[i]=Foam::point(p.x,p.y,p.z);}
+        d.mesh.movePoints(points);d.solver->updateGeometry();d.previousPoints=endpoint;
+    }
+    const Foam::scalarField residentCells;
+    const auto& wall=program.knots.back().faces;
+    for(std::size_t f=0;f<state.surface.gasFace.size();++f){const int face=state.surface.gasFace[f];if(face<0)continue;
+        const int patch=d.mesh.boundaryMesh().whichPatch(face),local=face-d.mesh.boundaryMesh()[patch].start();
+        d.wallTemperature.boundaryFieldRef()[patch][local]=wall[f].temperature;
+    }
+    const double* deviceElapsed=nullptr;
+    if(!prepareGasWindowRadiationClock(backend,elapsed,deviceElapsed,error))return false;
+    const Foam::gpuThermal::ParticleRadiationMaterialSnapshot snapshot{residentCells,residentCells,residentCells,residentCells,d.wallTemperature,d.wallEmissivity,0.,elapsed,material.response,material.resident};
+    const auto binding=d.coupler->prepareParent(snapshot,deviceElapsed);
+    if(!bindGasWindowRadiation(backend,*binding.radiation,*binding.material,error))return false;
+    d.parentPrepared=true;error.clear();return true;
+}
+
+bool CoupledRadiation::advance(Backend& backend,const WallProgram& program,HostState& state,EnergyReal& externalHeat,std::string& error){
     auto& d=*data_;externalHeat=0;
-    if(program.interval.identity.sequence%std::uint64_t(d.frequency))return true;
+    if(d.parentPrepared){
+        externalHeat=-EnergyReal(d.coupler->collectEscapedEnergy());
+        d.coupler->acceptParentSolve();
+        state.radiationTime=state.time;d.parentPrepared=false;error.clear();return true;
+    }
     const double elapsed=state.time-state.radiationTime;
     if(!(elapsed>0)){error="radiation interval does not advance";return false;}
     bool changed=d.previousPoints.size()!=state.gasMesh.points.size();
@@ -70,29 +116,25 @@ bool CoupledRadiation::advance(Backend& backend,const WallProgram& program,HostS
     ParticleRadiationState material;if(!borrowRadiationState(backend,material,error))return false;
     const int cells=d.mesh.nCells();Foam::scalarField mass(cells,0),temperature(cells,0),diameter(cells,0),epsilon(cells,0);
     if(!material.resident.enabled)for(int c=0;c<cells;++c){mass[c]=material.mass[c];temperature[c]=material.temperature[c];diameter[c]=material.diameter[c];
-        epsilon[c]=mass[c]/(d.model.particlePhase.rhoSolid*d.mesh.V()[c]);}
+        epsilon[c]=EnergyReal(material.mass[c])/(EnergyReal(d.model.particlePhase.rhoSolid)*EnergyReal(d.mesh.V()[c]));}
     Foam::List<Foam::scalarField> emissivity(d.wallEmissivity);
     const auto& wall=program.knots.back().faces;
     for(std::size_t f=0;f<state.surface.gasFace.size();++f){const int face=state.surface.gasFace[f];if(face<0)continue;
         const int patch=d.mesh.boundaryMesh().whichPatch(face),local=face-d.mesh.boundaryMesh()[patch].start();
         d.wallTemperature.boundaryFieldRef()[patch][local]=wall[f].temperature;
-        // Same exposed-area assumption as CHT; surface gas generation is independent.
+
         const double area=mag(d.mesh.Sf().boundaryField()[patch][local]);
-        if(!material.resident.enabled)emissivity[patch][local]*=std::max(0.,1.-std::min(1.,material.occupiedArea[face]/area));
+        if(!material.resident.enabled)emissivity[patch][local]*=std::max(EnergyReal(0),EnergyReal(1)-std::min(EnergyReal(1),material.occupiedArea[face]/EnergyReal(area)));
     }
     const Foam::gpuThermal::ParticleRadiationMaterialSnapshot snapshot{epsilon,mass,temperature,diameter,d.wallTemperature,emissivity,0.,elapsed,material.response,material.resident};
     const auto requested=d.coupler->solve(snapshot,false);
     ugkp::gpu::RadiationAcceptedEnergyDeviceView actual;
     if(!applyResidentRadiationEnergy(backend,requested.resident,actual,state,error))return false;
-    // The material history owner still consumes boundary records. Publish only
 
-    const auto result=d.coupler->collectBoundaryEnergy();
-    std::vector<Real> wallHeat(state.surface.gasFace.size(),0);
-    for(std::size_t f=0;f<wallHeat.size();++f){const int face=state.surface.gasFace[f];if(face<0)continue;
-        const int patch=d.mesh.boundaryMesh().whichPatch(face),local=face-d.mesh.boundaryMesh()[patch].start();
-        wallHeat[f]=result.solidWallRadiationEnergyJ[patch][local];}
-    setWindowRadiationEnergy(backend,wallHeat);state.radiationTime=state.time;
-    externalHeat=-result.escapedBoundaryRadiationEnergyJ;
+
+    if(!setWindowRadiationEnergy(backend,requested.resident,error))return false;
+    state.radiationTime=state.time;
+    externalHeat=-EnergyReal(d.coupler->collectEscapedEnergy());
 
     return true;
 }

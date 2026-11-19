@@ -68,7 +68,7 @@ int main(int argc,char**argv){
   for(int budget:{-1,0,1,32}){
    s.maxFaceWalkHops=budget;s.pStatus[0]=1;s.px[0]=GPU_R(.25);s.pux[0]=s.puxOld[0]=GPU_R(1);
    trackOneParticleLocalFaceWalk(s,0,300.5);
-   // Exhaustion originally returned normally with deletion, not a refusal.
+
    if(s.pStatus[0]!=0||s.px[0]!=GPU_R(.25)||s.pm[0]!=GPU_R(2)){fprintf(stderr,"changed original hop exhaustion budget=%d x=%.17g live=%d\n",budget,double(s.px[0]),s.pStatus[0]);return 7;}
   }
  }else return 6;

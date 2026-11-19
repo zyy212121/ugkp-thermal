@@ -80,7 +80,7 @@ Real fa=rusanovConservativeComponentFlux(Real(0),Real(0),Real(1),Real(0),a);
 Real fb=rusanovConservativeComponentFlux(Real(0),Real(0),Real(0),Real(1),a);
 if(!f.valid||f.flux[0]!=0||fa==0||fa+fb!=0)return 1;
 if(std::abs(f.flux[4]-(Real(-1e6)*fa+Real(2e6)*fb))>Real(1e-6)*std::abs(f.flux[4]))return 2;
-// Same gamma and zero offsets reduce to the original flux exactly.
+
 ul=conservative(l,Real(1.4));ur=conservative(r,Real(1.4));
 auto old=rusanovTadmorFluxUnitNormal(l,r,Real(1),Real(0),Real(0),Real(1.4),false);
 auto now=rusanovTadmorFluxUnitNormal(l,ul,a,r,ur,a,Real(1),Real(0),Real(0),false);

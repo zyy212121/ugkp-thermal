@@ -66,7 +66,7 @@ def prepare(source,target,meta,constant=False):
     if meta['solver']=='gasUGKP':
         control=target/'system/controlDict'
         end=float(re.search(r'endTime\s+([^;]+)',control.read_text())[1])
-        # At least four accepted steps, with a common midpoint write boundary.
+
         entry(control,'deltaT',end/4);entry(target/'constant/scheme','maxDeltaT',end/4)
         entry(control,'writeInterval',end/2)
     run(['blockMesh','-case',target],target/'mesh.log')
@@ -78,7 +78,7 @@ def prepare(source,target,meta,constant=False):
             text=re.sub(r'('+name+r'\s*\{\s*type\s+)wall',r'\1patch',text)
         patch.write_text(text)
     if meta['three_dimensional_sides']:
-        # A 3D thin extrusion with slip side faces; avoids the Empty importer.
+
         for patch in (target/'constant/polyMesh/boundary',target/'constant/solid/polyMesh/boundary'):
             patch.write_text(re.sub(r'\btype\s+empty\s*;','type patch;',patch.read_text()))
 
@@ -97,7 +97,7 @@ def compare_fields(reference,result,restart=False):
         a,b=numbers(text),numbers(actual);assert len(a)==len(b),path
         error=max((abs(x-y)/max(1,abs(x),abs(y)) for x,y in zip(a,b)),default=0)
         errors[str(path.relative_to(reference))]=error
-        # Empty-particle dMeanCell is not restored by the existing CHT bridge.
+
         if not restart or path.name in ('rho','rhoU','rhoE','U','p','T','k','omega','nut') or path.name.startswith(('Y_','rhoY_')):
             assert error<2e-12,(path,error)
     return errors
@@ -136,7 +136,7 @@ def transport_response(variable,constant,solver,require_change):
             return [float(x) for x in re.findall(r'(?<![A-Za-z_])[-+]?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][-+]?\d+)?',text)]
         x,y=numbers(a),numbers(b);assert len(x)==len(y)
         response[name]=max((abs(v-w) for v,w in zip(x,y)),default=0)
-    # Uniform/isothermal fixtures need not change; nontrivial wall/heat cases must.
+
     if require_change:assert max(response.values())>1e-12,'transport did not reach gas/wall/thermal fields'
     return response
 

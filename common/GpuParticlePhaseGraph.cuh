@@ -40,7 +40,7 @@ struct ParticlePhaseGraphs {
     ugkwp::ParticleResidentInterval* clock=nullptr;
     ugkwp::ParticleResidentInterval previous{};
     bool submitted=false,positionSequenceEnabled=false;
-    // Last submitted sample. Configuration restores the last completed count.
+
     unsigned long long positionSequence=0;
 #if defined(UGKP_DEVELOPMENT_PROBES) && UGKP_DEVELOPMENT_PROBES
     unsigned long long captureCount=0,intervalUpdateCount=0,launchCount=0;
@@ -81,11 +81,14 @@ template<class State>
 __global__ void finishParticlePhaseInterval(State* state){
     if(!threadIdx.x&&!blockIdx.x)state->particleResidentInterval.active=false;
 }
-// Submit records the unchanged physical phase. Adapt publishes only its host
-// pointer/directory mirror after replay; device pointers swap in the graph.
+
+
 template<class State,class Submit,class Adapt,class Report>
 int launchParticlePhaseGraph(State* state,double dt,double end,Submit&& submit,Adapt&& adapt,Report&& report){
     static_assert(std::is_trivially_copyable<State>::value,"particle graph recording snapshots require plain owner metadata");
+
+
+    if(state->particleCaptureStream)return submit(dt,end);
     auto& owner=state->particlePhaseGraphs;
     auto& entry=owner.entry[(state->preBaseDirectoryReady?1:0)+(dt==0?2:0)];
     auto failed=[&](const char* label,cudaError_t error){report(label,error);return 1;};
@@ -98,8 +101,8 @@ int launchParticlePhaseGraph(State* state,double dt,double end,Submit&& submit,A
         &&owner.previous.positionSequenceEnabled
         &&owner.previous.positionSequence+1==requested.positionSequence;
     auto parameters=requested;
-    if(advance)parameters.end=0; // ignored by device continuation; stable replay metadata
-    if(advanceSequence)parameters.positionSequence=0; // independent of the physical clock
+    if(advance)parameters.end=0;
+    if(advanceSequence)parameters.positionSequence=0;
     if(!owner.clock){
         const auto error=cudaMalloc(reinterpret_cast<void**>(&owner.clock),sizeof(*owner.clock));
         if(error!=cudaSuccess)return failed("allocate particle graph clock",error);

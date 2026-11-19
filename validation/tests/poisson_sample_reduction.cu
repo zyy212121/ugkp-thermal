@@ -1,4 +1,4 @@
-// Production sampling/CSR kernels: RNG, contact metadata, weighted moments.
+
 #include <cuda_runtime.h>
 #include <algorithm>
 #include <cmath>
@@ -55,7 +55,7 @@ std::unique_ptr<DeviceState> seed(int n,bool split,int selectedStride,int tile){
  auto s=std::make_unique<DeviceState>();s->active=n;
  std::vector<int> base[C],injected[C];
  const int baseCount=split?n*2/3:n;
- // Physical base is sorted by cell, injection directory is independently indexed.
+
  for(int i=0;i<n;++i) {
   const int c=i<baseCount?std::min(C-1,i*C/std::max(1,baseCount)):(i-baseCount)%C;
   s->pCellId[i]=c;s->pStatus[i]=i%selectedStride==0?2:1;

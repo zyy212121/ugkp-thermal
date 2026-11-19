@@ -6,16 +6,18 @@ namespace chmt { namespace material_slice_detail {
 __global__ void plan(ResidentMaterialDriveHistory h,const ugkp::IntervalSliceCursor* cursor,
     const ugkp::CompensatedTime* target,std::size_t externalFaces,ugkp::IntervalSlicePlan* result){
     if(blockIdx.x||threadIdx.x)return;
-    auto p=ugkp::planIntervalSlice(h,*cursor,*target);
+    h=h.resolved();auto p=ugkp::planIntervalSlice(h,*cursor,*target);
 
     if(p.error==ugkp::IntervalSliceError::None&&p.hasRecords()&&h.faces&&externalFaces&&externalFaces!=h.faces)
         p.error=ugkp::IntervalSliceError::RadiationLayout;
     *result=p;
 }
+template<class Total>
 __global__ void prepare(ResidentMaterialSlice slice,MaterialSliceAccumulators candidate,
-    const EnergyReal* external,std::size_t externalFaces,ugkp::CompensatedTime total,EnergyReal* radiation){
+    const EnergyReal* external,std::size_t externalFaces,Total totalValue,EnergyReal* radiation){
+    const ugkp::CompensatedTime total=totalValue;
     const auto p=*slice.plan;if(p.error!=ugkp::IntervalSliceError::None)return;
-    const auto h=slice.history;const auto count=h.faces>externalFaces?h.faces:externalFaces;
+    const auto h=slice.history.resolved();const auto count=h.faces>externalFaces?h.faces:externalFaces;
     for(std::size_t f=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x;f<count;f+=std::size_t(blockDim.x)*gridDim.x){
         if(f<h.faces){
 
@@ -48,6 +50,15 @@ __global__ void prepare(ResidentMaterialSlice slice,MaterialSliceAccumulators ca
             if(!p.hasRecords()||!h.faces)radiation[f]=0;
             radiation[f]+=part;
         }
+    }
+}
+
+
+__global__ void prepareExternal(std::size_t count,const EnergyReal* total,const EnergyReal* used,
+    EnergyReal* candidate,Real fraction,bool last,EnergyReal* radiation){
+    for(std::size_t f=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x;f<count;f+=std::size_t(blockDim.x)*gridDim.x){
+        const EnergyReal part=last?total[f]-used[f]:total[f]*EnergyReal(fraction);
+        candidate[f]=used[f]+part;radiation[f]+=part;
     }
 }
 __global__ void commit(const ugkp::IntervalSlicePlan* plan,MaterialSliceAccumulators candidate,

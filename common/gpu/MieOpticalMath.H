@@ -31,7 +31,7 @@ UGKP_MIE_HD inline MieBracket mieLinearBracket(const RadiationReal* axis,int siz
 UGKP_MIE_HD inline MieBracket mieLogBracket(const RadiationReal* axis,int size,RadiationReal value){
     if(!(value>0)||!std::isfinite(value))value=axis[0];
     auto result=mieLinearBracket(axis,size,value);
-    // std::min/max argument order from the original table is significant for NaN.
+
     const RadiationReal lower=axis[result.lo],upper=axis[result.lo+1];
     const RadiationReal boundedUpper=value<upper?value:upper;
     const RadiationReal bounded=lower<boundedUpper?boundedUpper:lower;

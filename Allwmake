@@ -69,7 +69,7 @@ echo "CUDA compiler: $CUDA_ROOT/bin/nvcc"
 echo ""
 
 
-# FSH is archived under legacy/; only maintained applications build by default.
+
 SOLVERS=(gasUGKP gasUGKPSteady CHT CHMT)
 BUILD_SCRIPTS=(
     tool/gasUGKP/build_cuda_solver.sh

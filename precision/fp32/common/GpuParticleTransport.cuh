@@ -1,4 +1,5 @@
 #pragma once
+#include "wall/ParticleWallFaceInteraction.H"
 #include "wall/GpuColdWall1DHandles.cuh"
 #include "GpuOperatorContract.cuh"
 
@@ -131,7 +132,7 @@ __device__ void trackOneParticleLocalFaceWalk(DeviceState& s, const int i, const
                 asm("trap;");
             }
             const unsigned char wallInteractionType =
-                s.particleStuckCandidateMask[globalFaceId];
+                particleWallFaceInteraction(s,globalFaceId);
 
 
             const GPU_OPERATOR_GEOMETRY un =

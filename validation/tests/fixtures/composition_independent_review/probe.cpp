@@ -26,13 +26,13 @@ if(mode=="boundary"){
  std::cout<<"NEAR ns="<<Ns<<" cases="<<total<<" bad="<<bad<<" converged="<<converged<<'\n';require(bad==0,"near-proportional Collatz path lost legal finite state or mislabeled residual");
 }else if(mode=="pole-arithmetic"){
  require(Ns==10,"pole arithmetic requires ten species");PhysicsConfig p;ugkp::diagnostics::DeviceContext diagnostics{};p.diagnostics=&diagnostics;p.tolerances.diagnostics=&diagnostics;Real d[Ns]{},u[Ns]{},v[Ns]{},r[Ns]{},bulk[Ns]{},out[Ns]{},Js[Ns]{};for(int i=0;i<Ns;++i){r[i]=p.species[i].R=1;out[i]=123;}d[1]=d[2]=d[3]=p.gasDiffusivity[1]=p.gasDiffusivity[2]=p.gasDiffusivity[3]=1e-308;u[1]=Js[1]=1.5;u[2]=Js[2]=-1.5;u[3]=Js[3]=1.5;r[1]=p.species[1].R=r[3]=p.species[3].R=1e-310;v[2]=5e-309;bulk[0]=bulk[2]=.5;
- // This finite input is an arithmetic/diagnostic contract, not a claim of a
- // physical root. A mathematical candidate may fail; it may not trap first.
+
+
  std::cout<<"POLE_PUBLIC finite inputs\n";bool ok=interfaceComposition(Js,bulk,1,1,1,p,1e-12,out);require(!diagnostics.fatalClaim,"mathematical pole candidate polluted fatal");
  if(ok){Real f[Ns]{},sum=0;require(compositionResidual(out,bulk,Js,1,1,1,p,f,nullptr),"published pole approximation invalid");for(auto y:out){require(chmt::finite(y)&&y>=0&&y<=1,"published pole approximation outside simplex");sum+=y;}require(std::abs(sum-1)<1e-13,"published pole approximation unnormalized");}else for(auto y:out)require(y==123,"failed pole solve overwrote output");
  std::cout<<"POLE_PRIVATE finite coefficients\n";(void)composition_detail::recoverPole(0,d,u,v,r,bulk,1e-310,1,out);require(!std::fetestexcept(FE_OVERFLOW|FE_INVALID|FE_DIVBYZERO),"pole math executed trapping arithmetic");
- // A private residual trial suppresses publication only. Both policies return
- // the same failure, and the public/final path preserves the real bad value.
+
+
  Real invalidY[Ns]{},trialF[Ns]{};invalidY[0]=-1;
  require(!compositionResidualPolicy<false>(invalidY,bulk,Js,1,1,1,p,trialF,nullptr),"invalid trial unexpectedly evaluated");require(!diagnostics.fatalClaim,"private residual trial polluted fatal");
  require(!compositionResidual(invalidY,bulk,Js,1,1,1,p,trialF,nullptr),"final residual changed failure outcome");require(diagnostics.fatalClaim&&diagnostics.firstFatal.sourceSiteId==3840&&diagnostics.firstFatal.observed==-1&&diagnostics.firstFatal.component==0,"final residual lost actual bad Rmix");

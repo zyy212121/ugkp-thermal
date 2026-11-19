@@ -7,9 +7,9 @@
 #endif
 namespace ugkp { namespace thermal {
 using ParticleGeometryPoint=gpu::geometry::Point;
-// Face addressing may be reordered through oldToNewFace. Point identities and
-// each face's vertex set must persist, as in topology-preserving mesh motion.
-// All pointers passed to the CUDA API are resident device storage.
+
+
+
 struct ParticleSurfaceGeometry {
     int nFaces=0,nPoints=0;
     const int* faceOffsets=nullptr;
@@ -24,15 +24,15 @@ struct AttachedGeometryResult {
 namespace attachedGeometry {
 using namespace gpu::geometry;
 struct Coordinates {double b=0,c=0;Point closest{};bool valid=false;};
-// Closest point in the same vertex-zero fan used by the common polyhedral
-// geometry implementation. The normal offset is restored after interpolation.
+
+
 UGKP_ATTACHED_HD inline Coordinates closestTriangle(Point p,Point a,Point b,Point c) {
     const Point ab=b-a,ac=c-a,ap=p-a;
     const double area2=dot(cross(ab,ac),cross(ab,ac));
     if(!(area2>0)||!std::isfinite(area2))return {};
     const double d1=dot(ab,ap),d2=dot(ac,ap);
     double v=0,w=0;
-    if(d1<=0 && d2<=0){} // vertex a
+    if(d1<=0 && d2<=0){}
     else {
         const Point bp=p-b;const double d3=dot(ab,bp),d4=dot(ac,bp);
         if(d3>=0 && d4<=d3)v=1;

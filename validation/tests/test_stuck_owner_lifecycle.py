@@ -98,7 +98,7 @@ int main(){for(int model=0;model<5;++model)for(int heat:{0,1}){if(model==0&&heat
  for(const auto&e:events)std::cout<<"OP "<<e<<"\n";
  std::cout<<"DATA";HASHES
  std::cout<<std::hexfloat<<" "<<s.particleWallContactAngleCosine<<" "<<s.sommerfeldThreshold<<" "<<s.particleWallMaximumCoverage<<" "<<s.coldWallSolidificationEnabled<<" "<<s.coldWall2DEnabled<<"\n";
- // Never hash unread compact scratch as an old physical output.
+
  cleanup(s);assert(live.empty());}}
 '''.replace('HASHES',hashes)
     result={}
@@ -196,7 +196,7 @@ namespace Foam{namespace gpuWall{template<class S>void publishWallBoundParticleI
     release=''.join(f'release(s.{f});' for _,a,b in extra for f in [a,b])
     main=r'''
 int main(){DeviceState s,d;s.deviceState=&d;unsigned char mixed[]={0,3,4,0},off[]={0,0,0,0};assert(configure(s,mixed)==0);EXTRA
- // Seed both sides before using actual copy/swap; compact is scratch, never an old initialized output.
+
  for(auto*p:pointers(s))if(p!=s.particleStuckCandidateMask)std::memset(p,0,live.at(p));
  s.pColdNodeSpecificEnthalpy[0]=31;s.pCold2DNodeSpecificEnthalpy[0]=47;s.pColdFrozenArea[0]=13;s.pCold2DFrozenArea[0]=17;
  auto*oldActive=s.pColdNodeSpecificEnthalpy;auto*oldCompact=s.compactPColdNodeSpecificEnthalpy;

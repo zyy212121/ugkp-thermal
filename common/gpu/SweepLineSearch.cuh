@@ -1,10 +1,10 @@
-// Included by PolyhedralGeometry.cu.
+
 #include "SweepLineSearch.H"
 namespace ugkp { namespace gpu { namespace geometry { namespace {
 __global__ void copySweepSearchProblem(const SweepLineSearchProblem* input,SweepLineSearchProblem* output){*output=*input;}
 __global__ void initializeSweepSearch(const SweepLineSearchProblem* input,SweepLineSearchProblem* operation,
-    SweepLineSearchStatus* state,bool restart,cudaGraphConditionalHandle handle){
-    if(restart){*operation=*input;*state={};}
+    SweepLineSearchStatus* state,bool restart,cudaGraphConditionalHandle handle,const int* deviceRestart){
+    if(deviceRestart?*deviceRestart:restart){*operation=*input;*state={};}
     else {state->trials=0;state->candidate=false;state->evaluated=false;}
     const int limit=operation->maximumTrials>0?operation->maximumTrials:1;
     state->exhausted=state->nextBacktrack>=limit||::ldexp(1.,-state->nextBacktrack)==0;
@@ -51,11 +51,11 @@ ResidentSweepLineSearch::ResidentSweepLineSearch(int points,ResidentSweepResidua
 }
 ResidentSweepLineSearch::~ResidentSweepLineSearch()=default;
 SweepLineSearchView ResidentSweepLineSearch::view()const{const auto& d=*data_;return {d.trial.view().points,d.state.pointer};}
-ExecutionGraphNode ResidentSweepLineSearch::appendTo(ExecutionGraph graph,ExecutionGraphNode dependency,const SweepLineSearchProblem* problem,bool restart){
+ExecutionGraphNode ResidentSweepLineSearch::appendTo(ExecutionGraph graph,ExecutionGraphNode dependency,const SweepLineSearchProblem* problem,bool restart,const int* deviceRestart){
     auto& d=*data_;using executionGraphDetail::appendCaptured;using executionGraphDetail::addWhile;
     cudaGraphConditionalHandle handle;checked(cudaGraphConditionalHandleCreate(&handle,graph,0,cudaGraphCondAssignDefault));
     auto previous=appendCaptured(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},d.capture,[&]{
-        initializeSweepSearch<<<1,1,0,d.capture>>>(problem,d.operation.pointer,d.state.pointer,restart,handle);
+        initializeSweepSearch<<<1,1,0,d.capture>>>(problem,d.operation.pointer,d.state.pointer,restart,handle,deviceRestart);
     });
     cudaGraph_t body=nullptr;previous=addWhile(graph,handle,{previous},body);
     appendCaptured(body,{},d.capture,[&]{

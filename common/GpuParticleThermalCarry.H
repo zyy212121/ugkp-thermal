@@ -10,8 +10,8 @@
 
 namespace ugkwp
 {
-// The residual is specific enthalpy [J/kg], never a temperature or an intended
-// exchange counter. Both components together are the represented thermal state.
+
+
 template<class TemperatureStorage>
 struct ParticleThermalCarry
 {
@@ -43,9 +43,9 @@ UGKWP_THERMAL_CARRY_HD inline double effectiveParticleTemperature
     return caloric.temperature(effectiveParticleEnthalpy(state,caloric));
 }
 
-// Compute a candidate completely before changing either component. Caloric must
-// provide mutually consistent double enthalpy(T) and temperature(h) operations.
-// The caller pairs acceptedSpecificHeat with its other phase and commits only
+
+
+
 
 
 template<bool LimitAcceptedHeat, bool TerminalPublication = false, class Storage,class Caloric>
@@ -90,8 +90,8 @@ UGKWP_THERMAL_CARRY_HD inline ParticleThermalPublication publishParticleThermalH
     if (published<minimumTemperature) published=minimumTemperature;
     if (published>maximumTemperature) published=maximumTemperature;
     const double publishedBase=caloric.enthalpy(double(published));
-    // Do not form target-publishedBase: that would discard sub-double-ULP heat
-    // when it was first added to the large base. Keep the small component local.
+
+
     const double publishedResidual=((base-publishedBase)+residual)+accepted;
     const double actual=(publishedBase-base)+(publishedResidual-residual);
     if (!TerminalPublication && (!finiteThermalCarry(publishedBase)||!finiteThermalCarry(publishedResidual)

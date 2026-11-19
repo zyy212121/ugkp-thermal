@@ -208,19 +208,19 @@ def test_characterize_actual_drag_publications_and_existing_model_residual(probe
         input_cache_remainder += .5*ms*(from_cached_input-frozen_particle)*(from_cached_input+frozen_particle)
         expected_momentum[axis] = ms*(frozen_particle-coupled_particle)
         expected_energy += .5*ms*(frozen_particle-coupled_particle)*(frozen_particle+coupled_particle)
-        # Explicit particle publication checks distinguish it from intended gas-side state.
+
         assert math.isclose(b['p'+axis], frozen_particle,
                             rel_tol=0, abs_tol=4*(2**-52)*(abs(ug)+abs(up-ug)+1))
     delta = changes(o)
-    # This is a positive diagnosis of a preexisting model mismatch, not a relaxed
+
 
     assert abs(delta['x']) > 1
     assert abs(delta['energy']) > 1
     for axis in 'xyz':
         tolerance = .000001
         assert abs(delta[axis]-expected_momentum[axis]) < tolerance
-    # A forward-error bound scales with the stored mechanical background and
-    # native precision. It diagnoses model identity, not energy conservation.
+
+
     native_epsilon = 2**(-52)
     mechanical_scale = float(budget(a)['mechanical'])
     arithmetic_budget = 4*native_epsilon*(1+mechanical_scale)+1.2e-7
@@ -242,7 +242,7 @@ def test_actual_theta_publication_is_measured_in_total_budget(probe):
     assert b['temperature'] == a['temperature']
     delta = changes(o)
     assert delta['x'] == delta['y'] == delta['z'] == 0
-    # The gas gain is compared with the actual particle theta write, not alpha*dI.
+
     assert abs(delta['energy']) < 1.2e-7
     print(json.dumps({'bits': 64, 'scenario': 4, 'actual': delta}, sort_keys=True))
 

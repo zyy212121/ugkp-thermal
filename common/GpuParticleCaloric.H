@@ -6,8 +6,8 @@
 #define UGKWP_PARTICLE_CALORIC_HD
 #endif
 namespace ugkwp {
-// Double caloric scratch, independent of particle/transport storage precision.
-// The caller selects the existing ordinary or active cold-profile law.
+
+
 struct ParticleCaloric {
  bool phaseChange=false;
  double meltingTemperature=2327.0, mushyRange=20.0, latentHeat=0.0, solidCp=0.0;
@@ -29,16 +29,16 @@ struct ParticleCaloric {
   const double ts=solidus(),tl=liquidus(),hs=solidCp*ts;
   if(t<=ts)return solidCp*t;
   if(t<=tl)return hs+mushyCp()*(t-ts);
-  // Same existing cold-wall caloric law, including its endpoint trapezoid.
+
   return hs+mushyCp()*mushyRange+0.5*(liquidCp(tl)+liquidCp(t))*(t-tl);
  }
  UGKWP_PARTICLE_CALORIC_HD double specificHeat(double t)const {
   if(!phaseChange)return liquidCp(t);
   return t<=solidus()?solidCp:(t<liquidus()?mushyCp():liquidCp(t));
  }
- // Derivative of the stored enthalpy law. Above the phase liquidus the
- // existing endpoint trapezoid is authoritative, including outside the
- // tabulated liquid-Cp interval; specificHeat() retains its original meaning.
+
+
+
  UGKWP_PARTICLE_CALORIC_HD double enthalpyDerivative(double t)const {
   if(!phaseChange)return liquidCp(t);
   if(t<=solidus())return solidCp;
@@ -46,8 +46,8 @@ struct ParticleCaloric {
   const double slope=t>=2327.&&t<4000.?0.0031/0.101961276:0.;
   return .5*(liquidCp(liquidus())+liquidCp(t))+.5*slope*(t-liquidus());
  }
- // Exact integral of the existing piecewise-linear heat-capacity law,
- // evaluated on the small interval rather than subtracting large H values.
+
+
  UGKWP_PARTICLE_CALORIC_HD double enthalpyIncrement(double t,double deltaT)const {
   if(deltaT==0.)return 0.;
   const bool reverse=deltaT<0.;
@@ -84,7 +84,7 @@ struct ParticleCaloric {
   const double ts=solidus(),tl=liquidus(),hs=solidCp*ts,hl=hs+mushyCp()*mushyRange;
   if(h<=hs)return h/solidCp;
   if(h<=hl)return ts+(h-hs)/mushyCp();
-  // Invert each linear/quadratic segment of the existing trapezoidal law.
+
   double lo=tl;
   for(int k=0;k<3;++k){
    const double hi=lo<2327.0?2327.0:(lo<4000.0?4000.0:1.7976931348623157e308);

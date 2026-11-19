@@ -8,9 +8,9 @@
 #define UGKP_RAD_RESPONSE_HD
 #endif
 namespace ugkp { namespace gpu {
-// Borrowed resident arrays. A deviceView resolves the owner's current arrays
-// after buffer swaps, without publishing their pointer parity to the host.
-// Only active, freely moving particles participate, using their ordinary caloric law.
+
+
+
 struct ParticleRadiationResponseView {
     bool enabled=false;int capacity=0;
     const int *count=nullptr,*cell=nullptr,*status=nullptr,*cellOffsets=nullptr;
@@ -25,13 +25,13 @@ UGKP_RAD_RESPONSE_HD inline ParticleRadiationResponseView resolveParticleRadiati
 }
 struct CaloricRadiationSample {double temperature=0,energy=0,mass=0;};
 UGKP_RAD_RESPONSE_HD inline double radiationSpecificCapacity(double base,double lower,double upper,bool heating,double carry=0.){
-    // Subtract the large enthalpies before applying the sub-ULP carry.
+
     return heating?radiationMath::radiationMaximum(0.,(upper-base)-carry)
         :-radiationMath::radiationMaximum(0.,(base-lower)+carry);
 }
-// The fraction is the same fraction of each parcel's available specific
-// enthalpy used by the resident publication. Heterogeneous initial temperatures
-// and sub-temperature-ULP enthalpy carries are retained, never homogenised.
+
+
+
 struct IndexedParticleRadiationResponse {
     ParticleRadiationResponseView view;const int* indices;int begin,end;
     UGKP_RAD_RESPONSE_HD CaloricRadiationSample operator()(double fraction,bool heating)const {
@@ -62,16 +62,16 @@ UGKP_RAD_RESPONSE_HD CaloricRadiationResult solveCaloricParticleRadiation(
     const auto bound=response(1.,heating);const double capacity=sign*bound.energy;
     if(!(capacity>0))return {old.temperature,0,-elapsed*initialPower,0,0};
     const auto fractionPower=[&](double fraction){return sign*power(response(fraction,heating).temperature);};
-    // Retain the existing endpoint choice when the full interval does not
-    // bracket a root. Multi-root/temperature-limit policy is a separate issue.
+
+
     double lo=0.,hi=1.,rlo=-elapsed*sign*initialPower;
     const double rhi=capacity-elapsed*fractionPower(hi);
     double fraction=0.;int iterations=0;
     if(!radiationMath::oppositeSigns(rlo,rhi))
         fraction=std::abs(rlo)<=std::abs(rhi)?lo:hi;
     else {
-        // An exchange-sized first trial keeps arbitrarily weak, representable
-        // heat away from an error floor proportional to the full capacity.
+
+
         fraction=radiationMath::radiationMinimum(1.,elapsed*sign*initialPower/capacity);
         for(iterations=1;iterations<=maximumIterations;++iterations){
             const double exchange=capacity*fraction,source=elapsed*fractionPower(fraction);
@@ -81,7 +81,7 @@ UGKP_RAD_RESPONSE_HD CaloricRadiationResult solveCaloricParticleRadiation(
             if(radiationMath::oppositeSigns(rlo,residual))hi=fraction;
             else {lo=fraction;rlo=residual;}
             const double next=lo+(hi-lo)*.5;
-            if(next==lo||next==hi)break; // representable fraction interval exhausted
+            if(next==lo||next==hi)break;
             fraction=next;
         }
     }

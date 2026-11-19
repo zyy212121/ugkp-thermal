@@ -20,7 +20,7 @@ def module(name):
 
 def test_reference_uses_exact_finite_volume_average():
     ref = module("reference")
-    # Over [0, L/4], integral sin(2*pi*x/L) / width = 2/pi.
+
     actual = ref.species_cell_average(0.0, 0.25, 0.0, length=1.0,
         velocity=0.0, diffusivity=0.0, mean=0.5, amplitude=0.2)
     assert math.isclose(actual, 0.5 + 0.2*2/math.pi, abs_tol=1e-15)
@@ -60,7 +60,7 @@ def test_comparison_checks_both_species_and_conservative_bulk(tmp_path):
     assert metrics["species_linf"] < 2e-15
     assert metrics["max_relative_bulk_error"] < 2e-14
     text = (tmp_path / "0/Y_B").read_text().replace("\n0.5", "\n0.6", 1)
-    # Replace an actual scalar to ensure the checker is not reference-only.
+
     values = ref.read_scalar_field(tmp_path / "0/Y_B", 16)
     text = text.replace(format(values[0], ".17g"), "0.9", 1)
     (tmp_path / "0/Y_B").write_text(text)

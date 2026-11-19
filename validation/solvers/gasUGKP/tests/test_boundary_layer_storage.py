@@ -57,7 +57,7 @@ state.gasSpecies.mode=ugkwp::GasMode::MixtureFrozen;state.gasSpecies.diffusivity
 ugkwpGpu::BoundaryLayerConfigV1 a;a.model=0;a.speciesCount=2;a.wallCount=1;a.quadratureCount=1;a.matchingCount=1;a.workspaceSlots=64;
 int faces[]={0},offset[]={0,1},match[]={1};double geometry[]={1,0,0,.5,1.5,1,.5},qd[]={.5},qw[]={1},mw[]={1},flux[]={.2,.1};
 auto configure=[&](){return ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&state,&a,faces,offset,offset,match,geometry,qd,qw,mw,flux);};
-// Existing transaction storage is replaced when the wall layout changes.
+
 {auto& snapshot=state.gasTrial.trial;
 assert(!allocateSharedGasZero(snapshot.cells,1));assert(configure()==0);assert(!snapshot.cells);releaseBoundaryLayerStorage(state);assert(allocations==0);}
 geometry[5]=2;assert(configure()==0);assert(state.gasBoundaryLayerModel.input[0].quadrature.volume==2);releaseBoundaryLayerStorage(state);geometry[5]=1;
@@ -80,7 +80,7 @@ assert(ugkwpGpuResidentStrictDownloadBoundaryLayerV1(&state,1,2,diagnostics)==0)
 assert(ugkwpGpu::boundaryLayerDiagnosticScalars==25&&diagnostics[25]==7&&diagnostics[28]==11);
 for(int j=16;j<25;++j)assert(diagnostics[j]==0);
 releaseBoundaryLayerStorage(state);assert(allocations==0);
-// Production requests no auxiliary source points or cell-wide audit arrays.
+
 a.quadratureCount=0;int emptyQ[]={0,0};
 assert(ugkwpGpuResidentStrictConfigureBoundaryLayerV1(&state,&a,faces,emptyQ,offset,match,geometry,nullptr,nullptr,mw,flux)==0);
 assert(!state.gasWallQuadratureDistance&&!state.gasWallQuadratureWeight);

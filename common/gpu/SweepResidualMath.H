@@ -8,9 +8,9 @@
 #endif
 namespace ugkp { namespace gpu { namespace geometry {
 UGKP_SWEEP_RESIDUAL_HD inline double sweepResidualAbsolute(double x){return x<0?-x:x;}
-// Dimensionless reporting cannot invalidate a representable physical residual.
-// CUDA's correctly rounded FP64 divide is saturated at the same finite bound
-// as the native extended-range quotient; no single precision is introduced.
+
+
+
 UGKP_SWEEP_RESIDUAL_HD inline double sweepResidualRatio(double residual,double tolerance){
     if(!std::isfinite(residual)||residual<0||!(tolerance>0))return std::numeric_limits<double>::quiet_NaN();
     const double limit=std::numeric_limits<double>::max();

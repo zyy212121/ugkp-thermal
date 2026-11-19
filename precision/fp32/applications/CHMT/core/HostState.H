@@ -1,6 +1,7 @@
 #ifndef CHMT_CORE_HOSTSTATE_H
 #define CHMT_CORE_HOSTSTATE_H
 #include "Configuration.H"
+#include "AcceptedLedger.H"
 #include "../../../common/SharedSnapshotVector.H"
 #include <vector>
 #include <array>
@@ -74,7 +75,7 @@ struct HostDynamicState {
     std::vector<EnergyReal> normalAcceptedWallHeat{};
 
 
-    ugkp::SharedSnapshotVector<ExchangePacket> ledger{};std::vector<FilmPressureVolumeUpdate> filmStorage{};
+    AcceptedLedger ledger{};std::vector<FilmPressureVolumeUpdate> filmStorage{};
 
 
 

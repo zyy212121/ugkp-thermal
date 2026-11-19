@@ -26,8 +26,8 @@ int main(){
  assert(!diagnostics.fatalClaim);
  for(auto& warning:diagnostics.warnings)assert(warning.count==0);
  std::cout<<"residual_calls="<<residualCalls<<" storage_calls="<<storageCalls<<std::endl;
- assert(residualCalls>=o.iterations+1&&residualCalls<=2*o.iterations+3); // Initial/accepted/rejected residuals, without a fixed Newton trajectory.
- assert(storageCalls==0); // Complete immutable tables have no temperature-dependent gaps.
+ assert(residualCalls>=o.iterations+1&&residualCalls<=2*o.iterations+3);
+ assert(storageCalls==0);
 }
 """)
     exe=tmp_path/'work'

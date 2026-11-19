@@ -1,4 +1,4 @@
-// Included inside ugkp::gpu::geometry after common geometry/bounds operators.
+
 namespace {
 __global__ void resetSurfaceGeometry(const double* interval,int edges,const SurfaceSeamStatus* seams,SurfaceGeometryStatus* status){
     if(threadIdx.x||blockIdx.x)return;*status={};status->first=~0ull;status->edgeCount=seams?seams->count:edges;status->firstWarning=status->edgeCount;
@@ -67,7 +67,7 @@ ResidentSurfaceGeometry::ResidentSurfaceGeometry(const std::vector<SurfaceFaceMa
     d.mapping.reserve(faces.size());if(!faces.empty())checked(cudaMemcpy(d.mapping.pointer,faces.data(),faces.size()*sizeof(SurfaceFaceMap),cudaMemcpyHostToDevice));
     d.face.reserve(faces.size());d.edge.reserve(edges);d.status.reserve(1);if(edges)d.bounds.reserve((points+workPlan().reductionBlockThreads-1)/workPlan().reductionBlockThreads);
     if(edges)checked(cudaMemset(d.edge.pointer,0,edges*sizeof(EdgeResult)));
-    // Construction completes before callers may use a nonblocking stream.
+
     checked(cudaStreamSynchronize(nullptr));
 }
 ResidentSurfaceGeometry::~ResidentSurfaceGeometry()=default;

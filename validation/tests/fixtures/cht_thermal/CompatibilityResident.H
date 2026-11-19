@@ -1,4 +1,4 @@
-// Test-only resident boundary. All CPU thermal owners remain production code.
+
 #ifndef C05_COMPATIBILITY_RESIDENT_H
 #define C05_COMPATIBILITY_RESIDENT_H
 #include "fvCFD.H"
@@ -10,8 +10,8 @@
 #include <stdexcept>
 #include "ResidentRadiationFixture.H"
 namespace Foam {
-// Legacy test-only ABI supports the immutable original owner. Production's
-// reduced metadata remains unchanged; these recording files are not codecs.
+
+
 struct GpuThermalRestartMirrorMetadata {
  fileName particleFile,epsGPrevFile,sourceResidualFile;
  label particleCount{0},epsGPrevCount{0},sourceResidualCount{0};

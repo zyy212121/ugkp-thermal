@@ -1,6 +1,6 @@
 #pragma once
-// Shared stage timing, failure publication and final sample lifecycle.
-// The detailed scheduling schema is a compile-time field capability.
+
+
 template<bool IncludesScheduling, class State, class Sample>
 inline int publishDevelopmentProbeScheduling(const State* state, Sample& sample)
 {

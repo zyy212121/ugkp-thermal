@@ -4,6 +4,7 @@
 #include <cmath>
 #include "ParticlePhaseConfiguration.H"
 #include <cuda_runtime_api.h>
+#include "ParticleResidentInterval.H"
 #include "gasTransport/GasStateView.H"
 #include "gasTransport/GasBuildConfig.H"
 namespace ugkp { namespace thermal {
@@ -58,4 +59,12 @@ int orderGasAfterParticlePhase(void* particleOwner,cudaStream_t gasStream);
 
 
 int advanceBoundParticlePhase(void* particleOwner,double dt,double endTime,cudaStream_t gasStream);
+
+
+struct BoundParticleMirror {const void* activeCells=nullptr;int baseReady=0;};
+cudaGraphNode_t appendBoundParticlePhase(void*,cudaGraph_t,cudaGraphNode_t,
+    const ugkwp::ParticleResidentInterval*,cudaStream_t);
+int enqueueBoundParticleMirror(void*,BoundParticleMirror*,cudaStream_t);
+int acceptBoundParticleMirror(void*,const BoundParticleMirror&);
+
 }}

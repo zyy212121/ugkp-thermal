@@ -4,6 +4,9 @@
 #include "reconstruction/GeneralEnergyIdentity.H"
 namespace ugkwp { namespace gaswall { namespace coherent {
 using namespace reconstruction;
+
+
+constexpr int maximumBranchProbes=8;
 struct BoundaryTransform {int column=0,lo=0,hi=0;GpuReal diagonal=0;GpuReal values[35]{};};
 
 template<int M> struct Cache {
@@ -79,12 +82,26 @@ UGKWP_GAS_HD bool closeFirstFace(Profile&p,const GpuReal*speciesFlux,GpuReal wal
  auto evaluate=[&](const GpuReal*v,GpuReal*r){auto candidate=out;candidate.conductiveHeatFlux=v[0];for(int a=0;a<3;++a){candidate.traction[a]=0;for(int d=0;d<2;++d)candidate.traction[a]+=v[d+1]*p.ctx.tangent[d][a];}p.setWallFlux(candidate,wallBasis);bool valid=true;auto f=resistanceFace(p,0,speciesFlux,nullptr,nullptr,&valid);r[0]=f.energy-wallEnergy-v[0];for(int d=0;d<2;++d){GpuReal tau=p.ctx.mass*p.ctx.wallU[d];for(int a=0;a<3;++a)tau-=f.momentum[a]*p.ctx.tangent[d][a];r[d+1]=tau-v[d+1];}return valid;};
  auto magnitude=[](const GpuReal*r){return std::max(std::abs(r[0]),std::max(std::abs(r[1]),std::abs(r[2])));};
  GpuReal r[3];bool valid=evaluate(x,r);closure=magnitude(r);const GpuReal tolerance=p.cfg.absoluteTolerance+p.cfg.relativeTolerance;
- for(int iteration=0;valid&&closure>tolerance&&iteration<p.cfg.maxIterations;++iteration){GpuReal jac[3][3],step[3]={-r[0],-r[1],-r[2]};bool derivativeValid=true;
+ int localSearches=p.cfg.maxIterations>0?p.cfg.maxIterations:1;
+ for(int iteration=0;valid&&closure>tolerance&&iteration<p.cfg.maxIterations&&localSearches>0;++iteration){GpuReal jac[3][3],step[3]={-r[0],-r[1],-r[2]};bool derivativeValid=true;
  for(int j=0;j<3;++j){GpuReal v[3]={x[0],x[1],x[2]},rr[3],h=std::sqrt(std::numeric_limits<GpuReal>::epsilon())*std::max(1.f,std::abs(x[j]));v[j]+=h;bool evaluated=evaluate(v,rr);if(!evaluated){h=-h;v[j]=x[j]+h;evaluated=evaluate(v,rr);}derivativeValid=derivativeValid&&evaluated;for(int i=0;i<3;++i)jac[i][j]=(rr[i]-r[i])/(v[j]-x[j]);}
  bool invertible=derivativeValid;for(int k=0;k<3&&invertible;++k){int pivot=k;for(int i=k+1;i<3;++i)if(std::abs(jac[i][k])>std::abs(jac[pivot][k]))pivot=i;if(jac[pivot][k]==0||!std::isfinite(jac[pivot][k])){invertible=false;break;}if(pivot!=k){for(int j=k;j<3;++j)swapValue(jac[pivot][j],jac[k][j]);swapValue(step[pivot],step[k]);}for(int i=k+1;i<3;++i){GpuReal t=jac[i][k]/jac[k][k];for(int j=k+1;j<3;++j)jac[i][j]-=t*jac[k][j];step[i]-=t*step[k];}}
  if(invertible)for(int i=2;i>=0;--i){for(int j=i+1;j<3;++j)step[i]-=jac[i][j]*step[j];step[i]/=jac[i][i];}
- bool accepted=false;for(int direction=0;direction<2&&!accepted;++direction){if(direction==0&&!invertible)continue;if(direction==1)for(int i=0;i<3;++i)step[i]=r[i];GpuReal alpha=1;for(int line=0;line<p.cfg.numerics.maximumLineSearchIterations;++line){GpuReal v[3],rr[3];for(int i=0;i<3;++i)v[i]=x[i]+alpha*step[i];bool evaluated=evaluate(v,rr);GpuReal next=magnitude(rr);if(evaluated&&std::isfinite(next)&&next<closure){for(int i=0;i<3;++i){x[i]=v[i];r[i]=rr[i];}closure=next;accepted=true;break;}alpha*=p.cfg.numerics.lineSearchReduction;}}
- if(!accepted)break;
+
+
+ if(!invertible)for(int i=0;i<3;++i)step[i]=r[i];
+ const GpuReal oldClosure=closure;GpuReal origin[3]={x[0],x[1],x[2]},alpha=1,best=0;
+ bool available=false,improved=false;
+ for(int line=0;line<p.cfg.numerics.maximumLineSearchIterations&&localSearches>0;++line){
+  --localSearches;GpuReal v[3],rr[3];for(int i=0;i<3;++i)v[i]=origin[i]+alpha*step[i];
+  const bool evaluated=evaluate(v,rr);const GpuReal next=magnitude(rr);
+  if(evaluated&&std::isfinite(next)){
+   if(!available||next<best){for(int i=0;i<3;++i){x[i]=v[i];r[i]=rr[i];}closure=next;best=next;available=true;}
+   if(next<oldClosure){improved=true;break;}
+  }
+  alpha*=p.cfg.numerics.lineSearchReduction;
+ }
+ if(!improved)break;
  }
 
 
@@ -144,9 +161,15 @@ UGKWP_GAS_HD bool publish(const Input&in,const Config&cfg,W&w,const Ctx&ctx,int 
  return completePublication(in,cfg,w,ctx,p,iterations,norm,out,totalR,totalStress,totalAdvective,physicalValid);
 }
 template<class Stats> UGKWP_GAS_HD bool solve(const Input&in,const Config&originalConfig,W&w,Cache<M>&cache,WallOutput<GpuReal,2>&out,Stats&stats){
- auto cfg=originalConfig;cfg.coherentDiscretization=true;bool ok=true;int seedIts=0;if(!cache.haveState){WallStatus status;ok=evaluateWallModel(in,cfg,w,out,status);seedIts=out.iterations;}Ctx ctx;detail::makeContext(in,cfg,ctx);{int e=cfg.nodes-1;w.state[e][0]=ctx.edgeU[0];w.state[e][1]=ctx.edgeU[1];w.state[e][2]=in.matching.temperature-in.temperature;w.state[e][3]=in.matching.massFraction[ctx.independent[0]];w.state[e][4]=cfg.enableSst?std::sqrt(in.matching.k):0;w.state[e][5]=cfg.enableSst?1/std::sqrt(in.matching.omega):1;}for(int i=0;i<cfg.nodes;++i)w.y[i]=in.matchingDistance*std::pow(GpuReal(i)/(cfg.nodes-1),cfg.stretch);GpuReal norm=0;int evaluations=0,its=0;ok=refresh(in,cfg,w,ctx,norm,out)&&ok;++evaluations;GpuReal maxOffBand=0;
+ auto cfg=originalConfig;cfg.coherentDiscretization=true;bool ok=true;int seedIts=0;Ctx ctx;
+ if(!cache.haveState){WallStatus status;
+  if(cfg.model==BoundaryLayerModel::ReactingSst)ok=initializeReactingWallLayer(in,cfg,w,ctx,status);
+  else{ok=evaluateWallModel(in,cfg,w,out,status);seedIts=out.iterations;ok=detail::makeContext(in,cfg,ctx)&&ok;}
+ }else ok=detail::makeContext(in,cfg,ctx);
+ if(!ok)return false;{int e=cfg.nodes-1;w.state[e][0]=ctx.edgeU[0];w.state[e][1]=ctx.edgeU[1];w.state[e][2]=in.matching.temperature-in.temperature;w.state[e][3]=in.matching.massFraction[ctx.independent[0]];w.state[e][4]=cfg.enableSst?std::sqrt(in.matching.k):0;w.state[e][5]=cfg.enableSst?1/std::sqrt(in.matching.omega):1;}for(int i=0;i<cfg.nodes;++i)w.y[i]=in.matchingDistance*std::pow(GpuReal(i)/(cfg.nodes-1),cfg.stretch);GpuReal norm=0;int evaluations=0,its=0;ok=refresh(in,cfg,w,ctx,norm,out)&&ok;++evaluations;GpuReal maxOffBand=0;
  const int n=cfg.nodes*6;auto&lu=cache.factors;auto&cachedScale=cache.scale;int jacobianBuilds=0;auto&base=s.base;auto&res=s.res;auto&a=s.matrix;auto&rhs=s.rhs;auto&scale=s.scale;auto&plus=s.plus;auto&probe=s.probe;auto&trialOut=s.trialOut;base.resize(n);res.resize(n);rhs.resize(n);scale.resize(n);plus.resize(n);
- while(ok&&norm>cfg.absoluteTolerance+cfg.relativeTolerance&&its<cfg.maxIterations){
+ int searchesRemaining=cfg.maxIterations>0?cfg.maxIterations:1;
+ while(ok&&norm>cfg.absoluteTolerance+cfg.relativeTolerance&&its<cfg.maxIterations&&searchesRemaining>0){
  for(int j=0;j<n;++j){base[j]=w.state[j/6][j%6];res[j]=w.residual[j/6][j%6];rhs[j]=-res[j];}
  auto branches=hermiteBranches(cfg,w);const int mask=(cfg.enableSst&&ctx.mass>0?1:0)|(in.adiabatic?2:0);bool fresh=!lu.valid||lu.n!=n||cache.dirichletMask!=mask||!cache.haveState||branches!=cache.branches;if(fresh){collectNutBranches=true;bool branchBaseValid=refresh(in,cfg,w,ctx,norm,out);++evaluations;if(!branchBaseValid){ok=false;collectNutBranches=false;break;}auto&baseNutBranches=s.baseNutBranches;baseNutBranches=currentNutBranches;++jacobianBuilds;a.assign(n*n,0.f);auto&steps=s.steps;steps.resize(n);
  for(int col=0;col<6&&ok;++col)for(int color=0;color<5&&ok;++color){copyActive(cfg,probe,w);
@@ -166,7 +189,7 @@ template<class Stats> UGKWP_GAS_HD bool solve(const Input&in,const Config&origin
    valid=refresh(in,cfg,probe,ctx,nn,trialOut);++evaluations;
   }
  }
- int branchHalves=0;while(valid&&(currentNutBranches!=baseNutBranches||!pchipFdCompatible(cfg,w,probe))){copyActive(cfg,probe,w);bool changed=false;for(int node=color;node<cfg.nodes;node+=5){int j=node*6+col;GpuReal h=steps[j]/2,old=base[j];probe.state[node][col]=old+h;GpuReal actual=probe.state[node][col]-old;if(actual!=0&&actual!=steps[j]){steps[j]=actual;changed=true;}else probe.state[node][col]=old+steps[j];}if(!changed){++s.fdRoundoff;break;}valid=refresh(in,cfg,probe,ctx,nn,trialOut);++evaluations;++branchHalves;}s.fdBranchHalves+=branchHalves;
+ int branchHalves=0;while(branchHalves<maximumBranchProbes&&valid&&(currentNutBranches!=baseNutBranches||!pchipFdCompatible(cfg,w,probe))){copyActive(cfg,probe,w);bool changed=false;for(int node=color;node<cfg.nodes;node+=5){int j=node*6+col;GpuReal h=steps[j]/2,old=base[j];probe.state[node][col]=old+h;GpuReal actual=probe.state[node][col]-old;if(actual!=0&&actual!=steps[j]){steps[j]=actual;changed=true;}else probe.state[node][col]=old+steps[j];}if(!changed){++s.fdRoundoff;break;}valid=refresh(in,cfg,probe,ctx,nn,trialOut);++evaluations;++branchHalves;}s.fdBranchHalves+=branchHalves;
  bool fallback=!valid||currentNutBranches!=baseNutBranches||!pchipFdCompatible(cfg,w,probe);
  for(int node=color;node<cfg.nodes;node+=5){int j=node*6+col;bool zero=col==4&&base[j]!=0;int lo=std::max(0,node-2),hi=std::min(cfg.nodes-1,node+2);for(int i=lo;i<=hi;++i)if(probe.residual[i][4]!=res[i*6+4])zero=false;
  bool fullZero=true;for(int i=lo*6;i<(hi+1)*6;++i)if(probe.residual[i/6][i%6]!=res[i])fullZero=false;
@@ -182,10 +205,10 @@ template<class Stats> UGKWP_GAS_HD bool solve(const Input&in,const Config&origin
   h=directionH;valid=false;
  for(int attempt=0;attempt<2&&!valid;++attempt){copyActive(cfg,probe,w);probe.state[node][col]=old+h;valid=refresh(in,cfg,probe,ctx,nn,trialOut);++evaluations;if(!valid)h=col==3?h/2:-h;}
  }
- while(valid&&(currentNutBranches!=baseNutBranches||!pchipFdCompatible(cfg,w,probe))){GpuReal nextH=h/2;if(old+nextH==old||old+nextH==old+h){++s.fdRoundoff;break;}h=nextH;copyActive(cfg,probe,w);probe.state[node][col]=old+h;valid=refresh(in,cfg,probe,ctx,nn,trialOut);++evaluations;}
+ for(int branchProbe=0;branchProbe<maximumBranchProbes&&valid&&(currentNutBranches!=baseNutBranches||!pchipFdCompatible(cfg,w,probe));++branchProbe){GpuReal nextH=h/2;if(old+nextH==old||old+nextH==old+h){++s.fdRoundoff;break;}h=nextH;copyActive(cfg,probe,w);probe.state[node][col]=old+h;valid=refresh(in,cfg,probe,ctx,nn,trialOut);++evaluations;}
  if(!valid){ok=false;++s.fdFailures;break;}GpuReal actual=probe.state[node][col]-old;bool zero=col==4&&old!=0;for(int i=0;i<cfg.nodes;++i)if(probe.residual[i][4]!=res[i*6+4])zero=false;
  for(int i=0;i<n;++i)plus[i]=probe.residual[i/6][i%6];
- if(zero){++s.centralDirections;h=std::cbrt(std::numeric_limits<GpuReal>::epsilon())*std::max(std::abs(old),std::sqrt(std::max(1.f,in.matching.k)));while(true){copyActive(cfg,probe,w);probe.state[node][col]=old+h;valid=refresh(in,cfg,probe,ctx,nn,trialOut);++evaluations;bool samePlus=currentNutBranches==baseNutBranches&&pchipFdCompatible(cfg,w,probe);for(int i=0;i<n;++i)plus[i]=probe.residual[i/6][i%6];GpuReal hp=probe.state[node][col]-old;copyActive(cfg,probe,w);probe.state[node][col]=old-h;valid=refresh(in,cfg,probe,ctx,nn,trialOut)&&valid;++evaluations;actual=hp-(probe.state[node][col]-old);if(!valid){ok=false;break;}if(samePlus&&currentNutBranches==baseNutBranches&&pchipFdCompatible(cfg,w,probe))break;GpuReal nextH=h/2;if(old+nextH==old||old-nextH==old||old+nextH==old+h){++s.fdRoundoff;break;}h=nextH;}if(!ok)break;}
+ if(zero){++s.centralDirections;h=std::cbrt(std::numeric_limits<GpuReal>::epsilon())*std::max(std::abs(old),std::sqrt(std::max(1.f,in.matching.k)));for(int branchProbe=0;branchProbe<maximumBranchProbes;++branchProbe){copyActive(cfg,probe,w);probe.state[node][col]=old+h;valid=refresh(in,cfg,probe,ctx,nn,trialOut);++evaluations;bool samePlus=currentNutBranches==baseNutBranches&&pchipFdCompatible(cfg,w,probe);for(int i=0;i<n;++i)plus[i]=probe.residual[i/6][i%6];GpuReal hp=probe.state[node][col]-old;copyActive(cfg,probe,w);probe.state[node][col]=old-h;valid=refresh(in,cfg,probe,ctx,nn,trialOut)&&valid;++evaluations;actual=hp-(probe.state[node][col]-old);if(!valid){ok=false;break;}if(samePlus&&currentNutBranches==baseNutBranches&&pchipFdCompatible(cfg,w,probe))break;GpuReal nextH=h/2;if(old+nextH==old||old-nextH==old||old+nextH==old+h){++s.fdRoundoff;break;}h=nextH;}if(!ok)break;}
 
  scale[j]=std::max(std::abs(old),vs);for(int i=0;i<n;++i){a[i*n+j]=(plus[i]-(zero?probe.residual[i/6][i%6]:res[i]))/actual*scale[j];if(std::abs(i/6-node)>2)maxOffBand=std::max(maxOffBand,std::abs(a[i*n+j]));}}
 }
@@ -203,9 +226,13 @@ template<class Stats> UGKWP_GAS_HD bool solve(const Input&in,const Config&origin
  }else scale=cachedScale;
  for(const auto&t:cache.boundary){int j=t.column;GpuReal step=rhs[j]/t.diagonal;for(int i=t.lo;i<t.hi;++i)if(i!=j)rhs[i]-=t.values[i-t.lo]*step;rhs[j]=step;}
  lu.solve(rhs);
- GpuReal previousNorm=norm;GpuReal alpha=1,next=norm;bool accepted=false;for(int line=0;line<cfg.numerics.maximumLineSearchIterations;++line){copyActive(cfg,probe,w);bool feasible=true;for(int i=0;i<n;++i)probe.state[i/6][i%6]=base[i]+alpha*rhs[i]*scale[i];for(int i=0;i<cfg.nodes;++i)feasible=detail::feasibleLayerComposition<GpuReal,2>(probe.state[i])&&feasible;
- bool valid=false;if(feasible){valid=refresh(in,cfg,probe,ctx,next,trialOut);++evaluations;}if(valid&&std::isfinite(next)&&next<norm){copyActive(cfg,w,probe);out=trialOut;norm=next;accepted=true;break;}alpha*=cfg.numerics.lineSearchReduction;}
- ++its;if(!accepted){if(fresh)break;lu.valid=false;}else if(alpha<1||norm>previousNorm*cfg.numerics.jacobianRefreshReduction)lu.valid=false;
+ GpuReal previousNorm=norm;GpuReal alpha=1,next=norm,bestNorm=0;bool accepted=false,available=false;for(int line=0;line<cfg.numerics.maximumLineSearchIterations&&searchesRemaining>0;++line){--searchesRemaining;copyActive(cfg,probe,w);bool feasible=true;for(int i=0;i<n;++i)probe.state[i/6][i%6]=base[i]+alpha*rhs[i]*scale[i];for(int i=0;i<cfg.nodes;++i)feasible=detail::feasibleLayerComposition<GpuReal,2>(probe.state[i])&&feasible;
+ bool valid=false;if(feasible){valid=refresh(in,cfg,probe,ctx,next,trialOut);++evaluations;}if(valid&&std::isfinite(next)){
+   if(!available||next<bestNorm){copyActive(cfg,w,probe);out=trialOut;norm=next;bestNorm=next;available=true;}
+   if(next<previousNorm){accepted=true;break;}
+  }alpha*=cfg.numerics.lineSearchReduction;}
+ ++its;if(!accepted||norm>=previousNorm){lu.valid=false;break;}
+  if(alpha<1||norm>previousNorm*cfg.numerics.jacobianRefreshReduction)lu.valid=false;
  }
 
  cache.haveState=true;stats.iterations=seedIts+its;stats.residualEvaluations=evaluations;stats.factorizations=jacobianBuilds;stats.physicalResidual=norm;if(ok)ok=publish(in,cfg,w,ctx,seedIts+its,norm,out);stats.seconds=0;return ok;
@@ -312,14 +339,19 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
  }
  template<class Stats> UGKWP_GAS_HD bool solve(const Input&in,const Config&originalConfig,W&w,Cache<M>&cache,WallOutput<GpuReal,2>&out,Stats&stats){
   auto cfg=originalConfig;cfg.coherentDiscretization=true;bool ok=true;int seedIts=0;
-  if(!cache.haveState){WallStatus status;if(cfg.model==BoundaryLayerModel::ReactingSst)ok=evaluateReactingWallLayerImpl(in,cfg,w,out,status,team);else{if(team.leader())ok=evaluateWallModel(in,cfg,w,out,status);ok=team.broadcast(ok);}seedIts=out.iterations;}
-  Ctx ctx;detail::makeContext(in,cfg,ctx);
+  Ctx ctx;
+  if(!cache.haveState){WallStatus status;
+   if(cfg.model==BoundaryLayerModel::ReactingSst)ok=initializeReactingWallLayer(in,cfg,w,ctx,status,team);
+   else{if(team.leader())ok=evaluateWallModel(in,cfg,w,out,status);ok=team.broadcast(ok);seedIts=out.iterations;ok=team.all(detail::makeContext(in,cfg,ctx))&&ok;}
+  }else ok=team.all(detail::makeContext(in,cfg,ctx));
+  if(!team.broadcast(ok))return false;
   if(team.leader()){int e=cfg.nodes-1;w.state[e][0]=ctx.edgeU[0];w.state[e][1]=ctx.edgeU[1];w.state[e][2]=in.matching.temperature-in.temperature;w.state[e][3]=in.matching.massFraction[ctx.independent[0]];w.state[e][4]=cfg.enableSst?std::sqrt(in.matching.k):0;w.state[e][5]=cfg.enableSst?1/std::sqrt(in.matching.omega):1;}
   for(int i=team.rank();i<cfg.nodes;i+=team.size())w.y[i]=in.matchingDistance*std::pow(GpuReal(i)/(cfg.nodes-1),cfg.stretch);
   team.sync();GpuReal norm=0;int evaluations=0,its=0;ok=refresh(in,cfg,w,ctx,norm,out)&&ok;++evaluations;
   const int n=cfg.nodes*6;auto&lu=cache.factors;auto&cachedScale=cache.scale;int jacobianBuilds=0;auto&base=s.base;auto&res=s.res;auto&a=s.matrix;auto&rhs=s.rhs;auto&scale=s.scale;auto&plus=s.plus;auto&probe=s.probe;auto&trialOut=s.trialOut;
   if(team.leader()){base.resize(n);res.resize(n);rhs.resize(n);scale.resize(n);plus.resize(n);}team.sync();
-  while(ok&&norm>cfg.absoluteTolerance+cfg.relativeTolerance&&its<cfg.maxIterations){
+  int searchesRemaining=cfg.maxIterations>0?cfg.maxIterations:1;
+ while(ok&&norm>cfg.absoluteTolerance+cfg.relativeTolerance&&its<cfg.maxIterations&&searchesRemaining>0){
    for(int j=team.rank();j<n;j+=team.size()){base[j]=w.state[j/6][j%6];res[j]=w.residual[j/6][j%6];rhs[j]=-res[j];}team.sync();
    auto branches=hermiteBranches(cfg,w);const int mask=(cfg.enableSst&&ctx.mass>0?1:0)|(in.adiabatic?2:0);
    bool fresh=!lu.valid||lu.n!=n||cache.dirichletMask!=mask||!cache.haveState||branches!=cache.branches;
@@ -362,7 +394,7 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
       }
      }
      int branchHalves=0;
-     while(valid&&!sameBranches(cfg,w,probe)){
+     for(int branchProbe=0;branchProbe<maximumBranchProbes&&valid&&!sameBranches(cfg,w,probe);++branchProbe){
       copyActive(cfg,probe,w);bool changed=false;
       for(int node=color+5*team.rank();node<cfg.nodes;node+=5*team.size()){int j=node*6+col;GpuReal h=steps[j]/2,old=base[j];probe.state[node][col]=old+h;GpuReal actual=probe.state[node][col]-old;if(actual!=0&&actual!=steps[j]){steps[j]=actual;changed=true;}else probe.state[node][col]=old+steps[j];}
       changed=!team.all(!changed);if(!changed){if(team.leader())++s.fdRoundoff;team.sync();break;}
@@ -401,7 +433,7 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
         h=directionH;valid=false;
        for(int attempt=0;attempt<2&&!valid;++attempt){copyActive(cfg,probe,w);if(team.leader())probe.state[node][col]=old+h;team.sync();valid=refresh(in,cfg,probe,ctx,nn,trialOut);++evaluations;if(!valid)h=col==3?h/2:-h;}
        }
-       while(valid&&!sameBranches(cfg,w,probe)){
+       for(int branchProbe=0;branchProbe<maximumBranchProbes&&valid&&!sameBranches(cfg,w,probe);++branchProbe){
         GpuReal nextH=h/2;if(old+nextH==old||old+nextH==old+h){if(team.leader())++s.fdRoundoff;team.sync();break;}
         h=nextH;copyActive(cfg,probe,w);if(team.leader())probe.state[node][col]=old+h;team.sync();valid=refresh(in,cfg,probe,ctx,nn,trialOut);++evaluations;
        }
@@ -413,7 +445,7 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
        if(zero){
         if(team.leader())++s.centralDirections;
         h=std::cbrt(std::numeric_limits<GpuReal>::epsilon())*std::max(std::abs(old),std::sqrt(std::max(1.f,in.matching.k)));
-        while(true){
+        for(int branchProbe=0;branchProbe<maximumBranchProbes;++branchProbe){
          copyActive(cfg,probe,w);if(team.leader())probe.state[node][col]=old+h;team.sync();valid=refresh(in,cfg,probe,ctx,nn,trialOut);++evaluations;
          bool samePlus=sameBranches(cfg,w,probe);
          for(int i=team.rank();i<n;i+=team.size())plus[i]=probe.residual[i/6][i%6];
@@ -447,16 +479,20 @@ template<int M,class Team=detail::SerialWallTeam> struct Engine : ScalarEngine<M
    if(team.leader()){
     for(const auto&t:cache.boundary){int j=t.column;GpuReal step=rhs[j]/t.diagonal;for(int i=t.lo;i<t.hi;++i)if(i!=j)rhs[i]-=t.values[i-t.lo]*step;rhs[j]=step;}lu.solve(rhs);
    }
-   team.sync();GpuReal previousNorm=norm;GpuReal alpha=1,next=norm;bool accepted=false;
-   for(int line=0;line<cfg.numerics.maximumLineSearchIterations;++line){
+   team.sync();GpuReal previousNorm=norm;GpuReal alpha=1,next=norm,bestNorm=0;bool accepted=false,available=false;
+   for(int line=0;line<cfg.numerics.maximumLineSearchIterations&&searchesRemaining>0;++line){--searchesRemaining;
     copyActive(cfg,probe,w);bool feasible=true;
     for(int i=team.rank();i<n;i+=team.size())probe.state[i/6][i%6]=base[i]+alpha*rhs[i]*scale[i];
     team.sync();
     for(int i=team.rank();i<cfg.nodes;i+=team.size())feasible=detail::feasibleLayerComposition<GpuReal,2>(probe.state[i])&&feasible;
     feasible=team.all(feasible);bool valid=false;if(feasible){valid=refresh(in,cfg,probe,ctx,next,trialOut);++evaluations;}
-    if(valid&&std::isfinite(next)&&next<norm){copyActive(cfg,w,probe);if(team.leader())out=trialOut;norm=next;accepted=true;team.sync();break;}alpha*=cfg.numerics.lineSearchReduction;
+    if(valid&&std::isfinite(next)){
+     if(!available||next<bestNorm){copyActive(cfg,w,probe);if(team.leader())out=trialOut;norm=next;bestNorm=next;available=true;team.sync();}
+     if(next<previousNorm){accepted=true;break;}
+    }alpha*=cfg.numerics.lineSearchReduction;
    }
-   ++its;if(!accepted){if(fresh)break;if(team.leader())lu.valid=false;}else if(alpha<1||norm>previousNorm*cfg.numerics.jacobianRefreshReduction){if(team.leader())lu.valid=false;}team.sync();
+   ++its;if(!accepted||norm>=previousNorm){if(team.leader())lu.valid=false;team.sync();break;}
+    if(alpha<1||norm>previousNorm*cfg.numerics.jacobianRefreshReduction){if(team.leader())lu.valid=false;}team.sync();
   }
   if(team.leader()){
    cache.haveState=true;stats.iterations=seedIts+its;stats.residualEvaluations=evaluations;stats.factorizations=jacobianBuilds;stats.physicalResidual=norm;

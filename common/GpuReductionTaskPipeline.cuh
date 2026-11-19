@@ -1,5 +1,5 @@
 #pragma once
-// Task mathematics and scan order are identical in direct and conditional execution.
+
 int submitCsrSegmentedReductionTasks(DeviceState* s,const int block,
     const GPU_DIRECTORY_PARAMETER_TYPE GPU_DIRECTORY_SELECTOR,cudaStream_t stream)
 {

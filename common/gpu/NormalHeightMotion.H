@@ -17,8 +17,8 @@ struct NormalHeightMotionView {
     const MotionPenalty* penalty=nullptr;
     const NormalHeightMotionControl* control=nullptr;
 };
-// Each point accumulates adjacent wall contributions in original interface
-// order. Immutable cell vertices and wall identity are initialized once.
+
+
 class ResidentNormalHeightMotion {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:
@@ -46,8 +46,8 @@ struct NormalHeightPointMotionResult {
     HarmonicResult motion;
     NormalHeightMotionControl constraints;
 };
-// One immutable Dirichlet mask feeds both constraint assembly and the harmonic
-// operator. Coordinates and boundary displacement remain borrowed on device.
+
+
 class NormalHeightPointMotion {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:
@@ -59,9 +59,9 @@ public:
     const Point* initialPoints()const;
     const Point* referencePoints()const;
     const unsigned char* fixedPoints()const;
-    // Compatibility publication for the still-host outer geometry controller.
-    // Only changing boundary displacement is uploaded; constraint coefficients
-    // and tolerance are never downloaded and re-uploaded between operators.
+
+
+
     NormalHeightPointMotionResult solve(const std::vector<Point>& displacement);
 };
 }}}

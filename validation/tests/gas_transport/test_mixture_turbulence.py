@@ -6,7 +6,7 @@ from test_mixture_transport import fixture
 def test_mixture_eddy_thermal_and_species_transport(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State a,b;initialise(a);initialise(b);b.turbulenceModel=1;b.turbulentPrandtl=.7;b.gasSpecies.turbulentSchmidt=.5;
-b.nut[0]=b.nut[1]=.02;b.gasCp=7; // scalar bootstrap Cp must have no mixture effect
+b.nut[0]=b.nut[1]=.02;b.gasCp=7;
 for(int c=0;c<2;++c){threadIdx.x=c;computeGasPrimitiveGradientsKernel(&a);computeGasPrimitiveGradientsKernel(&b);}
 Real mu=0,kappa=0,q=0;int direct=0;gasFaceSubgridTransportProperties(b,0,0,1,0,Real(1),mu,kappa,q,direct);
 ck(std::abs(mu-Real(.02))<Real(1e-7),"eddy viscosity absent");ck(std::abs(kappa-Real(1000)*mu/Real(.7))<Real(1e-4),"mixture eddy conductivity uses scalar Cp");

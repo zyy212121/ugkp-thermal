@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Parse the actual native branch without linking or claiming a CUDA build.
+
 set -euo pipefail
 source_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 root="$source_root"
@@ -10,7 +10,7 @@ runners="$root/validation/tools/CHMT"
 scratch=$(mktemp -d /tmp/chmt-runtime-syntax.XXXXXX)
 trap 'rm -rf "$scratch"' EXIT
 cat > "$scratch/CHMTBuildIdentity.H" <<'EOF'
-// Test-only identities for a syntax-only translation. Never linked or executed.
+
 #define CHMT_BUILD_MANIFEST_JSON "syntax-only-test"
 #define CHMT_SOURCE_FINGERPRINT "syntax-only-test"
 #define CHMT_UPSTREAM_BASE "syntax-only-test"

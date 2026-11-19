@@ -1,3 +1,4 @@
+#include "mesh/MeshConnectivity.H"
 #include "mesh/Geometry.H"
 #include "../../../common/gpu/PointMotionMath.H"
 #include "../../../common/gpu/NormalHeightMotionMath.H"
@@ -66,9 +67,9 @@ namespace chmt {
             const Point normal=outer(ab,ac);
             const long double areaSquared=inner(normal,normal);
             if(!std::isfinite(areaSquared))return undefinedValue();
-            // The closest point is either the perpendicular projection inside
-            // the triangle or a point on its closed boundary. This half-space
-            // classification avoids cancelling huge barycentric dot products.
+
+
+
             if(areaSquared>0) {
                 const long double first=inner(outer(ab,ap),normal);
                 const long double second=inner(outer(difference(c,b),difference(p,b)),normal);
@@ -77,8 +78,8 @@ namespace chmt {
                 if(first>=0 && second>=0 && third>=0)
                     return static_cast<Real>(std::abs(inner(ap,normal))/std::sqrt(areaSquared));
             }
-            // A zero-area triangle is exactly the union of these segments.
-            // This is its geometry, not recovery from an invalid calculation.
+
+
             const auto segment=[&](Vec3 x,Vec3 y) {
                 const Point edge=difference(y,x),offset=difference(p,x);
                 const long double lengthSquared=inner(edge,edge);
@@ -93,8 +94,8 @@ namespace chmt {
             return static_cast<Real>(std::min(abDistance,std::min(bcDistance,caDistance)));
         }
 
-        // Compare coordinate representations, including signed zero. Equal
-        // values alone do not justify reusing a floating-point geometry result.
+
+
         bool identicalPoints(const std::vector<Vec3>& a,const std::vector<Vec3>& b) {
             if(a.size()!=b.size())return false;
             for(std::size_t p=0;p<a.size();++p)
@@ -295,8 +296,8 @@ namespace chmt {
                 Real distance=std::numeric_limits<Real>::max();
                 int invalidFace=-1;
             };
-            // Cells are independent; retain the ordered face/triangle minimum
-            // within each cell so serial and parallel distances have identical bits.
+
+
             const auto cellWallDistance=[&](int c) {
                 WallDistanceResult result;
                 for (int f:wallFaces) {
@@ -314,8 +315,8 @@ namespace chmt {
 #ifdef _OPENMP
             std::size_t triangleCount=0;
             for(int f:wallFaces)triangleCount+=m.faceOffsets[f+1]-m.faceOffsets[f]-2;
-            // Amortize thread startup over triangle queries, without selecting
-            // a solver mode or a case. Nested callers keep their own parallelism.
+
+
             if(nc>=32 && triangleCount>=(65536+std::size_t(nc)-1)/std::size_t(nc)
                 && omp_get_max_threads()>1 && !omp_in_parallel()) {
                 std::fenv_t callerEnvironment;
@@ -351,9 +352,9 @@ namespace chmt {
                         if(saved)std::fesetenv(&workerEnvironment);
                         errno=workerErrno;
                     }
-                    // A failing cell is replayed in serial order below. This
-                    // preserves the first error and the caller's exception/errno
-                    // state even when later cells had already been evaluated.
+
+
+
                     distancesReady=environmentFailures==0;
                     for(int c=0;c<nc && distancesReady;++c)
                         distancesReady=results[c].invalidFace<0
@@ -413,9 +414,9 @@ namespace chmt {
             bool moving = false;
             for (std::size_t p=0;p<endpoint.size();++p)moving=moving || mag(endpoint[p]-mesh.points[p])>0;
             if(!moving)return true;
-            // Canonical vertex order is shared with the immutable device topology.
-            // The publication adapter retains the original host extended arithmetic;
-            // the resident operator uses FP64 pairs for that same fan certificate.
+
+
+
             std::vector<int> offsets(1,0),vertices;
             for(int cell=0;cell<static_cast<int>(mesh.volumes.size());++cell){
                 std::set<int> unique;
@@ -473,7 +474,7 @@ namespace chmt {
                     int ib = m.facePoints[j], ic = m.facePoints[j+1];
                     Vec3 a = m.points[ia], b = m.points[ib], c = m.points[ic], da = endpoint[ia]-a,
                         db = endpoint[ib]-b, dc = endpoint[ic]-c;
-                    // Exact moving-triangle/prism integral for linear vertex paths.
+
                     Vec3 average = (triangleArea(a, b, c)+triangleArea(a+da*.5, b+db*.5,
                         c+dc*.5)*4+triangleArea(a+da, b+db, c+dc))/6;
                     area[f] += average;
@@ -534,21 +535,21 @@ namespace chmt {
         HostMesh candidate = old;
         candidate.points = endpoint;
         if (!stationary && !geometryInPlace(candidate, error,nullptr,numericalFailure,tol.diagnostics))return false;
-        if ((candidate.topologyHash != old.topologyHash))return errorAt(error, "topology change unsupported", -1);
+        if ((!sameMeshConnectivity(candidate,old)))return errorAt(error, "topology change unsupported", -1);
         {
         if (!stationary && !certifyLinearTrajectory(old, endpoint, error,tol.diagnostics))return false;
-        // Reject a crossed/inverted path even if endpoint orientation recovered.
+
         HostMesh mid = old;
         for (std::size_t p = 0; p<endpoint.size(); ++p)mid.points[p] =
             ugkp::gpu::geometry::stageSample(old.points[p],endpoint[p],0,extrusion.axis);
-        // Preserve the original interpolation arithmetic: even a stationary
-        // trajectory can round to different sampled coordinates. Reuse only
-        // exactly identical samples; all other geometry checks remain necessary.
+
+
+
         if ((!stationary || !identicalPoints(old.points,mid.points))
             && !geometryInPlace(mid, error,nullptr,numericalFailure,tol.diagnostics))return false;
-        // Cell volume is a cubic polynomial along linear vertex trajectories.
-        // Check its interior extrema as well as endpoints, so two inversions
-        // between sampling times cannot escape an endpoint/midpoint-only test.
+
+
+
         HostMesh oneThird = old, twoThird = old;
         for (std::size_t p = 0; p<endpoint.size(); ++p) {
             oneThird.points[p] = ugkp::gpu::geometry::stageSample(old.points[p],endpoint[p],1,extrusion.axis);
@@ -698,9 +699,9 @@ namespace chmt {
         return harmonicPointMotionRepresentedImpl(mesh,prescribedDisplacement,prescribed,output,error,nullptr,nullptr,diagnostics);
     }
     namespace {
-        // Host Newton probes run in a private IEEE environment. A rejected
-        // mathematical iterate must not trap before its domain is classified,
-        // or leave flags behind in the caller's OpenFOAM environment.
+
+
+
         class GeometryTrialEnvironment {
             std::fenv_t saved_;bool active_;
         public:
@@ -712,8 +713,10 @@ namespace chmt {
             GeometryTrialEnvironment&operator=(const GeometryTrialEnvironment&)=delete;
         };
 #ifdef CHMT_DEVICE_GEOMETRY
-        using TrajectoryCheck = std::function<bool(const HostMesh&,const geometry_device::backend::LocalFrameStageView&,std::string&,ugkp::diagnostics::DeviceContext*,bool&)>;
+        using DeviceGasStage = std::function<geometry_device::backend::InterfaceGasStage*(std::string&)>;
+        using TrajectoryCheck = std::function<bool(const HostMesh&,const geometry_device::backend::LocalFrameStageView&,bool,std::string&,ugkp::diagnostics::DeviceContext*,bool&)>;
 #else
+        struct DeviceGasStage {};
         using TrajectoryCheck = std::function<bool(const HostMesh&, std::string&,ugkp::diagnostics::DeviceContext*,bool&)>;
 #endif
         struct PlanarTriangleConstraint { int a,b,c,d; Real scale,tolerance; };
@@ -721,8 +724,8 @@ namespace chmt {
         Real tripleDerivative(Vec3 a, Vec3 b, Vec3 c, Vec3 da, Vec3 db, Vec3 dc) {
             return triple(da,b,c)+triple(a,db,c)+triple(a,b,dc);
         }
-        // Exact derivatives of the same Simpson-integrated triangle polynomial
-        // used by stageIntegrals. No finite-difference rank decision is involved.
+
+
         Real sweepDerivative(const HostMesh& old, const std::vector<Vec3>& end,
             const Vec3* mode, int f) {
             Real result=0;
@@ -759,9 +762,9 @@ namespace chmt {
                 out[2]=tripleDerivative(du,dv,dw,eu,ev,ew);
             }
         }
-        // Row-pivoted, twice-reorthogonalized QR of J^T avoids normal equations.
-        // The resulting correction is minimum Euclidean norm in boundary DOFs.
-        // Dependent equations are checked for compatibility, never least-squared.
+
+
+
         bool minimumNormCorrection(sweep_detail::Rows rows, sweep_detail::Reals rhs,
             Real rankTolerance, Real consistencyTolerance, sweep_detail::Reals& delta, int& rank,ugkp::diagnostics::DeviceContext* diagnostics) {
 #ifdef CHMT_DEVICE_GEOMETRY
@@ -827,7 +830,7 @@ namespace chmt {
             Real interval, HostMesh& output, std::vector<Real>& actualSweeps,
             SweepConstraintReport& report, std::string& error, const SweepConstraintControls& controls,
             const TrajectoryCheck& extraCheck, const Tolerances& tolerances,
-            bool* numericalFailure) {
+            bool* numericalFailure,const DeviceGasStage& gasStage) {
             report=SweepConstraintReport{};
             if(numericalFailure)*numericalFailure=true;
 
@@ -853,10 +856,10 @@ namespace chmt {
                 return reject(SweepConstraintStatus::InvalidInput,"invalid per-face swept-volume error ceiling");
             HostMesh worldOld=input;
             if (!rebuildGeometryImpl(worldOld,error,numericalFailure,tolerances.diagnostics)) return false;
-            // Solve displacements in a local frame. Repeated endpoint updates
-            // must not lose significant bits merely because the mesh is remote
-            // from the coordinate origin. Final certification still uses the
-            // actual representable world-coordinate vertices and their sweeps.
+
+
+
+
             const Vec3 origin=worldOld.points.empty()?Vec3{}:worldOld.points.front();
             HostMesh old=worldOld;
             Real coordinateMagnitude=0;
@@ -927,10 +930,10 @@ namespace chmt {
                 for (int k=begin+3;k<stop;++k) {
                     const int d=old.facePoints[k];
                     const Real volume=triple(old.points[b]-old.points[a],old.points[c]-old.points[a],old.points[d]-old.points[a]);
-                    // Account for input-coordinate quantization as well as
-                    // local triple-product roundoff. Translating a planar mesh
-                    // must not drop equations merely because each stored vertex
-                    // acquired a different last representable bit.
+
+
+
+
                     const Real uncertainty=64*std::numeric_limits<Real>::epsilon()*scale
                         +8*coordinateUncertainty*faceLength*faceLength;
                     if (scale>0 && absValue(volume)<=uncertainty)
@@ -965,6 +968,7 @@ namespace chmt {
             if(hasEmpty){empty_detail::Extrusion worldExtrusion;if(!empty_detail::build(worldOld,worldExtrusion,error))return false;
                 stageDefinition.emptyAxis=worldExtrusion.axis;stageDefinition.emptyMate=worldExtrusion.mate;}
             geometry_device::backend::LocalFrameStageGeometry deviceStage(stageDefinition);
+            bool residentCertified=false;
 #endif
 #ifdef CHMT_DEVICE_GEOMETRY
             const auto publishResidual=[&](const geometry_device::backend::SweepResidualStatus& result,Real& metric){
@@ -1020,10 +1024,10 @@ namespace chmt {
                 ugkp::diagnostics::DeviceContext* diagnostics,bool& recoverable) {
                 recoverable=true;Tolerances evaluationTolerances=tolerances;evaluationTolerances.diagnostics=diagnostics;
 #ifdef CHMT_DEVICE_GEOMETRY
-                // Every caller first evaluates this same local endpoint. Borrow
-                // it directly: world conversion and all trajectory/GCL checks
-                // stay resident; only the certified result is published below.
-                const auto stage=deviceStage.solveBorrowed(deviceResidual.endpoint(),
+
+
+
+                const auto stage=residentCertified?deviceStage.collect():deviceStage.solveBorrowed(deviceResidual.endpoint(),
                     {interval,tolerances.absoluteGeometry,tolerances.relativeGeometry});
                 if(!geometry_device::publishLocalFrameStage(worldOld,stage,certified,measured,failure,diagnostics))return false;
 #else
@@ -1036,7 +1040,7 @@ namespace chmt {
                 if (!makeStageGeometry(worldOld,worldPoints,interval,certified,measured,failure,evaluationTolerances))return false;
 #endif
 #ifdef CHMT_DEVICE_GEOMETRY
-                if(extraCheck&&!extraCheck(certified,deviceStage.view(),failure,diagnostics,recoverable))return false;
+                if(extraCheck&&!extraCheck(certified,deviceStage.view(),residentCertified,failure,diagnostics,recoverable))return false;
 #else
                 if(extraCheck&&!extraCheck(certified,failure,diagnostics,recoverable))return false;
 #endif
@@ -1070,9 +1074,9 @@ namespace chmt {
                 report.status=SweepConstraintStatus::Success; error.clear(); return true;
             }
             try {
-            // Lumped reference-surface area is the distortion metric. Shared
-            // vertices must carry all incident faces; otherwise minimum Euclidean
-            // motion bends a uniformly receding planar multi-face surface.
+
+
+
             using namespace sweep_detail;
             sweep_detail::Budget workspace(controls.maximumWorkspaceBytes,report.peakWorkspaceBytes);
             Reals pointWeight(np,0,Allocator<Real>(workspace));
@@ -1089,8 +1093,8 @@ namespace chmt {
             for (int p:hasEmpty?metricMovable:movable) if (pointWeight[p]>0) { meanWeight+=pointWeight[p]; ++weighted; }
             meanWeight=weighted?meanWeight/weighted:1;
             const std::size_t columns=movable.size(),rows=report.constraints;
-            // One deterministic streamed construction, independent of user budgets.
-            // Each mode uses the same harmonic solve; no allocation-driven fallback.
+
+
             report.streamedModes=true;
 #ifdef CHMT_DEVICE_GEOMETRY
             geometry_device::backend::HarmonicSweepDefinition definition;
@@ -1131,6 +1135,35 @@ namespace chmt {
                 return true;
             };
 #endif
+#ifdef CHMT_DEVICE_GEOMETRY
+            auto* gas=gasStage?gasStage(error):nullptr;
+            if(gasStage&&!gas)return false;
+            const auto solved=deviceResidual.refine(deviceCorrection,deviceStage,gas,
+                {interval,tolerances.absoluteGeometry,tolerances.relativeGeometry},controls.rankTolerance,
+                definition.harmonicTolerance,controls.maximumIterations,controls.maximumLineSearch);
+            report.rank=solved.rank;report.iterations=solved.iterations;report.modeSolves+=solved.modeSolves;
+            report.lineSearchTrials+=solved.lineSearchTrials;
+            if(solved.modeWarnings)geometryWarning(tolerances.diagnostics,solved.modeResidual,definition.harmonicTolerance,-1,false);
+            if(solved.rankWarnings)geometryWarning(tolerances.diagnostics,solved.rankResidual,solved.rankTolerance,solved.rankRow,false);
+            if(solved.fatal.sourceSiteId){
+                ugkp::diagnostics::recordFatal(tolerances.diagnostics,solved.fatal);
+                return reject(SweepConstraintStatus::InvalidTrajectory,"resident trajectory certification failed");
+            }
+            if(solved.wetFace>=0)return errorAt(error,"moving curved wet-offset geometry unsupported",solved.wetFace);
+            if(solved.correctionError==1)return errorAt(error,"nonfinite correction boundary mode",solved.index);
+            if(solved.correctionError==2)return errorAt(error,"harmonic point motion did not converge",-1);
+            if(solved.correctionError)return reject(SweepConstraintStatus::Incompatible,"incompatible swept-volume/planarity constraints");
+            if(!publishResidual(solved.retained,metric))
+                return reject(SweepConstraintStatus::InvalidInput,"nonfinite retained swept-volume residual");
+            residentCertified=solved.certificateCurrent;
+            HostMesh certified;std::vector<Real> measured;bool recoverable=true;
+            if(!certify(points,certified,measured,error,true,tolerances.diagnostics,recoverable)){
+                report.status=SweepConstraintStatus::InvalidTrajectory;return false;
+            }
+            if(metric>1)geometryWarning(tolerances.diagnostics,metric,1,-1,false);
+            output=std::move(certified);actualSweeps=std::move(measured);
+            report.status=SweepConstraintStatus::Success;error.clear();return true;
+#else
             for (int iteration=0;iteration<=controls.maximumIterations;++iteration) {
                 report.iterations=iteration;
                 if (metric<=1) {
@@ -1144,32 +1177,6 @@ namespace chmt {
                     report.status=SweepConstraintStatus::Success; error.clear(); return true;
                 }
                 if (iteration==controls.maximumIterations) break;
-#ifdef CHMT_DEVICE_GEOMETRY
-                const Real consistencyTolerance=lastResidualStatus.consistencyTolerance;
-                const auto residualView=deviceResidual.view();
-                const auto solved=deviceCorrection.solveBorrowed(deviceResidual.endpoint(),residualView.rhs,
-                    &residualView.status->consistencyTolerance,controls.rankTolerance,deviceResidual.planarity(),false);
-                report.modeSolves+=solved.status.modeSolves;
-                const auto modeWarning=[&](std::size_t m){
-                    const auto& value=solved.modes[m];
-                    if(value.errorPoint<0&&!old.points.empty()&&!(value.residual<=definition.harmonicTolerance))
-                        geometryWarning(tolerances.diagnostics,value.residual,definition.harmonicTolerance,-1,false);
-                };
-                for(std::size_t m=0;m<std::min(columns,solved.modes.size());++m)modeWarning(m);
-                if(solved.status.linearInitialized)report.rank=solved.status.rank;
-                for(std::size_t r=report.rank;r<solved.rhs.size();++r)
-                    if(absValue(solved.rhs[r])>consistencyTolerance)
-                        geometryWarning(tolerances.diagnostics,solved.rhs[r],consistencyTolerance,r,false);
-                for(std::size_t m=columns;m<solved.modes.size();++m)modeWarning(m);
-                if(solved.status.error==1)return errorAt(error,"nonfinite correction boundary mode",solved.status.errorPoint);
-                if(solved.status.error==2)return errorAt(error,"harmonic point motion did not converge",-1);
-                if(solved.status.error){
-                    std::ostringstream detail;detail << "incompatible swept-volume/planarity constraints: numerical rank "
-                        << report.rank << " of " << report.constraints << ", boundary DOFs " << report.degreesOfFreedom;
-                    return reject(SweepConstraintStatus::Incompatible,detail.str());
-                }
-                deviceResidual.beginLineSearch();
-#else
                 Rows jacobian{Allocator<Reals>(workspace)};
                 jacobian.reserve(rows);
                 for(std::size_t i=0;i<rows;++i)jacobian.emplace_back(columns,0,Allocator<Real>(workspace));
@@ -1182,9 +1189,9 @@ namespace chmt {
                     for (const auto& p:planar) {
                         Real derivative[3]; planarPolynomial(old,points,p,derivative,mode.data());
                         for (Real value:derivative) {
-                            // Keep tangent equations even when the current plane
-                            // is within roundoff: the next correction must not
-                            // create an unconstrained internal volume transfer.
+
+
+
                             jacobian[row][j]=value/p.scale;
                             ++row;
                         }
@@ -1212,22 +1219,9 @@ namespace chmt {
                     const auto& mode=streamedMode;
                     for (std::size_t p=0;p<np;++p) correction[p]+=mode[p]*delta[j];
                 }
-#endif
-                // Globalize this fixed-target Newton correction. Physical time,
-                // target sweeps, modes, Jacobian and delta remain unchanged.
+
+
                 bool accepted=false;
-#ifdef CHMT_DEVICE_GEOMETRY
-                for(bool restartSearch=true;;restartSearch=false){
-                    const auto search=deviceResidual.lineSearch(deviceCorrection.view().correction,controls.maximumLineSearch,restartSearch);
-                    report.lineSearchTrials+=search.trials;
-                    Real trialMetric=0;
-                    if(search.evaluated)publishResidual(search.trial.residual,trialMetric);
-                    if(!search.candidate)break;
-                    std::vector<Vec3> trial;geometry_device::unpack(deviceResidual.publishEndpoint(),trial);
-                    GeometryTrialEnvironment environment;
-                    if(!environment.active())return reject(SweepConstraintStatus::InvalidInput,"floating-point trial environment unavailable");
-                    std::vector<Real> trialResidual,trialSweeps;
-#else
                 for(int backtrack=0;backtrack<std::max(1,controls.maximumLineSearch);++backtrack){
                     const Real alpha=std::ldexp(Real(1),-backtrack);if(alpha==0)break;
                     std::vector<Vec3> trial=points;bool changed=false,representable=true;
@@ -1250,10 +1244,9 @@ namespace chmt {
                     std::vector<Real> trialResidual,trialSweeps;Real trialMetric=0;
                     if(!evaluate(trial,trialResidual,trialSweeps,trialMetric)||environment.invalid())continue;
                     if(!(trialMetric<=1||trialMetric<metric*(1-1e-4*alpha)))continue;
-#endif
                     HostMesh certified;std::vector<Real> measured;std::string failure;bool recoverable=true;
-                    // Trial records stay local. Missing operators, indices and
-                    // execution failures are not mathematical domain failures.
+
+
                     using namespace ugkp::diagnostics;
                     DeviceContext trialDiagnostics{};
                     if(tolerances.diagnostics){
@@ -1289,6 +1282,7 @@ namespace chmt {
             geometryWarning(tolerances.diagnostics,metric,1,-1,false);
             output=std::move(certified); actualSweeps=std::move(measured);
             report.status=SweepConstraintStatus::Success; error.clear(); return true;
+#endif
             } catch(const sweep_detail::WorkspaceLimit&) {
 
                 throw;
@@ -1300,10 +1294,10 @@ namespace chmt {
             Real interval,HostMesh& output,std::vector<Real>& sweeps,SweepConstraintReport& report,
             std::string& error,const SweepConstraintControls& controls,
             const TrajectoryCheck& extraCheck,const Tolerances& tolerances,
-            bool* numericalFailure=nullptr) {
+            bool* numericalFailure=nullptr,const DeviceGasStage& gasStage={}) {
             try {
                 return constrainedMotionImpl(input,faces,targets,displacement,fixed,directions,interval,
-                    output,sweeps,report,error,controls,extraCheck,tolerances,numericalFailure);
+                    output,sweeps,report,error,controls,extraCheck,tolerances,numericalFailure,gasStage);
             } catch(const sweep_detail::WorkspaceLimit&) {
                 report.status=SweepConstraintStatus::SizeLimit;
                 if(numericalFailure)*numericalFailure=false;
@@ -1379,8 +1373,8 @@ namespace chmt {
             std::string& error,bool* numericalFailure=nullptr){
             std::vector<ugkp::gpu::geometry::SurfaceSeamPatch> patches;
             if(!surfaceEdgeTopology(solid,surface,edges,patches,error))return false;
-            // Join surface seam edges through the mesh's verified translational cyclic
-            // patches. No nearest-neighbour map is substituted for a conforming pair.
+
+
             std::vector<unsigned char> removed(edges.size(), 0);
             const Real tol = 1e-10*meshScale(solid.points);
             for (std::size_t i = 0; i<edges.size(); ++i) {
@@ -1436,9 +1430,9 @@ namespace chmt {
         }
         Real edgeSweepQuadrature(const HostMesh& mesh, const std::vector<Vec3>& endpoint,
             const SurfaceMesh& surface, const SurfaceEdge& edge, int segments,bool empty) {
-            // Composite Gauss-Legendre integration of instantaneous normal/conormal.
-            // A single conservative co-normal is used at a curved internal edge;
-            // physical normal area change is NOT fabricated as an edge sweep.
+
+
+
             constexpr Real x = .774596669241483377;
             Real sum = 0;
             for (int segment = 0; segment<segments; ++segment) {
@@ -1635,7 +1629,7 @@ namespace chmt {
         HostMesh oldSolid=acceptedSolid,oldGas=acceptedGas,endSolid=solidEndpoint,endGas=gasEndpoint;
         if (!rebuildGeometryImpl(oldSolid,error,numericalFailure,tolerances.diagnostics) || !rebuildGeometryImpl(oldGas,error,numericalFailure,tolerances.diagnostics)
             || !rebuildGeometryImpl(endSolid,error,numericalFailure,tolerances.diagnostics) || !rebuildGeometryImpl(endGas,error,numericalFailure,tolerances.diagnostics)) return false;
-        if ((oldSolid.topologyHash!=endSolid.topologyHash || oldGas.topologyHash!=endGas.topologyHash))
+        if ((!sameMeshConnectivity(oldSolid,endSolid) || !sameMeshConnectivity(oldGas,endGas)))
             return errorAt(error,"surface trajectory topology change unsupported",-1);
         HostMesh solid,gas; std::vector<Real> actual;
         if (!makeStageGeometryImpl(oldSolid,endSolid.points,dt,solid,actual,error,tolerances,numericalFailure)
@@ -1855,11 +1849,11 @@ namespace chmt {
             support[v] = support[v]/weight[v];
             newThickness[v] /= weight[v];
         }
-        // Material inventories are attached to cells; there is no condensed-
-        // material remap here. Keep recession vertices on adjacent non-interface
-        // face planes. In a wedge this selects radial, rather than averaged
-        // surface-normal, motion. Prescribed support velocity is not projected.
-        // The full trajectory/planarity checks remain authoritative.
+
+
+
+
+
         std::vector<std::vector<Vec3>> sideNormals(oldSolid.points.size());
         for (std::size_t f=0;f<oldSolid.owner.size();++f)if(oldSolid.boundaryKind[f]!=BoundaryKind::Interface){
             const Vec3 normal=normalized(oldSolid.areaVectors[f]);
@@ -1896,18 +1890,7 @@ namespace chmt {
         std::unique_ptr<ugkp::gpu::geometry::InterfaceGasStage> gasPointMotion;
         std::vector<std::set<int>> gasPointAdjacency;empty_detail::Extrusion gasExtrusion;
         bool gasMotionTopologyReady=false,gasHasEmpty=false;
-#endif
-        auto buildGas=[&](const HostMesh& trialSolid,
-#ifdef CHMT_DEVICE_GEOMETRY
-            const geometry_device::backend::LocalFrameStageView& residentSolid,
-#endif
-            std::string& failure,ugkp::diagnostics::DeviceContext* diagnostics,bool& recoverable) {
-            Tolerances evaluationTolerances=tolerances;evaluationTolerances.diagnostics=diagnostics;
-            auto stage=[&](const std::vector<Vec3>& points) {
-                return makeStageGeometry(oldGas,points,dt,gas,gasSweeps,failure,evaluationTolerances);
-            };
-            std::vector<Vec3> gasPoints;
-#ifdef CHMT_DEVICE_GEOMETRY
+        auto prepareGas=[&](std::string& failure){
             using namespace ugkp::gpu::geometry;
             if(!gasMotionTopologyReady){
                 gasPointAdjacency.resize(oldGas.points.size());
@@ -1933,9 +1916,44 @@ namespace chmt {
                 for(int i=0;i<ns;++i){definition.previousFilmThickness.push_back(accepted.filmAux[i].thickness);definition.filmThickness.push_back(candidateFilm[i].thickness);}
                 if(gasHasEmpty){definition.emptyAxis=gasExtrusion.axis;definition.emptyMate=gasExtrusion.mate;}
                 stageDefinition.wallFaces=geometry_device::meshTopology(oldGas).walls;stageDefinition.periodicPartner=oldGas.periodicPartner;
+                for(int i=0;i<ns;++i){
+                    const int g=reference.gasFace[i],f=reference.solidFace[i];
+                    if(g<0||(accepted.filmAux[i].thickness==0&&candidateFilm[i].thickness==0))continue;
+                    WetOffsetFace face;face.solid=f;face.gas=g;face.interfaceIndex=i;
+                    const auto ga=mag(oldGas.areaVectors[g]),sa=mag(oldSolid.areaVectors[f]);
+                    face.oldMismatch=absValue(ga-sa)>1e-10*maxValue(ga,sa)||
+                        mag(normalized(oldGas.areaVectors[g])+normalized(oldSolid.areaVectors[f]))>1e-10;
+                    face.first=stageDefinition.wetVertices.size();
+                    for(int j=oldSolid.faceOffsets[f];j<oldSolid.faceOffsets[f+1];++j){
+                        const int sv=oldSolid.facePoints[j],gv=solidToGas[sv];const auto sp=oldSolid.points[sv];
+                        WetOffsetVertex v;v.solid=sv;v.gas=gv;v.oldSolid={sp.x,sp.y,sp.z};
+                        if(gv>=0){const auto gp=oldGas.points[gv];v.oldGas={gp.x,gp.y,gp.z};}
+                        stageDefinition.wetVertices.push_back(v);
+                    }
+                    face.end=stageDefinition.wetVertices.size();stageDefinition.wetFaces.push_back(face);
+                }
                 gasPointMotion.reset(new InterfaceGasStage(stageDefinition));
             }
-            const auto certified=gasPointMotion->solveBorrowed(residentSolid.points,residentSolid.geometry.endpointGeometry.area,
+            return true;
+        };
+        DeviceGasStage graphGas=[&](std::string& failure){return prepareGas(failure)?gasPointMotion.get():nullptr;};
+#else
+        DeviceGasStage graphGas{};
+#endif
+        auto buildGas=[&](const HostMesh& trialSolid,
+#ifdef CHMT_DEVICE_GEOMETRY
+            const geometry_device::backend::LocalFrameStageView& residentSolid,bool fromGraph,
+#endif
+            std::string& failure,ugkp::diagnostics::DeviceContext* diagnostics,bool& recoverable) {
+            Tolerances evaluationTolerances=tolerances;evaluationTolerances.diagnostics=diagnostics;
+            auto stage=[&](const std::vector<Vec3>& points) {
+                return makeStageGeometry(oldGas,points,dt,gas,gasSweeps,failure,evaluationTolerances);
+            };
+            std::vector<Vec3> gasPoints;
+#ifdef CHMT_DEVICE_GEOMETRY
+            using namespace ugkp::gpu::geometry;
+            if(!prepareGas(failure))return false;
+            const auto certified=fromGraph?gasPointMotion->collect():gasPointMotion->solveBorrowed(residentSolid.points,residentSolid.geometry.endpointGeometry.area,
                 {dt,tolerances.absoluteGeometry,tolerances.relativeGeometry});
             const auto& result=certified.motion;
             using Failure=InterfaceGasMotionFailure;
@@ -1950,11 +1968,11 @@ namespace chmt {
                 case Failure::Harmonic:return errorAt(failure,result.status.harmonic.errorKind==1?"zero-length motion edge":"nonfinite harmonic displacement",result.status.index);
             }
             if(!geometry_device::publishInterfaceStage(oldGas,certified,gas,gasSweeps,failure,diagnostics))return false;
-            if(!result.status.changed)return true;
+            if(!result.status.changed||fromGraph)return true;
 #else
-            // An unchanged accepted offset is already authoritative. Recomputing
-            // X_s+n*delta here can manufacture a one-ULP gas motion after a
-            // coordinate translation and falsely activate the moving-film guard.
+
+
+
             bool unchanged=true;
             for (std::size_t p=0;p<oldSolid.points.size();++p)
                 unchanged=unchanged && mag(trialSolid.points[p]-oldSolid.points[p])==0;
@@ -1972,9 +1990,9 @@ namespace chmt {
                 gasDisplacement[gv]=trialSolid.points[sv]+newNormal[sv]*newThickness[sv]-oldGas.points[gv];
                 fixedGas[gv]=1;
             }
-            // Preserve each wall-adjacent point's own initial normal distance.
-            // Soft constraints accommodate fixed seams and curved corners; all
-            // prescribed wall points remain exact. No global length tolerance.
+
+
+
             using namespace ugkp::gpu::geometry;
 
             std::vector<MotionPenalty> penalties(oldGas.points.size());
@@ -1997,8 +2015,8 @@ namespace chmt {
             if(!harmonicOk)return false;
             if(!stage(gasPoints))return false;
 #endif
-            // Keep the existing reduced-film boundary: moving curved offset
-            // interfaces with unequal areas/normals are not a liquid-volume model.
+
+
             for (int i=0;i<ns;++i) {
                 const int f=reference.solidFace[i],g=reference.gasFace[i];
                 if (g<0 || (accepted.filmAux[i].thickness==0 && candidateFilm[i].thickness==0)) continue;
@@ -2018,9 +2036,9 @@ namespace chmt {
             }
             return true;
         };
-        // Every material-bearing route (predictor, integrated corrector and
-        // legacy wrapper) must meet the same cell-inventory accuracy. Geometry-
-        // only callers retain their explicit controls and geometric floor.
+
+
+
         SweepConstraintControls materialControls=controls;
         if (materialCellCount!=0) {
             std::vector<Real> limits;
@@ -2034,16 +2052,16 @@ namespace chmt {
                 limits[i]=minValue(limits[i],controls.faceVolumeTolerance[i]);
             materialControls.faceVolumeTolerance=std::move(limits);
         }
-        // Physical transfers remain immutable. Only the geometry solve carries
-        // the previously unrepresented signed volume into this target.
+
+
         std::vector<Real> solveTargets;
         if(!compensateMaterialSweepTargets(accepted,solidTargets,solveTargets,error,tolerances.diagnostics)){return false;}
-        // Directed representable rounding leaves a dense material cell enough
-        // geometric volume. This is an auxiliary geometry target only: the
-        // physical transfer is immutable, and updateMaterialSweepRemainder
-        // carries physical-minus-measured volume into the next accepted step.
-        // The original requested accuracy and explicit face ceilings still cap
-        // the total difference from the unshifted physical target.
+
+
+
+
+
+
         const auto physicalSolveTargets=solveTargets;
         auto physicalLimits=materialControls.faceVolumeTolerance;
         const Real materialMeshScale=materialCellCount!=0&&!solveTargets.empty()
@@ -2058,7 +2076,7 @@ namespace chmt {
             }else materialControls.faceVolumeTolerance[f]=physicalLimits[f];
         }
         if (!constrainedMotion(oldSolid,reference.solidFace,solveTargets,displacement,fixedSolid,directions,
-            dt,solid,solidSweeps,report,error,materialControls,buildGas,tolerances,numericalFailure)) return false;
+            dt,solid,solidSweeps,report,error,materialControls,buildGas,tolerances,numericalFailure,graphGas)) return false;
         if(materialCellCount!=0){
             report.maximumSweepResidual=0;
             for(std::size_t f=0;f<physicalLimits.size();++f){
@@ -2096,8 +2114,8 @@ namespace chmt {
     bool moveCoupledMeshes(const HostState& accepted, const std::vector<FilmAux>& candidateFilm, double dt,
         HostMesh& gasOut, HostMesh& solidOut, SurfaceMesh& surfaceOut, std::string& error,
         const Tolerances& tolerances) {
-        // Compatibility with the original explicit front convention only. The
-        // multirate material owner must call the explicit integrated-volume API.
+
+
         if (candidateFilm.size()!=accepted.surface.solidFace.size()
             || accepted.filmAux.size()!=candidateFilm.size())
             return errorAt(error,"coupled surface/film size mismatch",-1);
@@ -2116,4 +2134,3 @@ namespace chmt {
     }
 
 }
-// namespace chmt

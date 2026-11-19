@@ -25,7 +25,7 @@ int main(){
  auto shortPoints=base.solidMesh.points;shortPoints.pop_back();assert(!detail::completeStageGeometry(base.solidMesh,shortPoints,1,out,sweeps,error,Tolerances{},&numerical)&&!numerical);
  auto surplus=base.solidMesh.points;surplus.push_back(Vec3{3,4,5});
  assert(detail::completeStageGeometry(base.solidMesh,surplus,1,out,sweeps,error));assert(out.points.size()==surplus.size());
- // Actual slow two-free-node Jacobi graph: no forced iteration limit or new threshold.
+
  HostMesh mesh;mesh.points={{-1,0,0},{0,0,0},{.0001,0,0},{1,0,0}};mesh.owner={0};mesh.boundaryKind={BoundaryKind::Slip};mesh.faceOffsets={0,4};mesh.facePoints={0,1,2,3};
  std::vector<unsigned char> fixed={1,0,0,1};std::vector<Vec3>d(4);d[0]={1,0,0};std::vector<Vec3>motion;
  harmonicIterations=0;assert(!harmonicPointMotion(mesh,d,fixed,motion,error));assert(harmonicIterations==20000);
@@ -37,22 +37,22 @@ int main(){
  sweep_detail::Points boundary(4,Vec3{},sweep_detail::Allocator<Vec3>(budget)),result{ sweep_detail::Allocator<Vec3>(budget)};
  boundary[0]=d[0];assert(!modes.solve(boundary,result));assert(modes.solve<true>(boundary,result));
  for(int i=0;i<4;++i){Vec3 expected=mesh.points[i]+current[i];expected-=mesh.points[i];if(fixed[i])expected=d[i];equal(result[i],expected);}
- // Degenerate numeric edge still evaluates existing arithmetic.
+
  mesh.points[2]=mesh.points[1];assert(detail::completeHarmonicPointMotion(mesh,d,fixed,motion,error));assert(!chmt::finite(motion[1]));
- // Test-only bypass of the preceding duplicate-face proof isolates actual edge-origin typing.
+
  auto repeated=base.surface;repeated.solidFace={base.surface.solidFace[0],base.surface.solidFace[0]};repeated.gasFace={-1,-1};SurfaceMesh repeatedOutput;
  numerical=true;assert(!rebuildTrajectorySurface(HostMesh{},base.solidMesh,repeated,HostMesh{},base.solidMesh,1,repeatedOutput,error,Tolerances{},&numerical));assert(numerical);
  assert(detail::completeTrajectorySurface(HostMesh{},base.solidMesh,repeated,HostMesh{},base.solidMesh,1,repeatedOutput,error,Tolerances{},&numerical));
- // Whole terminal edge loop: actual 1024 integral, all later edges populated.
+
  auto endpoint=base.solidMesh;for(auto& p:endpoint.points)p={.02*p.x,p.y,p.z+.1*p.x};base.surface.gasFace={-1,-1};SurfaceMesh surface;
  forceQuad=true;quadCalls=0;assert(!rebuildTrajectorySurface(HostMesh{},base.solidMesh,base.surface,HostMesh{},endpoint,1,surface,error));
  quadCalls=0;assert(detail::completeTrajectorySurface(HostMesh{},base.solidMesh,base.surface,HostMesh{},endpoint,1,surface,error,Tolerances{},&numerical));
  std::vector<SurfaceEdge>edges;assert(surfaceEdges(base.solidMesh,base.surface,edges,error));assert(surface.sweptEdgeArea.size()==edges.size());assert(quadCalls==8*edges.size());
  for(std::size_t i=0;i<edges.size();++i){const Real actual=edgeSweepQuadrature<true>(base.solidMesh,endpoint.points,base.surface,edges[i],1024,false);assert(actual==surface.sweptEdgeArea[i]);}
  auto flat=base.solidMesh.points;flat[edges[0].b]=flat[edges[0].a];
- const Real value=edgeSweepIntegrand<true>(base.solidMesh,flat,base.surface,edges[0],1,false);assert(value==0); // real dot with zero tangent, not undefinedValue sentinel
+ const Real value=edgeSweepIntegrand<true>(base.solidMesh,flat,base.surface,edges[0],1,false);assert(value==0);
  assert(!chmt::finite(edgeSweepIntegrand(base.solidMesh,flat,base.surface,edges[0],1,false)));
- // Axis-only continuation does not create a mate map.
+
  auto empty=base.solidMesh;for(std::size_t f=0;f<empty.owner.size();++f)if(absValue(empty.areaVectors[f].y)>0)empty.boundaryKind[f]=BoundaryKind::Empty;
  empty_detail::Extrusion extrusion;assert(empty_detail::axisGeometry(empty,extrusion,error,&numerical));assert(extrusion.axis==1&&extrusion.mate.empty());
  for(std::size_t f=0;f<empty.owner.size();++f)if(empty.boundaryKind[f]==BoundaryKind::Empty){empty.areaVectors[f]=Vec3{};break;}
@@ -61,7 +61,7 @@ int main(){
  assert(empty_detail::axisGeometry(empty,extrusion,error,&numerical));assert(extrusion.axis==-1&&extrusion.mate.empty());
  auto collapsed=empty;for(auto& point:collapsed.points)point=Vec3{};
  assert(detail::completeGeometry(collapsed,error,&numerical));assert(collapsed.volumes[0]==0&&!chmt::finite(collapsed.cellCentres[0]));
- // Supplied periodic topology exists, but the requested surface has no searched counterpart.
+
  auto periodic=base.solidMesh;int left=-1,right=-1;
  for(int f=0;f<int(periodic.owner.size());++f){if(periodic.faceCentres[f].x==0)left=f;if(periodic.faceCentres[f].x==2)right=f;}
  assert(left>=0&&right>=0);periodic.boundaryKind[left]=periodic.boundaryKind[right]=BoundaryKind::Periodic;

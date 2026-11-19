@@ -20,9 +20,9 @@ struct MaterialSurfaceInputBinding {
     const int *gasFaces=nullptr,*solidFaces=nullptr,*solidCells=nullptr;
     const unsigned char* ablating=nullptr;
     const Vec3* baseVelocity=nullptr;
-    // Retain the macro-window's base particle fraction, as in the original
-    // material state. The advancing gas endpoint's fraction is a different
-    // physical snapshot and must not silently replace this input.
+
+
+
     const Real* baseGasVoidFraction=nullptr;
     const Real* donorArea=nullptr;
     const Real* sideVolume=nullptr;
@@ -38,9 +38,9 @@ struct MaterialSurfaceGasArea {
     const int* faces=nullptr;
     __device__ Real operator()(int i)const{return mag(mesh->areaVectors[faces[i]]);}
 };
-// Topology/addressing and output capacity are initialized once by the owner.
-// Gas history, geometry, timestep, selected records and material pointer parity
-// are all read on device. The existing closure receives the same input fields.
+
+
+
 __global__ void prepareResidentMaterialSurfaceInput(MaterialSurfaceInputBinding binding,
     const ResidentMaterialStep* step,const PhysicsConfig* physics,
     const MaterialSurfaceView* prototype,MaterialSurfaceView* operation){

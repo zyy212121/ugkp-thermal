@@ -1,4 +1,4 @@
-// CPU-only eight-lane execution of real production headers, not a GPU emulator.
+
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -142,10 +142,10 @@ struct DeviceState {
         GPU_R(.25),GPU_R(0),0,12};
 };
 #include "operators/particleSpecificHeatDevice.cuh"
-// Exact production conductivity function extracted by the fixture generator;
-// its owning header also contains unrelated large gas-boundary implementations.
+
+
 #include "route_conductivity.cuh"
-// Drag is explicitly disabled in these thermal tests. Fail if accidentally used.
+
 bool gasDragModelActive(int model) {return model!=0;}
 GpuReal solidEpsFromMomentDevice(const DeviceState&,int) {throw DeviceTrap{};}
 template<class T> GpuReal dragInverseTimeDevice(const DeviceState&,GpuReal,GpuReal,GpuReal,GpuReal,T) {throw DeviceTrap{};}
@@ -154,7 +154,7 @@ void clearColdWall2DParticleState(DeviceState&,int);
 #include "operators/atomicAddParticleWallEnergyByFace.cuh"
 #include "operators/clearColdWallParticleState.cuh"
 #if ROUTE_FSH
-// Exact alias used around this header by FSH's real backend.
+
 #define pContactAge pTheta
 #endif
 #include "GpuParticleThermalCarry.H"

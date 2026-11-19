@@ -35,6 +35,6 @@ def test_removed_surface_retry_implementations():
     assert 'terminalTrial' not in text
     assert 'terminalSpecies' not in text
     assert 'if(Terminal)' not in text
-    # Feasible-domain exploration is an authorized mathematical solve.
+
     assert 'trialPhysics.diagnostics=nullptr' in text
     assert 'trialPhysics.tolerances.diagnostics=nullptr' in text

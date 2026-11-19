@@ -2,11 +2,15 @@
 #define UGKP_DIAGNOSTICS_CATALOGUE_H
 #include "DiagnosticsHost.H"
 namespace ugkp { namespace diagnostics {
-// Stable call-site IDs. Only descriptors sampled in an operation travel over
-// IPC, preserving source identity across independently built frontends/helpers.
+
+
 inline const std::vector<SourceDescriptor>& sourceCatalogue() {
-    // Immutable for the process lifetime; successful readbacks allocate no catalogue.
+
     static const std::vector<SourceDescriptor> catalogue{
+        {42004,"common/thermal/GpuResidentStrict.cu","ugkwpGpuResidentStrictDownloadSourceResidualMass",3778,"particle source residual download needs a count and enough destination storage"},
+        {36006,"common/thermal/GpuResidentStrict.cu","ugkwpGpuResidentStrictUploadParticleRestartMirror",6490,"selected contact model requires actual cold-profile enthalpy; particle and node identify missing/invalid input"},
+        {36010,"common/gpu/SparseConjugateGradient.cu","preconditioner publication",1008,"AMG construction unavailable; diagonal Jacobi used within the same bounded linear solve; observed is affected block count"},
+        {35001,"common/gpu/AdvanceState.cuh","selectAdvanceStep",125,"device advance interval must be finite, positive and representable"},
         {2700,"common/gasTransport/GasStateView.H","checkedMolecularViscosity",144,"cell molecular viscosity"},
         {2701,"common/gasTransport/GasStateView.H","checkedMolecularViscosity",144,"face molecular viscosity"},
         {2702,"common/gasWall/ReactingWallLayer.H","pointState",150,"local molecular viscosity"},
@@ -200,6 +204,11 @@ inline const std::vector<SourceDescriptor>& sourceCatalogue() {
         {4102,"applications/CHMT/materials/CpuMaterialDriver.C","predictWall",280,"diagnostic at predictWall"},
         {4103,"applications/CHMT/materials/CpuMaterialDriver.C","nativeConduction",138,"computed conduction temperature"},
         {4104,"applications/CHMT/materials/CpuMaterialDriver.C","nativeConduction",153,"nonfinite conduction residual"},
+        {4105,"applications/CHMT/gpu/ResidentMaterialLocalLoop.cuh","fail",0,"material window operation failed; phase and actual failure code retained"},
+        {4106,"applications/CHMT/gpu/ResidentMaterialLocalLoop.cuh","accept",0,"material physical substep warning budget reached; accepted progress retained"},
+        {4107,"applications/CHMT/gpu/ResidentMaterialEndpoint.cuh","fail",0,"material endpoint closure is missing consumed data or returned an unusable result"},
+        {38003,"applications/CHMT/gpu/GasWindowControl.cuh","stop",0,"gas window has an unusable clock or physical timestep"},
+        {38004,"applications/CHMT/gpu/GasWindowControl.cuh","stop",0,"gas window CFL reduction is missing or nonfinite"},
         {4110,"applications/CHMT/materials/ReactionStepControl.H","reactionStepControl",48,"reaction CFL"},
         {4111,"applications/CHMT/materials/ReactionStepControl.H","reactionStepControl",49,"reaction index/count"},
         {4112,"applications/CHMT/materials/ReactionStepControl.H","reactionStepControl",56,"reaction heat capacity denominator"},
@@ -422,10 +431,13 @@ inline const std::vector<SourceDescriptor>& sourceCatalogue() {
         {31302,"common/gasWall/ReactingWallLayer.H","publishLayer",1241,"nonfinite matching species flux"},
         {31303,"common/gasWall/ReactingWallLayer.H","publishLayer",1242,"nonfinite wall reaction integral"},
         {33000,"common/operators/FiniteContactRelaxation.inl","finiteContactRelaxation",80,"invalid finite-contact heat candidate; particle/wall heat not committed"},
+        {37001,"common/gpu/AnchoredMaterialKernels.cuh","anchorUpdateCell",70,"unusable anchored material radiation state; energy publication not committed"},
+        {37002,"common/gpu/ParticleRadiationMaterial.cu","countResponseParticles",48,"active radiation particle has invalid cell index"},
         {34000,"common/gpu/DiscreteOrdinateRadiation.cu","publishSourceDiagnostics",36,"invalid radiation intensity; dependent energy publication not committed"},
         {34001,"common/gpu/DiscreteOrdinateRadiation.cu","publishSourceDiagnostics",40,"DO source iteration budget exhausted; computed intensities retained"},
         {34002,"common/gpu/DiscreteOrdinateRadiation.cu","publishSourceDiagnostics",45,"DO phase balance iteration budget exhausted; computed probabilities retained"},
         {34003,"common/gpu/DiscreteOrdinateRadiation.cu","publishSourceDiagnostics",50,"DO linear iteration budget exhausted; computed intensity retained"},
+        {34004,"common/gpu/DiscreteOrdinateRadiation.cu","publishSourceDiagnostics",75,"DO Krylov update projected onto nonnegative intensity; convergence uses the residual of the projected field"},
         {34010,"common/gpu/SolidThermalProperties.cu","publishPropertyDiagnostic",88,"invalid consumed solid thermal property"},
         {34011,"common/gpu/SolidThermalProperties.cu","publishPropertyDiagnostic",91,"finite solid table extrapolation"},
         {34012,"common/gpu/SolidThermalIteration.cu","checkThermalLinearReport",18,"nonfinite solid linear residual"},
@@ -433,6 +445,8 @@ inline const std::vector<SourceDescriptor>& sourceCatalogue() {
         {34018,"common/gpu/SolidThermalIteration.cu","checkThermalLinearReport",20,"solid linear true residual above target at finite-precision stagnation; computed candidate retained"},
         {34019,"common/gpu/SolidThermalIteration.cu","checkThermalLinearReport",20,"solid linear Krylov breakdown before true residual target; computed candidate retained"},
         {34024,"common/gpu/SolidThermalIteration.cu","checkThermalLinearReport",20,"solid linear true residual above target; computed candidate retained"},
+        {34028,"common/gpu/SolidThermalIteration.cu","finishThermalIteration",70,"solid state repeated with unchanged energy residual; candidate retained"},
+        {34029,"common/gpu/SolidThermalIteration.cu","finishThermalIteration",73,"solid state repeated above the change tolerance; candidate retained"},
         {34014,"common/gpu/SolidThermalIteration.cu","finishThermalIteration",37,"solid nonlinear iteration budget exhausted; computed candidate retained"},
         {34015,"common/gpu/SolidThermalIteration.cu","finishThermalIteration",40,"solid nonlinear change above tolerance at iteration limit; computed candidate retained"},
         {34016,"common/gpu/SolidThermalIteration.cu","finishContactIteration",145,"solid contact temperature residual above tolerance at iteration limit"},
@@ -447,5 +461,5 @@ inline const std::vector<SourceDescriptor>& sourceCatalogue() {
     };
     return catalogue;
 }
-}} // namespace ugkp::diagnostics
+}}
 #endif

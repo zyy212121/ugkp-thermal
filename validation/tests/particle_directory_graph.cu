@@ -1,5 +1,5 @@
-// Native probe for the production graph owner and unchanged count/scatter kernels.
-// The split-injection application pipeline is covered by application regressions.
+
+
 #include <cuda_runtime.h>
 #include <cub/cub.cuh>
 #include <algorithm>

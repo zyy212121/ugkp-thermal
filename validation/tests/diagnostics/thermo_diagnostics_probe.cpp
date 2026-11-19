@@ -22,6 +22,6 @@ int main(){
  temperature=400;evaluated=true;assert(invertCaloricEnergy(Failed{},1.,100.,1000.,controls,temperature,&evaluated)==ThermoStatus::InvalidModel);assert(temperature==400&&!evaluated);
  ctx={};double huge[2]={std::numeric_limits<double>::max(),std::numeric_limits<double>::max()};
  assert((!mixtureMassFractionsFromDensities<double,2>(huge,1.,1e-8,fractions,&ctx)));assert(ctx.firstFatal.code==Code::NonFinite);assert(ctx.warnings[0].count==0);
- // Standalone status API reports failure without a diagnostic owner or abort.
+
  view.diagnostics=nullptr;assert((gasThermoDetail::evaluateSpecies(2,300.,view,values)==ThermoStatus::InvalidModel));
 }

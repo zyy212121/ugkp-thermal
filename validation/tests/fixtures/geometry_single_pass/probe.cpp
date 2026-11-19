@@ -5,8 +5,8 @@
 #include <limits>
 int main() {
     actualNonuniformDrySweep();
-    // An unattainable finite target is an unresolved accuracy residual; the
-    // published geometry itself must remain valid and its residual visible.
+
+
     {const HostState base=coupledPair();HostMesh gas,solid;SurfaceMesh surface;
      ugkp::diagnostics::DeviceContext d{};Tolerances t;t.diagnostics=&d;
      SweepConstraintReport r;std::string e;

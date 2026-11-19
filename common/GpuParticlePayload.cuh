@@ -1,6 +1,6 @@
 #pragma once
 #include "GpuParticleExecutionContext.H"
-// Global copy schedule of the same field operation used by fused moment workers.
+
 template<bool UseSurvivorDirectory = false>
 __global__ void gatherCellLocalParticlePayloadKernel(DeviceState* sp)
 {
@@ -21,7 +21,7 @@ __global__ void gatherCellLocalParticlePayloadKernel(DeviceState* sp)
 }
 
 
-// Both scheduling policies reach this commit boundary. Fused mode emits no work.
+
 template<bool Fused>
 int launchDeferredSurvivorPayload(DeviceState* s, const int grid, const int threads)
 {

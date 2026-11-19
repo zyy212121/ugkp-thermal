@@ -17,7 +17,7 @@ int main(){auto p=config();HostMesh m;m.volumes.assign(4,.001);m.cellCentres={{0
  double dm=0,de=0;for(auto&r:out.rates){dm+=r.pore[0];de+=r.energy;}assert(std::abs(dm)<1e-18);assert(std::abs(de)<1e-10);
  assert(out.dtLimit>0&&out.dtLimit<1e10);assert(out.poreVelocity[0].x>0&&out.poreVelocity[0].y>0&&out.poreVelocity[0].z>0);
  p.permeability=0;q[1].energy=.9*condensedE(p.condensed[0],900)+q[1].pore[0]*speciesE(p.species[0],900);
- assert(evaluateMaterialTransport(m,q,p,{},1,.4,out,error));for(auto&r:out.rates)assert(r.energy==0); // no duplicate explicit conduction
+ assert(evaluateMaterialTransport(m,q,p,{},1,.4,out,error));for(auto&r:out.rates)assert(r.energy==0);
  p.enableReactions=true;p.nReactions=1;p.reactions[0].A=10;p.reactions[0].condensedNu[0]=-1;p.reactions[0].condensedNu[1]=1;p.reactions[0].order[0]=1;
  SolidQ next;std::uint64_t count=0;assert(advanceMaterialReactions(q[0],.001,p,.1,0,.1,10000,next,count,error));assert(count>1);assert(next.energy==q[0].energy);assert(next.condensed[0]<q[0].condensed[0]);assert(std::abs(next.condensed[0]+next.condensed[1]-.9)<1e-14);
  const SolidQ reference=next;const auto referenceCount=count;
@@ -42,8 +42,8 @@ int main(){auto p=config();HostMesh m;m.volumes.assign(4,.001);m.cellCentres={{0
  const Real tinyTarget=-1e-14,overfill=3.427009277807e-20;
  assert(!materialSweepsCompatible(dense,surface,{tinyTarget},{tinyTarget-overfill,0,0},tol));
  assert(materialSweepsCompatible(dense,surface,{tinyTarget},{tinyTarget,0,0},tol));
- // A cell with two constrained faces shares one inventory error allowance;
- // individually accepting a full per-cell allowance on both would double it.
+
+
  dense.owner={0,0,0};surface.solidFace={0,1};const Real epsV=std::numeric_limits<Real>::epsilon()*dense.volumes[0];
  assert(!materialSweepsCompatible(dense,surface,{0,0},{6*epsV,6*epsV,0},tol));
  assert(materialSweepsCompatible(dense,surface,{0,0},{2*epsV,-2*epsV,0},tol));

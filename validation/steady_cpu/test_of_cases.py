@@ -39,7 +39,7 @@ def test_vector_parser_and_missing_comparison(tmp_path):
     assert not compare.comparison(a,b,['rho'],1e-8,1e-10)['pass']
 
 def test_window_csv_format_only(tmp_path):
-    # Synthetic parser unit fixture, not simulation evidence.
+
     export=module('export_of');directory=tmp_path/'1000';directory.mkdir()
     (directory/'steadyWindowMean.csv').write_text('cell,rho,rhoUx\n0,1,20\n1,2,30\n')
     output=tmp_path/'windows.csv';result=export.export_windows(tmp_path,output)
@@ -48,7 +48,7 @@ def test_window_csv_format_only(tmp_path):
     assert rows[0]['iteration']=='1000'
 
 def test_budget_log_parser_fixture(tmp_path):
-    # Synthetic parser unit fixture, not simulation evidence.
+
     budgets=module('compare_window_budgets');ref=tmp_path/'cpu.csv';log=tmp_path/'app.log'
     ref.write_text('iteration,cell,q0Mean,q0MeanChange,q0Fluctuation,q0InventoryBegin,q0InventoryEnd\n1000,0,1,0.1,0.2,0.5,0.6\n1000,1,2,0.3,0.1,0.7,0.8\n')
     log.write_text('Steady sampling window 1 physicalDuration=1 totalSamplingTime=1\n  rho meanChange=0.3 relativeRms=0.2 inventoryBegin=1.2 inventoryEnd=1.4 inventoryDrift=0.1\n')

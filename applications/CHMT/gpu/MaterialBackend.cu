@@ -1,3 +1,7 @@
+#include "gpu/ResidentMaterialLocalLoop.cuh"
+#include "gpu/StreamedMaterialLoop.cuh"
+#include "gpu/CoupledHistoryArchive.cuh"
+#include "../../../common/gpu/PinnedTransferQueue.cuh"
 #include "../../../common/gpu/WorkPlan.H"
 #include "gpu/ResidentMaterialSlice.cuh"
 #include "gpu/ResidentMaterialSource.cuh"
@@ -9,6 +13,7 @@
 #include "gpu/MaterialSourceKernels.cuh"
 #include "gpu/MaterialSurfaceKernels.cuh"
 #include "ablation/MaterialSurfaceInput.H"
+#include "gpu/ResidentMaterialEndpoint.cuh"
 #include "../../../common/gpu/ScalarWorkLaunch.cuh"
 #include "materials/MaterialInventoryMath.H"
 #include "materials/CpuMaterialDriver.H"
@@ -23,12 +28,14 @@
 namespace chmt {
 namespace {
 using namespace materialSourceDetail;
-// All conduction kernels use the accepted material owner's stream and inventory.
-// Candidate energy/EOS results are published only after every cell succeeds.
+
+
+template<class Current,class Volumes>
 __global__ void prepareConductionKernel(int count,const SolidQ* initial,const Real* initialVolumes,
-    const SolidQ* current,const Real* volumes,const Real* nativeVolumes,const PhysicsConfig* physics,
+    Current currentValue,Volumes volumesValue,const Real* nativeVolumes,const PhysicsConfig* physics,
     MaterialThermalInput* input,MaterialStepResult* status){
     const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=count)return;
+    const SolidQ* current=currentValue;const Real* volumes=volumesValue;
     status[c]={};MaterialThermalInput value;bool numerical=true;
     const auto code=makeMaterialCaloric(current[c],*physics,value.caloric,numerical);
     if(code!=MaterialCaloricCode::Success){status[c]={1,int(code),c,numerical};return;}
@@ -58,10 +65,13 @@ __global__ void inspectConductionStartupKernel(int count,const MaterialThermalCo
     status[c]=value.error?MaterialStepResult{1,value.error,c,true}:MaterialStepResult{};
     if(!value.error&&value.rawPorosity!=value.porosity){auto phi=value.rawPorosity;clipPhysicsMassFraction(*physics,phi,3824,c);}
 }
-__global__ void finishConductionKernel(int count,const SolidQ* current,const Real* volumes,
+template<class Current,class Volumes,class Next>
+__global__ void finishConductionKernel(int count,Current currentValue,Volumes volumesValue,
     const MaterialThermalInput* input,const Real* temperature,const PhysicsConfig* physics,
-    SolidQ* next,MaterialStepResult* status){
+    Next nextValue,MaterialStepResult* status){
     const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=count)return;
+    const SolidQ* current=currentValue;const Real* volumes=volumesValue;
+    SolidQ* next=nextValue;
     status[c]={};SolidQ value=current[c];value.energy=input[c].caloric.energy<false>(temperature[c]);
     MaterialPrimitive primitive;bool numerical=false;
     if(!recoverMaterial<false>(value,volumes[c],*physics,primitive,nullptr,-1,&numerical)){
@@ -146,6 +156,9 @@ __global__ void finishConductionIteration(MaterialConductionIteration* report,co
     if(threadIdx.x)return;using namespace ugkp::diagnostics;
     if(!report->valid){cudaGraphSetConditional(handle,0);return;}
     report->audit=*audit;
+    if(linear->preconditionerFallbackBlocks>0)
+        recordWarning(context,makeRecord(Code::MethodFallback,36010,4,linear->iterations,
+            EntityKind::None,-1,-1,linear->preconditionerFallbackBlocks,0,0,Quantity::LinearSystem));
     if(linear->preconditionerFallbackBlocks>report->preconditionerFallbackBlocks)
         report->preconditionerFallbackBlocks=linear->preconditionerFallbackBlocks;
     if(!finite(linear->finalResidual)){report->valid=false;report->failure=2;}
@@ -217,9 +230,9 @@ struct MaterialBackend {
     std::uint64_t sequence=0,step=0;Real time=0;
     Buffer<PhysicsConfig> devicePhysics,quietSurfacePhysics;
     Buffer<SolidQ> current,next,initial,gasChange,candidateGasChange,donor;
-    // Geometry still consumes a published host mirror. Remember that exact
-    // publication so a window handoff need not upload it back to the GPU.
-    // Compare fields, not a hash/sequence: external callers may replace state.
+
+
+
     Buffer<int> observationCells;Buffer<SolidQ> observation;
     std::vector<int> cachedObservationCells;int observedInventorySize=-1;
     std::vector<SolidQ> publishedCurrent;
@@ -246,6 +259,43 @@ struct MaterialBackend {
         void clear(){if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);executable=nullptr;graph=nullptr;}
         ~ConductionGraph(){clear();}
     } conductionGraph;
+    ConductionGraph localGraph;
+    MaterialLocalBindings localBindings{};
+    Buffer<ResidentMaterialState> localState;Buffer<ResidentMaterialStep> localStep;
+    Buffer<MaterialWindowCommit> localCommit;
+    Buffer<MaterialLocalProgress> localProgress;Buffer<ResidentWallClock> localClock;
+    Buffer<ugkp::CompensatedTime> localTotal;Buffer<ResidentWallKnotTime> localKnots;
+    Buffer<ugkwp::GasDriveControls> localDriveControls;Buffer<ugkwp::GasDriveSelection> localDrive;
+    Buffer<int> localDriveCandidates,localGasFaces,localSolidFaces;
+    Buffer<FilmAux> localAuxiliary,localCandidateAuxiliary;Buffer<Real> localRecession;
+    Buffer<MaterialRecessionStatus> localRecessionStatus;
+    Buffer<MaterialLocalAudit> localAudit;Buffer<SolidQ> localAuditState,localAuditRates;
+    struct StreamedChunkStorage {
+        Buffer<CoupledSurfaceDownload> surface;Buffer<CoupledWallDownload> wall;
+        Buffer<ResidentMaterialDriveInterval> interval;
+        MaterialRowStorage rows;Buffer<int> offsets,indices;
+    } streamedChunks[2];
+    StreamedMaterialChunk hostChunks[2]{};
+    std::uint64_t chunkUse[2]{},chunkSequence=0;
+    Buffer<StreamedMaterialChunk> streamedViews;
+    Buffer<StreamedMaterialProgress> streamedProgress;
+    Buffer<ResidentMaterialDriveInterval> streamedIntervals;
+    Buffer<CoupledSurfaceDownload> streamedHeldSurface;Buffer<CoupledWallDownload> streamedHeldWall;
+    Buffer<MaterialPacketAccumulator> streamedSourcePackets;Buffer<SolidQ> streamedTransported;
+    StreamedMaterialBindings streamedBindings{};
+    std::shared_ptr<CoupledHistoryArchive> localHistory;
+    struct PendingPreparation {HostState state;WallProgram program;CpuMaterialControls controls;};
+    std::shared_ptr<const PendingPreparation> pendingPreparation;
+    bool localStreamed=false,localConduction=false,localHistoryPending=false;
+    Buffer<int> localHistoryPrepared;
+    const std::remove_pointer<decltype(MaterialSliceAccumulators::radiation)>::type* localExternalSource=nullptr;
+    Buffer<int> localStage;
+    ugkp::gpu::ImplicitDiffusion* localDiffusion=nullptr;
+    ugkp::gpu::SparseConjugateGradient* localSparse=nullptr;
+    Real localConductionDt=0,localNormalizationSmall=0,localSingularSmall=0;
+    std::size_t localExternalFaces=0;
+    std::shared_future<void> localCompletion;cudaEvent_t localReady=nullptr;
+    bool localPrepared=false,localPending=false;Real localWindowEnd=0;
     Buffer<MaterialConductionAudit> conductionAuditParts,conductionAuditResult;Buffer<int> conductionExternal;std::vector<int> cachedConductionExternal;
     Buffer<Real> volumes,nextVolumes,sweeps,gradientSensitivity,stabilityRate,lossLeft,lossRight,cellDt;
     Buffer<Vec3> centres,areas,faceCentres,pressureGradient,poreVelocity;
@@ -258,11 +308,13 @@ struct MaterialBackend {
     Buffer<MaterialTransportDeviceResult> transportResult;
     Buffer<MaterialStepResult> sourceStatus,stepResult;
     Buffer<ExchangePacket> packets;
+    Buffer<MaterialPacketAccumulator> streamedPacketRows;
+    ugkp::gpu::PinnedTransferQueue streamedPacketTransfers;
     ResidentMaterialDriveHistory borrowedHistory{};
     ugkp::IntervalSlicePlan pendingSlicePlan{};
     Buffer<IntervalSliceRecordPart> sliceParts;
     Real sliceExternalFraction=0;bool sliceExternalLast=false;
-    bool sliceReady=false,slicePending=false;
+    bool sliceReady=false,slicePending=false,deviceRadiation=false,externalSlicePending=false;
     Buffer<ugkp::IntervalSliceCursor> sliceCursor;
     Buffer<ugkp::IntervalSlicePlan> slicePlan;
     Buffer<ExchangePacket> sliceUsedPackets,sliceCandidatePackets;
@@ -281,6 +333,14 @@ struct MaterialBackend {
     std::vector<int> radiationCellMap;
     Buffer<Real> radiation;
     Buffer<unsigned> radiationReceiver;
+    MaterialSurfaceView surfacePrototype{};
+    bool surfacePrototypeValid=false,surfaceCooperative=false,localEndpoint=false;int surfaceDepth=1;
+    MaterialEndpointBindings endpointBindings{};ugkp::gpu::ScalarWorkLaunch endpointLaunch{};
+    Buffer<SurfacePhysicsInput> endpointInput;Buffer<MaterialSurfaceView> endpointOperation;
+    Buffer<SurfacePhysicsResult> endpointPhysics;Buffer<WallFaceSample> endpointWall;
+    Buffer<MaterialSurfaceStatus> endpointStatus;Buffer<int> endpointComplete,endpointGasCells;
+    Buffer<Real> endpointGasVolume;Buffer<GpuReal> endpointDonorShare,endpointHostFraction;
+    Buffer<CoupledSurfaceDownload> endpointHistorySurface;Buffer<CoupledWallDownload> endpointHistoryWall;
     Buffer<SurfacePhysicsInput> surfaceInput;
     Buffer<int> surfaceCells;
     Buffer<unsigned char> surfaceActive,wallWorkspace;
@@ -298,7 +358,7 @@ struct MaterialBackend {
     std::uint64_t geometryVersion=0,topologyHash=0;
     int cells=0,faces=0;
     cudaEvent_t conductionReady=nullptr;
-    ~MaterialBackend(){stream.sync();if(conductionReady)cudaEventDestroy(conductionReady);}
+    ~MaterialBackend(){if(localCompletion.valid()){try{localCompletion.get();}catch(...){}}stream.sync();if(localReady)cudaEventDestroy(localReady);if(conductionReady)cudaEventDestroy(conductionReady);}
     bool waitConduction(void* producer){
         if(!conductionReady&&!fault.check(cudaEventCreateWithFlags(&conductionReady,cudaEventDisableTiming),"create conduction dependency"))return false;
         return fault.check(cudaEventRecord(conductionReady,static_cast<cudaStream_t>(producer)),"record conduction dependency")
@@ -410,7 +470,8 @@ MaterialBackend* createMaterialBackend(std::string& error){
 }
 void destroyMaterialBackend(MaterialBackend* b)noexcept{delete b;}
 void setMaterialDiagnosticsSink(MaterialBackend& b,const ugkp::diagnostics::HostSink& sink){b.diagnostics.setSink(sink);}
-bool beginMaterialWindow(MaterialBackend& b,const HostState& state,const PhysicsConfig& physics,std::string& error){
+bool beginMaterialWindow(MaterialBackend& b,const HostState& state,const PhysicsConfig& physics,std::string& error,bool collectDiagnostics){
+    if(b.localPending){error="material local window still owns its buffers";return false;}
     b.physics=physics;
     auto quietPhysics=physics;quietPhysics.diagnostics=nullptr;quietPhysics.tolerances.diagnostics=nullptr;
     auto devicePhysics=physics;devicePhysics.diagnostics=b.diagnostics.device();
@@ -433,7 +494,7 @@ bool beginMaterialWindow(MaterialBackend& b,const HostState& state,const Physics
         ||!b.allocate(b.sourceStatus,state.solid.size())||!b.allocate(b.stepResult,1)
         ||!b.uploadRaw(b.devicePhysics,&devicePhysics,1)||!b.uploadRaw(b.quietSurfacePhysics,&quietPhysics,1))return b.failure(error);
     b.operation(state.time);
-    return b.finish(error);
+    return collectDiagnostics?b.finish(error):true;
 }
 bool prepareResidentMaterialConduction(MaterialBackend& b,const HostMesh& mesh,
     const std::vector<Real>& nativeVolumes,std::vector<MaterialThermalInput>& input,
@@ -499,6 +560,50 @@ const MaterialConductionAudit* enqueueConductionAudit(MaterialBackend& b,const R
     return b.conductionAuditResult.data();
 }
 }
+static ugkp::gpu::ExecutionGraphNode appendMaterialConductionLoop(MaterialBackend& b,
+    ugkp::gpu::ImplicitDiffusion& diffusion,ugkp::gpu::SparseConjugateGradient& sparse,
+    ugkp::gpu::ExecutionGraph parent,ugkp::gpu::ExecutionGraphNode dependency,
+    std::size_t boundary,Real dt,const CpuMaterialControls& controls,Real normalizationSmall,Real singularSmall){
+    using namespace ugkp::gpu;using executionGraphDetail::appendCaptured;
+    auto& report=b.conductionReport;
+        cudaGraphConditionalHandle handle,permitted,assembleAllowed,finishAllowed;
+        executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&handle,parent,0,cudaGraphCondAssignDefault));
+        ConjugateGradientControls linear;linear.maximumIterations=controls.linearMaxIterations;linear.normalizationSmall=normalizationSmall;linear.singularSmall=singularSmall;
+        const auto initialized=appendCaptured(parent,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},b.stream.get(),[&]{
+            beginConductionLoop<<<1,1,0,b.stream.get()>>>(report.data(),linear,b.diagnostics.device(),handle);});
+        cudaGraph_t body=nullptr;const auto done=executionGraphDetail::addWhile(parent,handle,{initialized},body);
+        executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&permitted,body,0,cudaGraphCondAssignDefault));
+        executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&assembleAllowed,body,0,cudaGraphCondAssignDefault));
+        const auto assemblySelected=appendCaptured(body,{},b.stream.get(),[&]{conductionSelect<<<1,1,0,b.stream.get()>>>(report.data(),1,sparse.capacityPendingDevice(),assembleAllowed);});
+        cudaGraph_t assemblyBody=nullptr;const auto assemblyDone=executionGraphDetail::addIf(body,assembleAllowed,{assemblySelected},assemblyBody);
+        const auto assembled=appendCaptured(assemblyBody,{},b.stream.get(),[&]{
+            diffusion.enqueueResidentSnapshot(b.stream.get());
+            if(b.cells)conductionCoefficientsKernel<<<(b.cells+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads,0,b.stream.get()>>>(b.cells,b.conductionInput.data(),
+                diffusion.deviceTemperature(),dt,b.devicePhysics.data(),b.conductionCoefficients.data(),b.conductionCapacity.data(),b.conductionSource.data(),b.conductionConductivity.data());
+            diffusion.enqueueResidentAssembly(b.stream.get());
+        });
+        const auto residual=sparse.appendResidentLocalResidual(assemblyBody,assembled,diffusion.deviceSolution(),diffusion.deviceResidual());
+        const auto budget=appendCaptured(assemblyBody,{residual},b.stream.get(),[&]{
+            const auto audit=enqueueConductionAudit(b,diffusion.deviceTemperature(),nullptr,diffusion.deviceResidual(),nullptr,boundary,dt,b.stream.get());
+            prepareConductionLinearControls<<<1,1,0,b.stream.get()>>>(report.data(),audit,controls,permitted);
+            conductionPrepared<<<1,1,0,b.stream.get()>>>(report.data());
+        });
+        const auto solveSelected=appendCaptured(body,{assemblyDone},b.stream.get(),[&]{conductionSelect<<<1,1,0,b.stream.get()>>>(report.data(),2,sparse.capacityPendingDevice(),permitted);});
+        cudaGraph_t solveBody=nullptr;const auto solve=executionGraphDetail::addIf(body,permitted,{solveSelected},solveBody);
+        const auto solved=sparse.appendResidentLocalLdu(solveBody,nullptr,diffusion.deviceSolution(),&report.data()->linear);
+        executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&finishAllowed,solveBody,0,cudaGraphCondAssignDefault));
+        const auto finishSelected=appendCaptured(solveBody,{solved},b.stream.get(),[&]{conductionSelect<<<1,1,0,b.stream.get()>>>(report.data(),2,sparse.capacityPendingDevice(),finishAllowed);});
+        cudaGraph_t finishBody=nullptr;executionGraphDetail::addIf(solveBody,finishAllowed,{finishSelected},finishBody);
+        appendCaptured(finishBody,{},b.stream.get(),[&]{
+            diffusion.enqueueResidentBoundaryTemperature(b.stream.get());diffusion.enqueueResidentBoundaryFlux(b.stream.get());
+            enqueueConductionAudit(b,diffusion.deviceTemperature(),diffusion.devicePreviousSolution(),nullptr,diffusion.deviceBoundaryFlux(),boundary,dt,b.stream.get());
+            finishConductionIteration<<<1,1,0,b.stream.get()>>>(report.data(),b.conductionAuditResult.data(),sparse.deviceReport(),controls,b.diagnostics.device(),handle);
+        });
+        appendCaptured(body,{solve},b.stream.get(),[&]{
+            conductionContinue<<<1,1,0,b.stream.get()>>>(report.data(),sparse.capacityPendingDevice(),controls,handle);
+        });
+    return done;
+}
 bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffusion& diffusion,
     ugkp::gpu::SparseConjugateGradient& sparse,const std::vector<int>& external,Real dt,const CpuMaterialControls& controls,
     Real normalizationSmall,Real singularSmall,std::string& error){
@@ -507,9 +612,9 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
     const int blocks=(std::max(b.cells,static_cast<int>(external.size()))+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads;
     auto& report=b.conductionReport;
     if(!b.allocate(b.conductionAuditParts,blocks)||!b.allocate(b.conductionAuditResult,1)||!b.allocate(report,1))return b.failure(error);
-    // Reuse the complete nonlinear/sparse graph while every captured argument
-    // remains valid. Matrix values and geometry coefficients update in place.
-    // Changed extents, storage addresses, interval or controls recapture it.
+
+
+
     auto& graph=b.conductionGraph;
     auto signature=diffusion.residentExecutionSignature();
     signature.append(sparse.residentExecutionSignature());
@@ -528,42 +633,9 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
     using namespace ugkp::gpu;using executionGraphDetail::appendCaptured;
     try{
         if(!graph.executable){
-        executionGraphDetail::checked(cudaGraphCreate(&graph.graph,0));cudaGraphConditionalHandle handle,permitted,assembleAllowed,finishAllowed;
-        executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&handle,graph.graph,0,cudaGraphCondAssignDefault));
-        ConjugateGradientControls linear;linear.maximumIterations=controls.linearMaxIterations;linear.normalizationSmall=normalizationSmall;linear.singularSmall=singularSmall;
-        const auto initialized=appendCaptured(graph.graph,{},b.stream.get(),[&]{
-            beginConductionLoop<<<1,1,0,b.stream.get()>>>(report.data(),linear,b.diagnostics.device(),handle);});
-        cudaGraph_t body=nullptr;executionGraphDetail::addWhile(graph.graph,handle,{initialized},body);
-        executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&permitted,body,0,cudaGraphCondAssignDefault));
-        executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&assembleAllowed,body,0,cudaGraphCondAssignDefault));
-        const auto assemblySelected=appendCaptured(body,{},b.stream.get(),[&]{conductionSelect<<<1,1,0,b.stream.get()>>>(report.data(),1,sparse.capacityPendingDevice(),assembleAllowed);});
-        cudaGraph_t assemblyBody=nullptr;const auto assemblyDone=executionGraphDetail::addIf(body,assembleAllowed,{assemblySelected},assemblyBody);
-        const auto assembled=appendCaptured(assemblyBody,{},b.stream.get(),[&]{
-            diffusion.enqueueResidentSnapshot(b.stream.get());
-            if(b.cells)conductionCoefficientsKernel<<<(b.cells+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads,0,b.stream.get()>>>(b.cells,b.conductionInput.data(),
-                diffusion.deviceTemperature(),dt,b.devicePhysics.data(),b.conductionCoefficients.data(),b.conductionCapacity.data(),b.conductionSource.data(),b.conductionConductivity.data());
-            diffusion.enqueueResidentAssembly(b.stream.get());
-        });
-        const auto residual=sparse.appendResidentLocalResidual(assemblyBody,assembled,diffusion.deviceSolution(),diffusion.deviceResidual());
-        const auto budget=appendCaptured(assemblyBody,{residual},b.stream.get(),[&]{
-            const auto audit=enqueueConductionAudit(b,diffusion.deviceTemperature(),nullptr,diffusion.deviceResidual(),nullptr,external.size(),dt,b.stream.get());
-            prepareConductionLinearControls<<<1,1,0,b.stream.get()>>>(report.data(),audit,controls,permitted);
-            conductionPrepared<<<1,1,0,b.stream.get()>>>(report.data());
-        });
-        const auto solveSelected=appendCaptured(body,{assemblyDone},b.stream.get(),[&]{conductionSelect<<<1,1,0,b.stream.get()>>>(report.data(),2,sparse.capacityPendingDevice(),permitted);});
-        cudaGraph_t solveBody=nullptr;const auto solve=executionGraphDetail::addIf(body,permitted,{solveSelected},solveBody);
-        const auto solved=sparse.appendResidentLocalLdu(solveBody,nullptr,diffusion.deviceSolution(),&report.data()->linear);
-        executionGraphDetail::checked(cudaGraphConditionalHandleCreate(&finishAllowed,solveBody,0,cudaGraphCondAssignDefault));
-        const auto finishSelected=appendCaptured(solveBody,{solved},b.stream.get(),[&]{conductionSelect<<<1,1,0,b.stream.get()>>>(report.data(),2,sparse.capacityPendingDevice(),finishAllowed);});
-        cudaGraph_t finishBody=nullptr;executionGraphDetail::addIf(solveBody,finishAllowed,{finishSelected},finishBody);
-        appendCaptured(finishBody,{},b.stream.get(),[&]{
-            diffusion.enqueueResidentBoundaryTemperature(b.stream.get());diffusion.enqueueResidentBoundaryFlux(b.stream.get());
-            enqueueConductionAudit(b,diffusion.deviceTemperature(),diffusion.devicePreviousSolution(),nullptr,diffusion.deviceBoundaryFlux(),external.size(),dt,b.stream.get());
-            finishConductionIteration<<<1,1,0,b.stream.get()>>>(report.data(),b.conductionAuditResult.data(),sparse.deviceReport(),controls,b.diagnostics.device(),handle);
-        });
-        appendCaptured(body,{solve},b.stream.get(),[&]{
-            conductionContinue<<<1,1,0,b.stream.get()>>>(report.data(),sparse.capacityPendingDevice(),controls,handle);
-        });
+        executionGraphDetail::checked(cudaGraphCreate(&graph.graph,0));
+        appendMaterialConductionLoop(b,diffusion,sparse,graph.graph,nullptr,external.size(),dt,
+            controls,normalizationSmall,singularSmall);
         executionGraphDetail::checked(cudaGraphInstantiateWithFlags(&graph.executable,graph.graph,0));
         }
         executionGraphDetail::checked(cudaMemsetAsync(&report.data()->continuationStage,0,sizeof(int),b.stream.get()));
@@ -572,8 +644,6 @@ bool solveResidentMaterialConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffu
             executionGraphDetail::checked(cudaGraphLaunch(graph.executable,b.stream.get()));
             if(!b.transfers.download(&result,report.data(),1)||!b.finish(error))return b.failure(error);
         }while(sparse.servicePendingCapacity());
-        if(result.preconditionerFallbackBlocks>0)
-            std::fprintf(stderr,"CHMT AMG: fallback used for up to %d preconditioner blocks per linear solve\n",result.preconditionerFallbackBlocks);
         if(!result.valid){
             error=result.failure==1?(result.audit.coefficientError==1?"nonpositive implicit caloric secant":"material mass/geometry incompatible during implicit solve")
                 :result.failure==2?"nonfinite OpenFOAM implicit material sparse residual"
@@ -637,27 +707,627 @@ bool evaluateResidentMaterialTransport(MaterialBackend& b,const HostMesh& mesh,
         return false;}
     numerical=result.numerical;dtLimit=result.dtLimit;error.clear();return true;
 }
+static bool initializeMaterialSliceStorage(MaterialBackend& b,std::size_t faces,std::string& error){
+    const ugkp::IntervalSliceCursor initialCursor{};
+    if(!b.uploadRaw(b.sliceCursor,&initialCursor,1)||!b.allocate(b.slicePlan,1)
+        ||!b.allocate(b.sliceUsedPackets,3*faces)||!b.allocate(b.sliceCandidatePackets,3*faces)
+        ||!b.allocate(b.sliceUsedRadiation,faces)||!b.allocate(b.sliceCandidateRadiation,faces)
+        ||!b.sliceUsedPackets.zero(b.stream.get())||!b.sliceUsedRadiation.zero(b.stream.get()))return b.failure(error);
+    b.sliceReady=true;return true;
+}
 bool beginResidentMaterialHistory(MaterialBackend& b,const ResidentMaterialDriveHistory* supplied,
     const IntervalHistory& host,std::string& error){
     b.sliceReady=false;b.slicePending=false;b.borrowedHistory={};
+    b.deviceRadiation=false;b.externalSlicePending=false;
+    const auto external=host.externalRadiationDevice();
+    if(external.faces){
+        if(!external.energy){error="missing device boundary radiation energy";return false;}
+        if(!b.waitConduction(external.producerStream)||!b.allocate(b.sliceExternal,external.faces)
+            ||!b.fault.check(cudaMemcpyAsync(b.sliceExternal.data(),external.energy,external.faces*sizeof(Real),
+                cudaMemcpyDeviceToDevice,b.stream.get()),"borrow device boundary radiation"))return b.failure(error);
+        b.deviceRadiation=true;
+    }else if(!b.upload(b.sliceExternal,host.externalRadiationEnergy()))return b.failure(error);
+    if(!b.allocate(b.sliceUsedExternal,b.sliceExternal.size())||!b.allocate(b.sliceCandidateExternal,b.sliceExternal.size())
+        ||!b.sliceUsedExternal.zero(b.stream.get()))return b.failure(error);
+
 
 
     if(!supplied||!supplied->surface||!supplied->interval||!supplied->faces
         ||supplied->frames!=host.records().size())return true;
-    for(const auto& record:host.records())if(record.radiationEnergy.size()!=supplied->faces
-        ||record.radiationReceiver.size()!=supplied->faces)return true;
+    for(std::size_t i=0;i<host.records().size();++i){const auto record=host.readRecord(i);
+        if(record.radiationEnergy.size()!=supplied->faces||record.radiationReceiver.size()!=supplied->faces)return true;}
     b.borrowedHistory=*supplied;b.pendingSlicePlan={};
-    const ugkp::IntervalSliceCursor initialCursor{};
-    if(!b.waitConduction(supplied->producerStream)
-        ||!b.uploadRaw(b.sliceCursor,&initialCursor,1)||!b.allocate(b.slicePlan,1)
-        ||!b.allocate(b.sliceUsedPackets,3*supplied->faces)||!b.allocate(b.sliceCandidatePackets,3*supplied->faces)
-        ||!b.allocate(b.sliceUsedRadiation,supplied->faces)||!b.allocate(b.sliceCandidateRadiation,supplied->faces)
-        ||!b.upload(b.sliceExternal,host.externalRadiationEnergy())
-        ||!b.allocate(b.sliceUsedExternal,b.sliceExternal.size())||!b.allocate(b.sliceCandidateExternal,b.sliceExternal.size())
-        ||!b.sliceUsedPackets.zero(b.stream.get())||!b.sliceUsedRadiation.zero(b.stream.get())
-        ||!b.sliceUsedExternal.zero(b.stream.get()))return b.failure(error);
-    b.sliceReady=true;return true;
+    if(!b.waitConduction(supplied->producerStream))return b.failure(error);
+    return initializeMaterialSliceStorage(b,supplied->faces,error);
 }
+
+namespace {
+struct MaterialRadiationCellRow {
+    const int* cells=nullptr;
+    __host__ __device__ int operator()(int i)const{return cells[i];}
+};
+}
+static bool prepareMaterialLocalWindow(MaterialBackend& b,const HostState& state,const PhysicsConfig& physics,
+    const IntervalHistory& history,const ResidentMaterialDriveHistory& resident,const WallProgram& program,
+    const CpuMaterialControls& controls,std::string& error,bool streamed,bool pending=false){
+    if(b.localPending){error="material local window still owns its buffers";return false;}
+    b.localPrepared=false;b.localCompletion={};b.localConduction=false;b.localEndpoint=false;
+    b.localHistoryPending=pending;b.localExternalSource=nullptr;
+    b.localDiffusion=nullptr;b.localSparse=nullptr;
+    const std::size_t nf=state.surface.area.size();
+    if(physics.meshMotion.policy!=MeshMotionPolicy::Static){error="material local window lacks moving-geometry stages";return false;}
+    if(controls.retainDonorHistory){error="material local window lacks requested external donor-history storage";return false;}
+    if((!pending&&(!history.complete()||resident.frames!=history.records().size()))||!resident.interval
+        ||resident.faces!=nf||(nf&&!streamed&&!resident.surface)){
+        error="material local window needs its complete resident driving history";return false;
+    }
+    if(state.surface.gasFace.size()!=nf||state.surface.solidFace.size()!=nf
+        ||state.surface.solidCell.size()!=nf||state.filmAux.size()!=nf){
+        error="material local window face or auxiliary data missing";return false;
+    }
+    if(nf&&(streamed?CoupledHistoryArchive::slabFrames:resident.frames)>std::size_t(INT_MAX)/nf/3){error="material local window packet storage is not addressable";return false;}
+    for(std::size_t f=0;f<nf;++f){
+        const int c=state.surface.solidCell[f],sf=state.surface.solidFace[f];
+        if(c<-1||c>=int(state.solid.size())||sf<-1||sf>=int(state.solidMesh.owner.size())){
+            error="material local window has an invalid material face owner";return false;
+        }
+    }
+    if(!beginMaterialWindow(b,state,physics,error,false)
+        ||!beginResidentMaterialHistory(b,streamed?nullptr:&resident,history,error))return false;
+    if(streamed||pending){if(!initializeMaterialSliceStorage(b,nf,error))return false;b.borrowedHistory=resident;}
+    if(pending){const int initial=0;if(!b.uploadRaw(b.localHistoryPrepared,&initial,1))return b.failure(error);
+        b.localExternalSource=history.externalRadiationDevice().energy;}
+    if(!b.sliceReady){error="material local window history lacks source-slice data";return false;}
+    const auto total=residentWindowTime(intervalDuration(history.interval()));
+    const ResidentWallClock clock{{},history.interval().begin,history.interval().identity.sequence};
+    auto mesh=b.mesh(),candidateMesh=mesh;candidateMesh.volumes=b.nextVolumes.data();
+    const ResidentMaterialState material{b.current.data(),b.next.data(),b.gasChange.data(),
+        b.candidateGasChange.data(),b.initial.data(),mesh,candidateMesh};
+    std::vector<ResidentWallKnotTime> knots;
+    for(const auto& knot:program.knots)knots.push_back({residentWindowTime(knotOffset(history.interval(),knot)),knot.time});
+
+    std::vector<MaterialLocalAudit> observations;
+    const auto sampleCount=std::min(resident.frames?resident.frames-1:0,
+        controls.driveSourceDiagnosticSamples>0?std::size_t(controls.driveSourceDiagnosticSamples):std::size_t(0));
+    if(resident.frames)observations.push_back({0,{}});
+    for(std::size_t i=1;i<=sampleCount;++i){
+        const auto record=(resident.frames/(sampleCount+1))*i+((resident.frames%(sampleCount+1))*i)/(sampleCount+1);
+        observations.push_back({record,pending?ugkp::CompensatedTime{}:residentWindowTime(history.records()[record].localBegin)});
+    }
+    if(b.current.size()&&observations.size()>std::numeric_limits<std::size_t>::max()/b.current.size()){
+        error="material diagnostic snapshot extent cannot be represented";return false;
+    }
+    if(!b.upload(b.localAudit,observations)
+        ||!b.allocate(b.localAuditState,observations.size()*b.current.size())
+        ||!b.allocate(b.localAuditRates,observations.size()*b.current.size()))return b.failure(error);
+    const ResidentMaterialStep step{};const MaterialLocalProgress progress{};const MaterialWindowCommit commit{};
+    if(!b.uploadRaw(b.localState,&material,1)||!b.uploadRaw(b.localStep,&step,1)
+        ||!b.uploadRaw(b.localTotal,&total,1)||!b.uploadRaw(b.localClock,&clock,1)
+        ||!b.uploadRaw(b.localCommit,&commit,1)||!b.uploadRaw(b.localProgress,&progress,1)||!b.upload(b.localKnots,knots)
+        ||!b.allocate(b.localDriveControls,1)||!b.allocate(b.localDrive,1)||!b.allocate(b.localDriveCandidates,resident.frames)
+        ||!b.upload(b.localAuxiliary,state.filmAux)||!b.allocate(b.localCandidateAuxiliary,nf)
+        ||!b.allocate(b.localRecession,nf)||!b.allocate(b.localRecessionStatus,nf)
+        ||!b.upload(b.localGasFaces,state.surface.gasFace)||!b.upload(b.localSolidFaces,state.surface.solidFace)
+        ||!b.upload(b.radiationCells,state.surface.solidCell)||!b.allocate(b.radiation,nf)
+        ||!b.allocate(b.radiationReceiver,nf))return b.failure(error);
+    MaterialLocalBindings binding{};
+    binding.material=b.localState.data();binding.step=b.localStep.data();binding.total=b.localTotal.data();
+    binding.clock=b.localClock.data();binding.progress=b.localProgress.data();binding.cursor=b.sliceCursor.data();
+    binding.driveControls=b.localDriveControls.data();binding.drive=b.localDrive.data();binding.driveCandidates=b.localDriveCandidates.data();
+    binding.slice={resident,b.slicePlan.data(),b.currentSlice(),true};binding.slicePlan=b.slicePlan.data();
+    binding.used=b.currentSlice();binding.candidateUsed=b.candidateSlice();
+    binding.knots=b.localKnots.data();binding.knotCount=knots.size();binding.physics=b.devicePhysics.data();
+    binding.diagnostics=b.diagnostics.device();binding.controls=controls;
+    binding.transport=b.workspace();binding.transportResult=b.transportResult.data();
+    binding.sourceStatus=b.sourceStatus.data();binding.sourceResult=b.stepResult.data();
+    binding.radiation=b.radiation.data();binding.externalRadiation=b.sliceExternal.data();binding.externalFaces=b.sliceExternal.size();
+    binding.receivers=b.radiationReceiver.data();binding.gasFaces=b.localGasFaces.data();binding.solidFaces=b.localSolidFaces.data();
+    binding.auxiliary=b.localAuxiliary.data();binding.candidateAuxiliary=b.localCandidateAuxiliary.data();
+    binding.recessionTarget=b.localRecession.data();binding.recessionStatus=b.localRecessionStatus.data();
+    binding.cells=b.cells;binding.faces=b.faces;
+    binding.audit=b.localAudit.data();binding.auditCount=int(observations.size());
+    binding.auditState=b.localAuditState.data();binding.auditRates=b.localAuditRates.data();
+    if(!streamed){
+        material_slice_detail::plan<<<1,1,0,b.stream.get()>>>(resident,b.sliceCursor.data(),b.localTotal.data(),b.sliceExternal.size(),b.slicePlan.data());
+        if(!b.fault.check(cudaGetLastError(),"plan full material packet rows")
+            ||!b.buildRows(int(resident.frames*nf*3),b.cells,ResidentMaterialSliceRow{binding.slice},
+                b.packetRows,b.packetOffsets,b.packetIndices))return b.failure(error);
+    }
+    if(!b.buildRows(int(nf),b.cells,MaterialRadiationCellRow{b.radiationCells.data()},
+            b.radiationRows,b.radiationOffsets,b.radiationFaces))return b.failure(error);
+    binding.packetOffsets=b.packetOffsets.data();binding.packetIndices=b.packetIndices.data();
+    binding.radiationOffsets=b.radiationOffsets.data();binding.radiationFaces=b.radiationFaces.data();
+    b.localBindings=binding;b.localWindowEnd=history.interval().end;
+    b.localPrepared=true;error.clear();return true;
+}
+bool preparePendingResidentMaterialLocalWindow(MaterialBackend& b,const HostState& state,const PhysicsConfig& physics,
+    const ResidentMaterialDriveHistory& resident,const IntervalRadiationDeviceView& radiation,const WallProgram& program,
+    const CpuMaterialControls& controls,std::string& error){
+    if(!resident.deviceFrames||!resident.frames||!resident.surface){error="pending material history count or storage missing";return false;}
+    IntervalHistory descriptor;if(!descriptor.begin(program.interval,error))return false;
+    descriptor.setExternalRadiationDevice(radiation);
+    if(!prepareMaterialLocalWindow(b,state,physics,descriptor,resident,program,controls,error,false,true))return false;
+    b.pendingPreparation=std::make_shared<MaterialBackend::PendingPreparation>(MaterialBackend::PendingPreparation{state,program,controls});
+    b.localStreamed=false;b.localHistory.reset();return true;
+}
+bool prepareResidentMaterialLocalWindow(MaterialBackend& b,const HostState& state,const PhysicsConfig& physics,
+    const IntervalHistory& history,const ResidentMaterialDriveHistory& resident,const WallProgram& program,
+    const CpuMaterialControls& controls,std::string& error){
+    if(!prepareMaterialLocalWindow(b,state,physics,history,resident,program,controls,error,false))return false;
+    b.localStreamed=false;b.localHistory.reset();return true;
+}
+bool prepareStreamedMaterialLocalWindow(MaterialBackend& b,const HostState& state,const PhysicsConfig& physics,
+    const IntervalHistory& history,const std::shared_ptr<CoupledHistoryArchive>& archive,const WallProgram& program,
+    const CpuMaterialControls& controls,std::string& error){
+    if(b.localPending){error="material local window still owns its buffers";return false;}
+    b.localPrepared=false;
+    if(!archive||archive->frames()!=history.records().size()){error="material history payload or interval metadata missing";return false;}
+    const auto faces=state.surface.area.size();
+    if(!faces||faces>std::size_t(INT_MAX)/CoupledHistoryArchive::slabFrames/3){error="material history chunk extent is not addressable";return false;}
+    std::vector<ResidentMaterialDriveInterval> metadata;metadata.reserve(history.records().size());
+    for(const auto& record:history.records())metadata.push_back({residentWindowTime(record.localBegin),residentWindowTime(record.localEnd),record.actualDt});
+    if(!b.upload(b.streamedIntervals,metadata))return b.failure(error);
+    const ResidentMaterialDriveHistory complete{nullptr,nullptr,b.streamedIntervals.data(),metadata.size(),faces,b.stream.get()};
+    if(!prepareMaterialLocalWindow(b,state,physics,history,complete,program,controls,error,true))return false;
+    b.localPrepared=false;
+    const bool matching=physics.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer;
+    for(auto& slot:b.streamedChunks){
+        if(!b.allocate(slot.surface,CoupledHistoryArchive::slabFrames*faces)
+            ||!b.allocate(slot.wall,matching?CoupledHistoryArchive::slabFrames*faces:0)
+            ||!b.allocate(slot.interval,CoupledHistoryArchive::slabFrames))return b.failure(error);
+    }
+    b.hostChunks[0]={};b.hostChunks[1]={};b.chunkUse[0]=b.chunkUse[1]=b.chunkSequence=0;
+    const StreamedMaterialProgress progress{};
+    if(!b.uploadRaw(b.streamedViews,b.hostChunks,2)||!b.uploadRaw(b.streamedProgress,&progress,1)
+        ||!b.allocate(b.streamedHeldSurface,faces)||!b.allocate(b.streamedHeldWall,matching?faces:0)
+        ||!b.allocate(b.streamedSourcePackets,b.cells)||!b.allocate(b.streamedTransported,b.cells))return b.failure(error);
+    b.streamedBindings={b.localBindings,b.streamedProgress.data(),b.streamedViews.data(),
+        b.streamedHeldSurface.data(),b.streamedHeldWall.data(),matching,b.streamedSourcePackets.data(),b.streamedTransported.data()};
+    b.localStreamed=true;b.localHistory=archive;b.localPrepared=true;error.clear();return true;
+}
+namespace {
+struct StreamedMaterialPacketRow {
+    const CoupledSurfaceDownload* surface=nullptr;
+    __host__ __device__ int operator()(int i)const{
+        const auto& raw=surface[i/3];const unsigned kind=i%3;
+        if(kind&&!hasPacketTransfer(materialHistoryPacket(raw,kind)))return -1;
+        const auto packet=materialHistoryPacket(raw,kind);
+        return (requiredConsumers(packet.kind)&ConsumeSolid)?packet.solidCell:-1;
+    }
+};
+}
+bool supplyResidentMaterialHistory(MaterialBackend& b,std::size_t frame,std::string& error){
+    if(!b.localStreamed||!b.localHistory||frame>=b.localHistory->frames()){
+        error="requested material history frame is unavailable";return false;
+    }
+    const auto chunk=b.localHistory->chunk(frame);const auto faces=b.localBindings.slice.history.faces;
+    const bool matching=b.streamedBindings.matching;
+    if(chunk->frames>CoupledHistoryArchive::slabFrames||chunk->surface.size()!=chunk->frames*faces
+        ||chunk->interval.size()!=chunk->frames||(matching&&chunk->wall.size()!=chunk->frames*faces)){
+        error="material history chunk is missing consumed fields";return false;
+    }
+    const int index=b.chunkUse[0]<=b.chunkUse[1]?0:1;auto& slot=b.streamedChunks[index];
+    if(!b.transfers.upload(slot.surface.data(),chunk->surface.data(),chunk->surface.size())
+        ||(matching&&!b.transfers.upload(slot.wall.data(),chunk->wall.data(),chunk->wall.size()))
+        ||!b.transfers.upload(slot.interval.data(),chunk->interval.data(),chunk->interval.size())
+        ||!b.buildRows(int(chunk->frames*faces*3),b.cells,StreamedMaterialPacketRow{slot.surface.data()},
+            slot.rows,slot.offsets,slot.indices))return b.failure(error);
+    b.hostChunks[index]={{slot.surface.data(),matching?slot.wall.data():nullptr,slot.interval.data(),chunk->frames,faces,b.stream.get()},
+        chunk->first,slot.offsets.data(),slot.indices.data()};
+    b.chunkUse[index]=++b.chunkSequence;
+    if(!b.transfers.upload(b.streamedViews.data()+index,&b.hostChunks[index],1))return b.failure(error);
+    error.clear();return true;
+}
+namespace {
+__global__ void preparePendingHistory(MaterialLocalBindings b,int* prepared,cudaGraphConditionalHandle allowed){
+    if(threadIdx.x||blockIdx.x)return;
+    bool run=!*prepared&&!b.progress->failurePhase&&!ugkp::diagnostics::hasFatal(b.diagnostics);
+    if(run){
+        const auto h=b.slice.history.resolved();
+        if(!h.frames||h.frames>b.slice.history.frames||!(h.interval[h.frames-1].end==*b.total)){
+            material_local_detail::fail(b,2,int(ugkp::IntervalSliceError::ExceedsHistory),-1);run=false;
+        }
+    }
+    cudaGraphSetConditional(allowed,run);if(run)*prepared=1;
+}
+__global__ void initializePendingAudit(MaterialLocalBindings b){
+    const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=b.auditCount)return;
+    const auto h=b.slice.history.resolved();
+    const auto samples=h.frames<std::size_t(b.auditCount)?h.frames:std::size_t(b.auditCount);
+    if(std::size_t(i)>=samples){b.audit[i]={};b.audit[i].record=std::numeric_limits<std::size_t>::max();b.audit[i].time=*b.total;b.audit[i].ready=true;return;}
+    const auto record=(h.frames/samples)*i+((h.frames%samples)*i)/samples;
+    b.audit[i]={record,h.interval[record].begin};
+}
+}
+static ugkp::gpu::ExecutionGraphNode appendPendingMaterialHistory(MaterialBackend& b,
+    ugkp::gpu::ExecutionGraph graph,ugkp::gpu::ExecutionGraphNode dependency){
+    if(!b.localHistoryPending)return dependency;
+    using namespace ugkp::gpu;using namespace executionGraphDetail;
+    const auto local=b.localBindings;const auto stream=b.stream.get();
+    cudaGraphConditionalHandle permitted;checked(cudaGraphConditionalHandleCreate(&permitted,graph,0,cudaGraphCondAssignDefault));
+    const auto selected=appendRecorded(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},stream,[&]{
+        preparePendingHistory<<<1,1,0,stream>>>(local,b.localHistoryPrepared.data(),permitted);
+    });
+    cudaGraph_t body=nullptr;const auto done=addIf(graph,permitted,{selected},body);
+    appendRecorded(body,{},stream,[&]{
+        material_slice_detail::plan<<<1,1,0,stream>>>(local.slice.history,local.cursor,local.total,local.externalFaces,local.slicePlan);
+        if(!b.buildRows(int(local.slice.history.frames*local.slice.history.faces*3),b.cells,ResidentMaterialSliceRow{local.slice},
+            b.packetRows,b.packetOffsets,b.packetIndices))throw std::runtime_error(b.fault.message);
+        if(b.localExternalSource&&local.externalFaces)checked(cudaMemcpyAsync(b.sliceExternal.data(),b.localExternalSource,
+            local.externalFaces*sizeof(*local.externalRadiation),cudaMemcpyDeviceToDevice,stream));
+        const int threads=workPlan().materialBlockThreads;
+        initializePendingAudit<<<std::max(1,(local.auditCount+threads-1)/threads),threads,0,stream>>>(local);
+    });
+    return done;
+}
+namespace {
+__global__ void localConductionChoose(MaterialLocalBindings local,const int* stage,int expected,
+    cudaGraphConditionalHandle permitted){
+    if(!threadIdx.x&&!blockIdx.x)cudaGraphSetConditional(permitted,*stage==expected
+        &&!local.progress->failurePhase&&!ugkp::diagnostics::hasFatal(local.diagnostics));
+}
+__global__ void localSourcesDone(MaterialLocalBindings local,int* stage){
+    if(!threadIdx.x&&!blockIdx.x&&local.progress->complete&&!local.progress->failurePhase){
+        *stage=1;
+        ugkp::diagnostics::beginOperation(*local.diagnostics,local.clock->sequence,local.diagnostics->step,
+            ugkp::absoluteTime(local.clock->origin,*local.total));
+    }
+}
+__global__ void localConductionStatus(MaterialLocalBindings local,int* stage,int next){
+    if(threadIdx.x||blockIdx.x)return;
+    const auto result=*local.sourceResult;
+    if(result.phase){material_local_detail::fail(local,10+result.phase,result.code,result.entity);return;}
+    *stage=next;
+}
+__global__ void localConductionSolved(MaterialLocalBindings local,int* stage,
+    const MaterialConductionIteration* report,const int* capacity){
+    if(threadIdx.x||blockIdx.x||(capacity&&*capacity))return;
+    if(!report->valid){material_local_detail::fail(local,14,report->failure,report->audit.invalidCell);return;}
+    *stage=3;
+}
+__global__ void localConductionCommit(MaterialLocalBindings local,int* stage){
+    if(threadIdx.x||blockIdx.x)return;
+    const auto result=*local.sourceResult;
+    if(result.phase){material_local_detail::fail(local,15,result.code,result.entity);return;}
+    if(ugkp::diagnostics::hasFatal(local.diagnostics))return;
+    auto& state=*local.material;auto* old=state.current;state.current=state.candidate;state.candidate=old;
+    *stage=4;
+}
+}
+bool prepareMaterialLocalConduction(MaterialBackend& b,ugkp::gpu::ImplicitDiffusion& diffusion,
+    ugkp::gpu::SparseConjugateGradient& sparse,const std::vector<int>& external,Real dt,
+    const CpuMaterialControls& controls,Real normalizationSmall,Real singularSmall,std::string& error){
+    if(!b.localPrepared||b.localPending){error="prepare material sources before binding conduction";return false;}
+    if(!diffusion.residentIteration()||!finite(dt)||!(dt>0)){error="material conduction equation or interval missing";return false;}
+    if(!b.waitConduction(diffusion.deviceValues().readyStream))return b.failure(error);
+    if(b.cachedConductionExternal!=external){if(!b.upload(b.conductionExternal,external))return b.failure(error);b.cachedConductionExternal=external;}
+    const int threads=ugkp::gpu::workPlan().materialBlockThreads;
+    const int blocks=(std::max(b.cells,int(external.size()))+threads-1)/threads;
+    const int initial=0;
+    if(!b.allocate(b.conductionAuditParts,blocks)||!b.allocate(b.conductionAuditResult,1)
+        ||!b.allocate(b.conductionReport,1)||!b.uploadRaw(b.localStage,&initial,1))return b.failure(error);
+    b.localDiffusion=&diffusion;b.localSparse=&sparse;b.localExternalFaces=external.size();
+    b.localConductionDt=dt;b.localNormalizationSmall=normalizationSmall;b.localSingularSmall=singularSmall;
+    b.localConduction=true;error.clear();return true;
+}
+bool prepareResidentMaterialEndpointSurface(MaterialBackend& b,const HostState& geometry,std::string& error){
+    b.localEndpoint=false;
+
+    if(!b.localPrepared||(!b.localConduction&&b.cells))return true;
+    const std::size_t faces=geometry.surface.area.size();
+    if(!b.surfacePrototypeValid||b.surfacePrototype.count!=int(faces)||b.surfaceInput.size()!=faces){
+        error="material endpoint surface inputs were not prepared by the window predictor";return false;
+    }
+    std::vector<GpuReal> shares;std::vector<Real> volumes(faces);std::vector<int> cells(faces,-1);
+    if(!surfaceGasDonorShares(geometry,shares,error))return false;
+    for(std::size_t f=0;f<faces;++f){const int face=geometry.surface.gasFace[f];if(face<0)continue;
+        if(std::size_t(face)>=geometry.gasMesh.owner.size()){error="material endpoint gas face is unavailable";return false;}
+        const int cell=geometry.gasMesh.owner[face];
+        if(cell<0||std::size_t(cell)>=geometry.gasMesh.volumes.size()
+            ||(!geometry.gasVoidFraction.empty()&&std::size_t(cell)>=geometry.gasVoidFraction.size())){
+            error="material endpoint gas phase volume is unavailable";return false;
+        }
+        cells[f]=cell;volumes[f]=geometry.gasMesh.volumes[cell];
+    }
+    const int zero=0;
+    if(!b.endpointInput.copy(b.surfaceInput,b.fault,b.stream.get())||!b.allocate(b.endpointPhysics,faces)
+        ||!b.allocate(b.endpointWall,faces)||!b.allocate(b.endpointStatus,faces)||!b.allocate(b.endpointOperation,1)
+        ||!b.uploadRaw(b.endpointComplete,&zero,1)||!b.upload(b.endpointGasCells,cells)
+        ||!b.upload(b.endpointGasVolume,volumes)||!b.upload(b.endpointDonorShare,shares)
+        ||!b.upload(b.endpointHostFraction,geometry.gasVoidFraction))return b.failure(error);
+    auto history=b.localBindings.slice.history;
+    if(b.localStreamed){
+        const auto chunk=b.localHistory->chunk(b.localHistory->frames()-1);
+        const auto offset=(b.localHistory->frames()-1-chunk->first)*faces;
+        if(!b.allocate(b.endpointHistorySurface,faces)
+            ||!b.transfers.upload(b.endpointHistorySurface.data(),chunk->surface.data()+offset,faces))return b.failure(error);
+        if(!chunk->wall.empty()&&(!b.allocate(b.endpointHistoryWall,faces)
+            ||!b.transfers.upload(b.endpointHistoryWall.data(),chunk->wall.data()+offset,faces)))return b.failure(error);
+        history={b.endpointHistorySurface.data(),chunk->wall.empty()?nullptr:b.endpointHistoryWall.data(),nullptr,1,faces,b.stream.get()};
+    }
+    auto view=b.surfacePrototype;view.inputs=b.endpointInput.data();view.physicsOut=b.endpointPhysics.data();
+    view.wallOut=b.endpointWall.data();view.status=b.endpointStatus.data();
+    using DynamicSurface=ugkp::gpu::DeviceValue<MaterialSurfaceView>;
+    if(!b.surfaceCooperative&&faces){
+        if(!b.fault.check(ugkp::gpu::scalarWorkLaunch(evaluateMaterialSurfaceKernel<DynamicSurface>,view.workers,b.endpointLaunch),
+            "schedule material endpoint workers"))return b.failure(error);
+        view.scalarWorkersPerBlock=b.endpointLaunch.workersPerBlock;
+    }
+    b.endpointBindings={b.localBindings,history,view,b.endpointOperation.data(),b.endpointInput.data(),
+        b.endpointGasCells.data(),b.endpointGasVolume.data(),b.endpointDonorShare.data(),
+        geometry.gasVoidFraction.empty()?nullptr:b.endpointHostFraction.data(),
+        b.localConduction?b.localStage.data():nullptr,b.endpointComplete.data(),b.localWindowEnd-b.time,
+        b.physics.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer};
+    b.localEndpoint=true;error.clear();return true;
+}
+bool bindResidentMaterialEndpointGasFraction(MaterialBackend& b,const GpuReal* fraction,void* producer,std::string& error){
+    if(!b.localEndpoint)return true;
+    if(b.localPending){error="material endpoint is already submitted";return false;}
+    if(!b.waitConduction(producer))return b.failure(error);
+    b.endpointBindings.gasFraction=fraction;error.clear();return true;
+}
+static ugkp::gpu::ExecutionGraphNode appendMaterialEndpointSurface(MaterialBackend& b,
+    ugkp::gpu::ExecutionGraph graph,ugkp::gpu::ExecutionGraphNode dependency){
+    if(!b.localEndpoint)return dependency;
+    using namespace ugkp::gpu;using namespace executionGraphDetail;
+    const auto binding=b.endpointBindings;const auto stream=b.stream.get();
+    const int threads=workPlan().materialBlockThreads,blocks=std::max(1,(binding.prototype.count+threads-1)/threads);
+    cudaGraphConditionalHandle condition,valid;
+    checked(cudaGraphConditionalHandleCreate(&condition,graph,0,cudaGraphCondAssignDefault));
+    const auto selected=appendRecorded(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},stream,[&]{
+        material_endpoint_detail::select<<<1,1,0,stream>>>(binding,condition,false);
+    });
+    cudaGraph_t body=nullptr;const auto completed=addIf(graph,condition,{selected},body);
+    checked(cudaGraphConditionalHandleCreate(&valid,body,0,cudaGraphCondAssignDefault));
+    const auto ready=appendRecorded(body,{},stream,[&]{
+        material_endpoint_detail::prepare<<<blocks,threads,0,stream>>>(binding);
+        material_endpoint_detail::select<<<1,1,0,stream>>>(binding,valid,true);
+    });
+    cudaGraph_t closure=nullptr;addIf(body,valid,{ready},closure);
+    appendRecorded(closure,{},stream,[&]{
+        using DynamicSurface=DeviceValue<MaterialSurfaceView>;
+        const DynamicSurface input{binding.operation};const auto& view=binding.prototype;
+        if(view.count&&b.surfaceCooperative){
+            if(b.surfaceDepth==3){using Team=MaterialSurfaceRootTeam<3>;
+                evaluateMaterialSurfaceTeamKernel<DynamicSurface,Team><<<view.workers,Team::width,sizeof(Team::Storage<SurfacePhysicsResult>),stream>>>(input,b.devicePhysics.data());
+            }else if(b.surfaceDepth==2){using Team=MaterialSurfaceRootTeam<2>;
+                evaluateMaterialSurfaceTeamKernel<DynamicSurface,Team><<<view.workers,Team::width,sizeof(Team::Storage<SurfacePhysicsResult>),stream>>>(input,b.devicePhysics.data());
+            }else evaluateMaterialSurfaceTeamKernel<DynamicSurface><<<view.workers,ugkwp::gaswall::detail::wallWarpWidth,0,stream>>>(input,b.devicePhysics.data());
+        }else if(view.count)evaluateMaterialSurfaceKernel<DynamicSurface><<<b.endpointLaunch.blocks,b.endpointLaunch.threads,0,stream>>>(input,b.devicePhysics.data());
+        material_endpoint_detail::inspect<<<blocks,threads,0,stream>>>(binding);
+        material_endpoint_detail::finish<<<1,1,0,stream>>>(binding);
+    });
+    return completed;
+}
+bool collectResidentMaterialEndpointSurface(MaterialBackend& b,CpuSurfaceResult& output,bool& published,std::string& error){
+    published=false;if(!b.localEndpoint)return true;
+    if(b.localPending){error="collect material window before publishing its endpoint surface";return false;}
+    int done=0;
+    if(!b.transfers.download(&done,b.endpointComplete.data(),1)||!b.read(b.endpointPhysics,output.physics)
+        ||!b.read(b.endpointWall,output.wall)||!b.finish(error))return b.failure(error);
+    if(!done){error="material endpoint surface did not finish";return false;}
+    published=true;error.clear();return true;
+}
+
+namespace {
+__global__ void commitMaterialWindow(MaterialLocalBindings local,const int* conduction,const int* endpoint,
+    MaterialWindowCommit* commit){
+    if(threadIdx.x||blockIdx.x||commit->committed||ugkp::diagnostics::hasFatal(local.diagnostics)
+        ||!local.progress->complete||local.progress->failurePhase
+        ||(conduction&&*conduction!=4)||(endpoint&&!*endpoint))return;
+    commit->time=ugkp::absoluteTime(local.clock->origin,*local.total);
+    commit->sequence=local.clock->sequence;commit->acceptedStep=std::uint64_t(local.diagnostics->step)+1;
+    commit->committed=true;
+}
+}
+static ugkp::gpu::ExecutionGraphNode appendMaterialWindowCommit(MaterialBackend& b,
+    ugkp::gpu::ExecutionGraph graph,ugkp::gpu::ExecutionGraphNode dependency){
+
+
+    if((b.cells&&!b.localConduction)||!b.localEndpoint)return dependency;
+    return ugkp::gpu::executionGraphDetail::appendRecorded(graph,{dependency},b.stream.get(),[&]{
+        commitMaterialWindow<<<1,1,0,b.stream.get()>>>(b.localBindings,b.localConduction?b.localStage.data():nullptr,
+            b.endpointComplete.data(),b.localCommit.data());
+    });
+}
+ugkp::gpu::ExecutionGraphNode appendResidentMaterialLocalWindow(MaterialBackend& b,
+    ugkp::gpu::ExecutionGraph graph,ugkp::gpu::ExecutionGraphNode dependency){
+    if(!b.localPrepared)throw std::logic_error("prepare material local buffers before graph construction");
+    dependency=appendPendingMaterialHistory(b,graph,dependency);
+    auto appendLocal=[&](ugkp::gpu::ExecutionGraph parent,ugkp::gpu::ExecutionGraphNode dep){
+        return b.localStreamed?appendStreamedMaterialLoop(parent,dep,b.streamedBindings,b.stream.get())
+            :appendResidentMaterialLocalLoop(parent,dep,b.localBindings,b.stream.get());
+    };
+    if(!b.localConduction)return appendMaterialWindowCommit(b,graph,appendMaterialEndpointSurface(b,graph,appendLocal(graph,dependency)));
+    using namespace ugkp::gpu;using namespace executionGraphDetail;
+    auto& diffusion=*b.localDiffusion;auto& sparse=*b.localSparse;
+    const auto local=b.localBindings;const auto stream=b.stream.get();
+    const int threads=workPlan().materialBlockThreads,blocks=std::max(1,(b.cells+threads-1)/threads);
+    cudaGraphNode_t previous=dependency;
+    for(int phase=0;phase<4;++phase){
+        cudaGraphConditionalHandle permitted;checked(cudaGraphConditionalHandleCreate(&permitted,graph,0,cudaGraphCondAssignDefault));
+        const auto selected=appendRecorded(graph,previous?std::vector<cudaGraphNode_t>{previous}:std::vector<cudaGraphNode_t>{},stream,[&]{
+            localConductionChoose<<<1,1,0,stream>>>(local,b.localStage.data(),phase,permitted);
+        });
+        cudaGraph_t body=nullptr;previous=addIf(graph,permitted,{selected},body);
+        if(phase==0){
+            const auto done=appendLocal(body,nullptr);
+            appendRecorded(body,{done},stream,[&]{localSourcesDone<<<1,1,0,stream>>>(local,b.localStage.data());});
+        }else if(phase==1){
+            const auto prepared=appendRecorded(body,{},stream,[&]{
+                prepareConductionKernel<<<blocks,threads,0,stream>>>(b.cells,b.initial.data(),b.initialVolumes.data(),
+                    DeviceValue<SolidQ*>{&local.material->current},DeviceValue<const Real*>{&local.material->mesh.volumes},
+                    b.conductionVolumes.data(),b.devicePhysics.data(),b.conductionInput.data(),b.sourceStatus.data());
+                selectConductionFailure<<<1,threads,threads*sizeof(MaterialStepResult),stream>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
+                localConductionStatus<<<1,1,0,stream>>>(local,b.localStage.data(),1);
+            });
+            cudaGraphConditionalHandle valid;checked(cudaGraphConditionalHandleCreate(&valid,graph,0,cudaGraphCondAssignDefault));
+            const auto ready=appendRecorded(body,{prepared},stream,[&]{localConductionChoose<<<1,1,0,stream>>>(local,b.localStage.data(),1,valid);});
+            cudaGraph_t initialized=nullptr;addIf(body,valid,{ready},initialized);
+            appendRecorded(initialized,{},stream,[&]{
+                conductionAnchorTemperature<<<blocks,threads,0,stream>>>(b.cells,b.conductionInput.data(),diffusion.deviceSolution());
+                diffusion.enqueueResidentBoundaryTemperature(stream);
+                conductionCoefficientsKernel<<<blocks,threads,0,stream>>>(b.cells,b.conductionInput.data(),diffusion.deviceTemperature(),
+                    b.localConductionDt,b.devicePhysics.data(),b.conductionCoefficients.data(),b.conductionCapacity.data(),
+                    b.conductionSource.data(),b.conductionConductivity.data());
+                inspectConductionStartupKernel<<<blocks,threads,0,stream>>>(b.cells,b.conductionCoefficients.data(),b.devicePhysics.data(),b.sourceStatus.data());
+                selectConductionFailure<<<1,threads,threads*sizeof(MaterialStepResult),stream>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
+                checked(cudaMemsetAsync(&b.conductionReport.data()->continuationStage,0,sizeof(int),stream));
+                localConductionStatus<<<1,1,0,stream>>>(local,b.localStage.data(),2);
+            });
+        }else if(phase==2){
+            const auto done=appendMaterialConductionLoop(b,diffusion,sparse,body,nullptr,b.localExternalFaces,b.localConductionDt,
+                local.controls,b.localNormalizationSmall,b.localSingularSmall);
+            appendRecorded(body,{done},stream,[&]{localConductionSolved<<<1,1,0,stream>>>(local,b.localStage.data(),b.conductionReport.data(),sparse.capacityPendingDevice());});
+        }else{
+            appendRecorded(body,{},stream,[&]{
+                finishConductionKernel<<<blocks,threads,0,stream>>>(b.cells,DeviceValue<SolidQ*>{&local.material->current},
+                    DeviceValue<const Real*>{&local.material->mesh.volumes},b.conductionInput.data(),diffusion.deviceTemperature(),
+                    b.devicePhysics.data(),DeviceValue<SolidQ*>{&local.material->candidate},b.sourceStatus.data());
+                selectConductionFailure<<<1,threads,threads*sizeof(MaterialStepResult),stream>>>(b.sourceStatus.data(),b.cells,b.stepResult.data());
+                localConductionCommit<<<1,1,0,stream>>>(local,b.localStage.data());
+            });
+        }
+    }
+    return appendMaterialWindowCommit(b,graph,appendMaterialEndpointSurface(b,graph,previous));
+}
+static bool launchMaterialLocalGraph(MaterialBackend& b,std::string& error){
+    try{
+        using ugkp::gpu::executionGraphDetail::checked;
+        ugkp::gpu::ExecutionGraphSignature signature;signature.add(b.localBindings);signature.add(b.localStreamed);
+        if(b.localStreamed)signature.add(b.streamedBindings);
+        signature.add(b.localHistoryPending);signature.add(b.localHistoryPrepared.data());signature.add(b.localExternalSource);
+        signature.add(b.localConduction);signature.add(b.localEndpoint);signature.add(b.localCommit.data());
+        if(b.localEndpoint){signature.add(b.endpointBindings);signature.add(b.surfaceCooperative);
+            signature.add(b.surfaceDepth);signature.add(b.endpointLaunch);}
+        if(b.localConduction){
+            signature.append(b.localDiffusion->residentExecutionSignature());
+            signature.append(b.localSparse->residentExecutionSignature());
+            signature.add(b.localStage.data());signature.add(b.localConductionDt);signature.add(b.localExternalFaces);
+            signature.add(b.localNormalizationSmall);signature.add(b.localSingularSmall);
+            for(const void* pointer:{static_cast<const void*>(b.conductionReport.data()),static_cast<const void*>(b.conductionInput.data()),
+                static_cast<const void*>(b.conductionCoefficients.data()),static_cast<const void*>(b.conductionVolumes.data()),
+                static_cast<const void*>(b.conductionCapacity.data()),static_cast<const void*>(b.conductionSource.data()),
+                static_cast<const void*>(b.conductionConductivity.data()),static_cast<const void*>(b.conductionAuditParts.data()),
+                static_cast<const void*>(b.conductionAuditResult.data()),static_cast<const void*>(b.conductionExternal.data()),
+                static_cast<const void*>(b.initial.data()),static_cast<const void*>(b.initialVolumes.data())})signature.add(pointer);
+        }
+        if(!b.localGraph.executable||!(b.localGraph.signature==signature)){
+            b.localGraph.clear();checked(cudaGraphCreate(&b.localGraph.graph,0));
+            appendResidentMaterialLocalWindow(b,b.localGraph.graph,nullptr);
+            checked(cudaGraphInstantiateWithFlags(&b.localGraph.executable,b.localGraph.graph,0));b.localGraph.signature=signature;
+        }
+        checked(cudaGraphLaunch(b.localGraph.executable,b.stream.get()));b.localPending=true;error.clear();return true;
+    }catch(const std::exception& e){error=e.what();return false;}
+}
+bool enqueueResidentMaterialLocalWindow(MaterialBackend& b,std::string& error){
+    if(!b.localPrepared||b.localPending){error="material local window is unprepared or already submitted";return false;}
+    return launchMaterialLocalGraph(b,error);
+}
+void acceptResidentMaterialLocalCompletion(MaterialBackend& b,const std::shared_future<void>& result){
+    b.localCompletion=result;b.localPending=true;
+}
+void acceptResidentMaterialLocalExecution(MaterialBackend& b,void* producer){
+    using ugkp::gpu::executionGraphDetail::checked;
+    if(!b.localReady)checked(cudaEventCreateWithFlags(&b.localReady,cudaEventDisableTiming));
+    checked(cudaEventRecord(b.localReady,static_cast<cudaStream_t>(producer)));
+    checked(cudaStreamWaitEvent(b.stream.get(),b.localReady,0));
+    b.localPending=true;
+}
+MaterialLocalDeviceView residentMaterialLocalDeviceView(const MaterialBackend& b){
+    return {b.localState.data(),b.localProgress.data(),b.stream.get(),b.localStreamed?b.streamedProgress.data():nullptr,
+        b.localConduction?b.localStage.data():nullptr,b.diagnostics.device(),b.localCommit.data()};
+}
+bool serviceResidentMaterialLocalCapacity(MaterialBackend& b,std::string& error){
+    StreamedMaterialProgress storage;MaterialLocalProgress local;int stage=0;
+    if((b.localStreamed&&!b.transfers.download(&storage,b.streamedProgress.data(),1))
+        ||(b.localConduction&&!b.transfers.download(&stage,b.localStage.data(),1))
+        ||!b.transfers.download(&local,b.localProgress.data(),1)||!b.finish(error))return false;
+    if(local.failurePhase){error="material parent has a failed operation";return false;}
+    if(b.localConduction&&stage==2&&b.localSparse->servicePendingCapacity()){error.clear();return true;}
+    if(b.localStreamed&&stage==0&&!local.complete&&storage.requestFrame!=std::numeric_limits<std::size_t>::max())
+        return supplyResidentMaterialHistory(b,storage.requestFrame,error);
+    error="material parent stopped without completion or a storage request";return false;
+}
+bool releaseUnusedMaterialLocalWindow(MaterialBackend& b,std::string& error){
+    MaterialLocalProgress result;ugkp::IntervalSliceCursor cursor;
+    if(!b.transfers.download(&result,b.localProgress.data(),1)||!b.transfers.download(&cursor,b.sliceCursor.data(),1)
+        ||!b.finish(error))return false;
+    if(result.acceptedSteps||result.failurePhase||!(cursor.time==ugkp::CompensatedTime{})){
+        error="cannot replace a material window after a physical candidate has begun";return false;
+    }
+    b.localPending=false;b.localPrepared=false;b.localCompletion={};error.clear();return true;
+}
+bool completePendingMaterialHistory(MaterialBackend& b,const IntervalHistory& history,
+    const std::shared_ptr<CoupledHistoryArchive>& archive,std::string& error){
+    const auto pending=b.pendingPreparation;
+    if(!pending||!b.localHistoryPending||!history.complete()){
+        error="pending material reader is missing its completed gas history";return false;
+    }
+    const auto physics=b.physics;const bool conduction=b.localConduction;
+    auto* diffusion=b.localDiffusion;auto* sparse=b.localSparse;
+    const auto external=b.cachedConductionExternal;
+    const auto dt=b.localConductionDt,normalization=b.localNormalizationSmall,singular=b.localSingularSmall;
+    const auto* fraction=b.endpointBindings.gasFraction;
+
+
+    if(!releaseUnusedMaterialLocalWindow(b,error)
+        ||!prepareStreamedMaterialLocalWindow(b,pending->state,physics,history,archive,pending->program,pending->controls,error))return false;
+    if(conduction&&!prepareMaterialLocalConduction(b,*diffusion,*sparse,external,dt,pending->controls,normalization,singular,error))return false;
+    if(!prepareResidentMaterialEndpointSurface(b,pending->state,error))return false;
+    if(b.localEndpoint)b.endpointBindings.gasFraction=fraction;
+    b.pendingPreparation.reset();error.clear();return true;
+}
+bool collectResidentMaterialLocalWindow(MaterialBackend& b,MaterialLocalReport& report,std::vector<FilmAux>& auxiliary,std::string& error){
+    if(!b.localPending){error="no material local window has been submitted";return false;}
+    if(b.localCompletion.valid())b.localCompletion.get();
+    if(b.localStreamed||b.localConduction)for(;;){
+        StreamedMaterialProgress progress;MaterialLocalProgress local;int stage=0;
+        if((b.localStreamed&&!b.transfers.download(&progress,b.streamedProgress.data(),1))
+            ||(b.localConduction&&!b.transfers.download(&stage,b.localStage.data(),1))
+            ||!b.transfers.download(&local,b.localProgress.data(),1)||!b.finish(error))return false;
+        if(local.failurePhase){error="material window device operation failed";return false;}
+        if(local.complete&&(!b.localConduction||stage==4))break;
+        if(b.localConduction&&stage==2&&b.localSparse->servicePendingCapacity()){
+            if(!launchMaterialLocalGraph(b,error))return false;continue;
+        }
+        if(b.localStreamed&&stage==0&&progress.requestFrame!=std::numeric_limits<std::size_t>::max()){
+            if(!supplyResidentMaterialHistory(b,progress.requestFrame,error)||!launchMaterialLocalGraph(b,error))return false;
+            continue;
+        }
+        error="material window stopped without completion or a storage request";return false;
+    }
+    MaterialLocalProgress result;ResidentMaterialState state;ugkp::IntervalSliceCursor cursor;MaterialWindowCommit commit;
+    if(!b.transfers.download(&result,b.localProgress.data(),1)||!b.transfers.download(&state,b.localState.data(),1)
+        ||!b.transfers.download(&cursor,b.sliceCursor.data(),1)||!b.transfers.download(&commit,b.localCommit.data(),1)||!b.read(b.localAuxiliary,auxiliary)
+        ||!b.transfers.finish())return b.failure(error);
+    b.localPending=false;b.localPrepared=false;b.pendingPreparation.reset();
+    if(state.current!=b.current.data())b.current.swap(b.next);
+    if(state.gasChange!=b.gasChange.data())b.gasChange.swap(b.candidateGasChange);
+    if(state.mesh.volumes!=b.volumes.data())b.volumes.swap(b.nextVolumes);
+    report.acceptedSteps=result.acceptedSteps;report.complete=result.complete;report.commit=commit;
+    report.failurePhase=result.failurePhase;report.failureCode=result.failureCode;report.entity=result.entity;
+    report.time=result.complete?b.localWindowEnd:ugkp::absoluteTime(b.time,cursor.time);
+    b.time=report.time;b.publishedCurrentValid=false;b.sliceReady=false;b.slicePending=false;
+    if(!b.finish(error))return false;
+    if(!result.complete||result.failurePhase){error="material local window did not complete its physical interval";return false;}
+    error.clear();return true;
+}
+
+bool collectResidentMaterialInventory(MaterialBackend& b,std::vector<SolidQ>& output,std::string& error){
+    if(b.localPending){error="collect material completion before publishing inventory";return false;}
+    if(!b.read(b.current,output)||!b.finish(error))return b.failure(error);
+    b.publishedCurrent=output;b.publishedCurrentValid=true;error.clear();return true;
+}
+bool collectResidentMaterialLocalAudit(MaterialBackend& b,std::vector<MaterialLocalAudit>& observations,std::string& error){
+    if(b.localPending){error="collect material completion before its diagnostic observations";return false;}
+    if(!b.read(b.localAudit,observations)||!b.transfers.finish())return b.failure(error);
+    if(b.localHistoryPending)observations.erase(std::remove_if(observations.begin(),observations.end(),
+        [](const MaterialLocalAudit& sample){return sample.record==std::numeric_limits<std::size_t>::max();}),observations.end());
+    for(const auto& sample:observations)if(!sample.ready){error="material diagnostic observation was not reached";return false;}
+    error.clear();return true;
+}
+
 bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointMesh,
     const SurfaceMesh& surface,const std::vector<ExchangePacket>& packets,
     const std::vector<Real>& radiation,const std::vector<unsigned>& receivers,
@@ -666,8 +1336,8 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
     numerical=true;
     const int count=int(b.current.size());
     if(controls.retainDonorHistory&&!b.allocate(b.donor,count))return b.failure(error);
-    // Keep existing owner admission errors, while constructing row schedules
-    // from resident packets and receiver maps on device in stable input order.
+
+
     for(const auto& packet:packets)if(requiredConsumers(packet.kind)&ConsumeSolid){
         if(packet.solidCell<0||packet.solidCell>=count){error="material packet owner invalid";return false;}
     }
@@ -681,6 +1351,8 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
         b.radiationCellMap=surface.solidCell;
     }
     b.slicePending=b.sliceReady&&selectedSlice;
+    constexpr std::size_t packetBatchSize=65536;
+    const bool streamPackets=!b.slicePending&&packets.size()>packetBatchSize;
     if(b.slicePending){
 
 
@@ -702,15 +1374,50 @@ bool advanceResidentMaterialSources(MaterialBackend& b,const HostMesh& endpointM
         const auto slots=(b.pendingSlicePlan.past-b.pendingSlicePlan.begin.record)*b.borrowedHistory.faces*3;
         if(!b.buildRows(int(slots),count,ResidentMaterialSliceRow{b.sourceSlice()},b.packetRows,b.packetOffsets,b.packetIndices))return b.failure(error);
     }else{
-        if(!b.upload(b.packets,packets)||!b.upload(b.radiation,radiation)||!b.upload(b.radiationReceiver,receivers)
+        if(!b.upload(b.radiation,radiation)||!b.upload(b.radiationReceiver,receivers))return b.failure(error);
+        if(streamPackets){
+            if(!b.allocate(b.streamedPacketRows,count))return b.failure(error);
+            b.streamedPacketTransfers.bind(b.stream.get());
+        }else if(!b.upload(b.packets,packets)
             ||!b.buildRows(int(packets.size()),count,PacketSolidRow{b.packets.data()},b.packetRows,b.packetOffsets,b.packetIndices))return b.failure(error);
+    }
+    b.externalSlicePending=b.deviceRadiation&&!b.slicePending;
+    if(b.externalSlicePending){
+        if(!selectedSlice||radiation.size()!=b.sliceExternal.size()){
+            error="device radiation material slice is incomplete";return false;
+        }
+        material_slice_detail::prepareExternal<<<material_slice_detail::blocks(b.sliceExternal.size()),
+            ugkp::gpu::workPlan().materialBlockThreads,0,b.stream.get()>>>(b.sliceExternal.size(),b.sliceExternal.data(),
+            b.sliceUsedExternal.data(),b.sliceCandidateExternal.data(),selectedSlice->externalFraction,
+            selectedSlice->externalLast,b.radiation.data());
+        if(!b.fault.check(cudaGetLastError(),"slice device DOM boundary energy"))return b.failure(error);
     }
     if(!b.buildRows(int(radiation.size()),count,RadiationSolidRow{b.radiationReceiver.data(),b.radiationCells.data()},
         b.radiationRows,b.radiationOffsets,b.radiationFaces))return b.failure(error);
     if(!b.fault.check(cudaMemsetAsync(b.stepResult.data(),0,sizeof(MaterialStepResult),b.stream.get()),
         "clear material source result"))return b.failure(error);
     if(count){
-        if(b.slicePending){
+        if(streamPackets){
+            const int width=ugkp::gpu::workPlan().materialBlockThreads,blocks=(count+width-1)/width;
+            beginStreamedMaterialPackets<<<blocks,width,0,b.stream.get()>>>(count,b.current.data(),b.rates.data(),
+                b.gasChange.data(),dt,b.next.data(),b.candidateGasChange.data(),b.streamedPacketRows.data(),b.sourceStatus.data());
+            if(!b.fault.check(cudaGetLastError(),"initialize bounded material packet accumulator"))return b.failure(error);
+            for(std::size_t begin=0;begin<packets.size();begin+=packetBatchSize){
+                const auto size=std::min(packetBatchSize,packets.size()-begin);
+                if(!b.allocate(b.packets,size))return b.failure(error);
+                {ugkp::gpu::PinnedTransferQueue::Operation transfer(b.streamedPacketTransfers);
+                    b.streamedPacketTransfers.upload(b.packets.data(),packets.data()+begin,size*sizeof(ExchangePacket));}
+                if(!b.buildRows(int(size),count,PacketSolidRow{b.packets.data()},b.packetRows,b.packetOffsets,b.packetIndices))return b.failure(error);
+                appendStreamedMaterialPackets<<<blocks,width,0,b.stream.get()>>>(count,b.packets.data(),
+                    b.packetOffsets.data(),b.packetIndices.data(),b.streamedPacketRows.data(),b.candidateGasChange.data());
+                if(!b.fault.check(cudaGetLastError(),"append bounded material packet batch"))return b.failure(error);
+            }
+            finishStreamedMaterialSources<<<blocks,width,0,b.stream.get()>>>(count,b.streamedPacketRows.data(),
+                b.initial.data(),b.candidateGasChange.data(),b.radiationOffsets.data(),b.radiationFaces.data(),
+                radiation.empty()?nullptr:b.radiation.data(),b.radiationReceiver.data(),b.nextVolumes.data(),
+                b.devicePhysics.data(),dt,finalStep,b.next.data(),controls.retainDonorHistory?b.donor.data():nullptr,
+                b.sourceStatus.data(),controls.reactionMaxSubstep,controls.reactionCfl,controls.maxSubsteps);
+        }else if(b.slicePending){
         applyMaterialSliceSourcesKernel<<<(count+ugkp::gpu::workPlan().materialBlockThreads-1)/ugkp::gpu::workPlan().materialBlockThreads,ugkp::gpu::workPlan().materialBlockThreads,0,b.stream.get()>>>(count,b.current.data(),b.rates.data(),
             b.initial.data(),b.gasChange.data(),b.candidateGasChange.data(),b.sourceSlice(),b.packetOffsets.data(),b.packetIndices.data(),
             b.radiationOffsets.data(),b.radiationFaces.data(),radiation.empty()?nullptr:b.radiation.data(),
@@ -760,8 +1467,13 @@ bool commitResidentMaterialStep(MaterialBackend& b,Real time,std::string& error)
             "commit borrowed material source slice"))return b.failure(error);
         b.slicePending=false;
     }
+    if(b.externalSlicePending){
+        if(!b.fault.check(cudaMemcpyAsync(b.sliceUsedExternal.data(),b.sliceCandidateExternal.data(),
+            b.sliceExternal.size()*sizeof(Real),cudaMemcpyDeviceToDevice,b.stream.get()),"commit DOM boundary slice"))return b.failure(error);
+        b.externalSlicePending=false;
+    }
     b.current.swap(b.next);b.volumes.swap(b.nextVolumes);b.gasChange.swap(b.candidateGasChange);b.time=time;
-    // A local-source commit changes current before the conduction publication.
+
     b.publishedCurrentValid=false;return true;
 }
 
@@ -775,8 +1487,11 @@ void commitResidentMaterialStep(MaterialBackend& b,Real time){
 bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
     const std::vector<MaterialSurfaceRequest>& requests,Real dt,bool useRates,bool candidate,
     std::vector<CpuSurfaceResult>& output,std::string& error,bool& numerical,
-    const std::vector<Real>* sideVolume,bool* terminalWallFailure){
+    const std::vector<Real>* sideVolume,bool* terminalWallFailure,int localAudit){
     numerical=true;if(terminalWallFailure)*terminalWallFailure=false;
+    if(localAudit>=0&&(b.localPending||std::size_t(localAudit)>=b.localAudit.size())){
+        numerical=false;error="material diagnostic snapshot is unavailable";return false;
+    }
     const auto& s=h.surface;const std::size_t nf=s.area.size();
     const auto& p=b.physics;
     const bool boundaryLayer=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer;
@@ -878,8 +1593,8 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
                         sizeof(Three::Storage<SurfacePhysicsResult>),sms,b.surfaceProbeResident3),"query three-round root residency"))return b.failure(error);
                 b.surfaceProbePlanReady=true;
             }
-            // Extra root probes use otherwise idle subteams. With enough
-            // independent faces, keep the ordinary one-warp traversal.
+
+
             if(sizing.slots<=b.surfaceProbeResident3)surfaceProbeDepth=3;
             else if(sizing.slots<=b.surfaceProbeResident2)surfaceProbeDepth=2;
             surfaceProbes=(1<<surfaceProbeDepth)-1;
@@ -900,6 +1615,12 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
         ||!b.allocate(b.surfacePhysics,count)||!b.allocate(b.surfaceWall,count)||!b.allocate(b.surfaceStatus,count))return b.failure(error);
     view.inputs=b.surfaceInput.data();view.solidCells=b.surfaceCells.data();view.solid=candidate?b.next.data():b.current.data();
     view.volumes=candidate?b.nextVolumes.data():b.volumes.data();view.materialRate=useRates?b.rates.data():nullptr;
+    if(localAudit>=0){
+        view.solid=b.localAuditState.data()+std::size_t(localAudit)*b.cells;
+        view.materialRate=useRates?b.localAuditRates.data()+std::size_t(localAudit)*b.cells:nullptr;
+
+        view.volumes=b.initialVolumes.data();
+    }
     view.active=b.surfaceActive.data();view.physicsOut=b.surfacePhysics.data();view.wallOut=b.surfaceWall.data();view.status=b.surfaceStatus.data();
     b.operation(h.time);
     if(count&&cooperativeWall){
@@ -936,6 +1657,9 @@ bool evaluateResidentMaterialSurfaces(MaterialBackend& b,const HostState& h,
         completed[i].physics.assign(result.physics.begin()+i*nf,result.physics.begin()+(i+1)*nf);
         completed[i].wall.assign(result.wall.begin()+i*nf,result.wall.begin()+(i+1)*nf);
     }
+    if(requests.size()==1&&localAudit<0&&!candidate){
+        b.surfacePrototype=view;b.surfacePrototypeValid=true;b.surfaceCooperative=cooperativeWall;b.surfaceDepth=surfaceProbeDepth;
+    }
     output=std::move(completed);error.clear();return true;
 }
 bool evaluateResidentMaterialSurface(MaterialBackend& b,const HostState& h,
@@ -943,10 +1667,10 @@ bool evaluateResidentMaterialSurface(MaterialBackend& b,const HostState& h,
     Real dt,bool useRates,bool candidate,CpuSurfaceResult& output,std::string& error,
     bool& numerical,const std::vector<Real>* sideVolume,
     const std::vector<GasWallClosureContext>* contexts,bool* terminalWallFailure,
-    const std::vector<WallFaceSample>* acceptedRates){
+    const std::vector<WallFaceSample>* acceptedRates,int localAudit){
     std::vector<CpuSurfaceResult> result;
     if(!evaluateResidentMaterialSurfaces(b,h,{{&bulk,&gradients,contexts,acceptedRates}},dt,useRates,candidate,
-        result,error,numerical,sideVolume,terminalWallFailure))return false;
+        result,error,numerical,sideVolume,terminalWallFailure,localAudit))return false;
     output=std::move(result.front());return true;
 }
-} // namespace chmt
+}

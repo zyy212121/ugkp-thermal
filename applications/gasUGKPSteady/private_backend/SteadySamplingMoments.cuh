@@ -1,9 +1,9 @@
 #pragma once
 #include "../gpu/GpuSteadySampling.H"
 
-// Same stored conserved quantities as the resident gas/parcel moment pipeline.
-// Gas entries are intrinsic FV storage; porosity source exchanges are reported
-// separately from gas boundary flux, never mislabeled a closed mixture budget.
+
+
+
 template<class State>
 __device__ double steadySampleValue(const State& s,int c,int k)
 {
@@ -25,14 +25,15 @@ __device__ double steadySampleValue(const State& s,int c,int k)
 template<class State>
 __global__ void beginSteadySampleWindowKernel(State* sp)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     State& s=*sp;const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if(c>=s.nCells)return;
     for(int k=0;k<GpuSteadySamplingReport::fields;++k)
     {
         const int j=k*s.nCells+c;
         s.steadySampleSum[j]=0;s.steadySampleSquare[j]=0;
-        // Center moments on this window's initial represented value so a large
-        // formation-energy baseline cannot erase physical RMS fluctuations.
+
+
         s.steadySampleScratch[j]=steadySampleValue(s,c,k);
         s.steadySampleBegin[j]=steadySampleValue(s,c,k)*((k<7||k>=14)?1-s.epsS[c]:1);
     }
@@ -41,8 +42,10 @@ __global__ void beginSteadySampleWindowKernel(State* sp)
 template<class State>
 __global__ void accumulateSteadySampleWindowKernel(State* sp,double dt)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     State& s=*sp;const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if(c>=s.nCells)return;
+    dt=ugkwp::particleResidentStepDt(s,dt);
     for(int k=0;k<GpuSteadySamplingReport::fields;++k)
     {
         const int j=k*s.nCells+c;const double q=steadySampleValue(s,c,k);
@@ -52,10 +55,12 @@ __global__ void accumulateSteadySampleWindowKernel(State* sp,double dt)
 }
 
 template<class State>
-__global__ void finishSteadySampleWindowKernel(State* sp,double duration)
+__global__ void finishSteadySampleWindowKernel(State* sp,double duration,const double* residentDuration=nullptr)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     State& s=*sp;const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if(c>=s.nCells)return;
+    if(residentDuration)duration=*residentDuration;
     const int n=GpuSteadySamplingReport::fields*s.nCells;
     for(int k=0;k<GpuSteadySamplingReport::fields;++k)
     {
@@ -72,8 +77,8 @@ __global__ void finishSteadySampleWindowKernel(State* sp,double duration)
             fmax(characteristic,fmax(fabs(mean),fabs(previous))));
         s.steadySampleScratch[j]=fabs(mean-previous)/scale;
         const double variance=fmax(0.,s.steadySampleSquare[j]/duration-meanDelta*meanDelta);
-        // RMS measures stochastic variability; it is not a standard error or
-        // independent-sample confidence interval, and does not gate stationarity.
+
+
         s.steadySampleScratch[n+j]=sqrt(variance)/scale;
         s.steadySampleScratch[2*n+j]=s.steadySampleBegin[j]*s.V[c];
         s.steadySampleScratch[3*n+j]=steadySampleValue(s,c,k)*s.V[c]*((k<7||k>=14)?1-s.epsS[c]:1);

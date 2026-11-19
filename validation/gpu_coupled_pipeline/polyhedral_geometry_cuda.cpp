@@ -1,4 +1,4 @@
-// The original Geometry.C is selected from a separate frozen checkout by -I.
+
 #include "mesh/Geometry.C"
 #include "gpu/PolyhedralGeometry.H"
 #include <cassert>

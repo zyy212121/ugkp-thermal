@@ -1,6 +1,6 @@
 #pragma once
 #include "GpuCellNeighbour.cuh"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<class GasState>
 __global__ void computeSstGradientsKernel(GasState* sp)
 {
@@ -66,8 +66,8 @@ __global__ void computeSstGradientsKernel(GasState* sp)
     s.gradOmegaX[c] = gox*invV;
     s.gradOmegaY[c] = goy*invV;
     s.gradOmegaZ[c] = goz*invV;
-    // F1/CD follow these same-stage SST gradients; F2/nut remain upstream
-    // of the gas Riemann flux and depend only on the gas velocity gradient.
+
+
     const GPU_OPERATOR_REAL nu = ugkwp::gasCellMolecularViscosity(s,c)/clampMin(s.rho[c], s.rhoMin);
         const GPU_OPERATOR_REAL gradDot =
             s.gradKX[c]*s.gradOmegaX[c]

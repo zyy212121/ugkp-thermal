@@ -37,9 +37,9 @@ UGKWP_GAS_HD void configure(int index,Fixture& f,WallModelConfig<double>& c){
  in.pressure=index<6?10154.:101325.;in.matching.temperature=(index%6)<3?83.:200.;
  in.matching.velocity[0]=650.;in.massFlux[1]=index%3==0?0.:(index%3==1?.02:.22);
  if(index==12){
-  // Captured failure: the conservative matching extrapolation approaches its
-  // positive-energy boundary while the wall remains hot. The old edge-only
-  // residual scale amplified roundoff and stalled this otherwise finite BVP.
+
+
+
   in.pressure=1.038123550185038e-11;in.temperature=204.89045186139472;
   in.matching.temperature=5.6843418860808015e-13;
   in.matchingDistance=.00040000000000003927;in.ownerDistance=.00020000000000003348;
@@ -60,8 +60,8 @@ UGKWP_GAS_HD void configure(int index,Fixture& f,WallModelConfig<double>& c){
    in.matching.velocity[0]=30;in.matching.k=.5;in.matching.omega=200;}
  }
  if(index==14){
-  // Independent isothermal, constant-property advection/diffusion solution:
-  // Y_CO2(y)=1-exp(m*(y-L)/(rho*D)), J_Air=0, J_CO2=m.
+
+
   in.pressure=101325;in.temperature=in.matching.temperature=300;
   in.matching.velocity[0]=0;in.matchingDistance=.01;in.ownerDistance=.004;
   in.massFlux[1]=.002;f.coefficients[3]=f.coefficients[0]=1000;

@@ -1,20 +1,26 @@
 #pragma once
-__device__ RadiationReal domHomogeneousIncoming(Geometry g,Fields f,const RadiationReal* x,int angle,int face){
+
+
+template<bool coarse> __device__ RadiationReal angularValue(const RadiationReal* x,int cells,int angle,int cell){
+ return x[coarse?std::size_t(cell):std::size_t(angle)*cells+cell];
+}
+template<bool coarse> __device__ RadiationReal domHomogeneousIncoming(Geometry g,Fields f,const RadiationReal* x,int angle,int face){
  const int cell=g.boundaryOwner[face];RadiationReal value=0;
- if(g.boundaryType[face]==RadiationBoundary::Specular){const int row=angle*g.boundary+face;for(int e=g.reflectionOffsets[row];e<g.reflectionOffsets[row+1];++e)value+=g.reflectionWeights[e]*x[std::size_t(g.reflectionDonors[e])*g.cells+cell];}
- else if(g.boundaryType[face]==RadiationBoundary::Diffuse){for(int a=0;a<g.directions;++a){RadiationReal mu=g.cosine[a*g.boundary+face];if(mu>0)value+=g.weights[a]*mu*x[std::size_t(a)*g.cells+cell];}value*=(1-f.emissivity[face])/g.denominator[face];}
+ if(g.boundaryType[face]==RadiationBoundary::Specular){const int row=angle*g.boundary+face;for(int e=g.reflectionOffsets[row];e<g.reflectionOffsets[row+1];++e)value+=g.reflectionWeights[e]*angularValue<coarse>(x,g.cells,g.reflectionDonors[e],cell);}
+ else if(g.boundaryType[face]==RadiationBoundary::Diffuse){for(int a=0;a<g.directions;++a){RadiationReal mu=g.cosine[a*g.boundary+face];if(mu>0)value+=g.weights[a]*mu*angularValue<coarse>(x,g.cells,a,cell);}value*=(1-f.emissivity[face])/g.denominator[face];}
  return value;
 }
-__global__ void domApply(Geometry g,Fields f,const OrderedUpwindDevice* matrices,const RadiationReal* x,RadiationReal* y){
+template<bool coarse> __global__ void domApply(Geometry g,Fields f,const OrderedUpwindDevice* matrices,const RadiationReal* x,RadiationReal* y,const RadiationReal* input=nullptr){
  const std::size_t row=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x;if(row>=std::size_t(g.cells)*g.directions)return;
- const int angle=row/g.cells,cell=row%g.cells;const auto m=matrices[angle];const RadiationReal* xa=x+std::size_t(angle)*g.cells;
- RadiationReal value=(g.transportDiagonal[row]+(f.absorption[cell]+f.scattering[cell])*g.volume[cell])*x[row];
+ const int angle=row/g.cells,cell=row%g.cells;const auto m=matrices[angle];const RadiationReal* xa=coarse?x:x+std::size_t(angle)*g.cells;
+ RadiationReal value=(g.transportDiagonal[row]+(f.absorption[cell]+f.scattering[cell])*g.volume[cell])*xa[cell];
  for(int j=m.offsets[cell];j<m.offsets[cell+1];++j){int e=m.residualOrder[j];RadiationReal v=m.flux[e]*xa[m.neighbour[e]];if(m.subtract[e])value+=v;else value-=v;}
- for(int j=g.boundaryOffsets[cell];j<g.boundaryOffsets[cell+1];++j){int face=g.boundaryCells[j];RadiationReal flux=g.boundaryFlux[angle*g.boundary+face];if(flux<0)value+=flux*domHomogeneousIncoming(g,f,x,angle,face);}
+ for(int j=g.boundaryOffsets[cell];j<g.boundaryOffsets[cell+1];++j){int face=g.boundaryCells[j];RadiationReal flux=g.boundaryFlux[angle*g.boundary+face];if(flux<0)value+=flux*domHomogeneousIncoming<coarse>(g,f,x,angle,face);}
  RadiationReal mean=0,G=0;
- for(int a=0;a<g.directions;++a){RadiationReal v=x[std::size_t(a)*g.cells+cell];G+=g.weights[a]*v;if(f.scattering[cell]!=0){const auto d=mieLogBracket(f.table.diameter,f.table.diameters,f.query[cell].diameter);const auto t=mieLinearBracket(f.table.temperature,f.table.temperatures,f.query[cell].temperature);mean+=mieDetail::phaseProbability(f.table,d,t,g.weights,f.phaseBrackets,f.scaling+std::size_t(cell)*g.directions,g.directions,angle,a)*v;}}
+ for(int a=0;a<g.directions;++a){RadiationReal v=angularValue<coarse>(x,g.cells,a,cell);G+=g.weights[a]*v;if(f.scattering[cell]!=0){const auto d=mieLogBracket(f.table.diameter,f.table.diameters,f.query[cell].diameter);const auto t=mieLinearBracket(f.table.temperature,f.table.temperatures,f.query[cell].temperature);mean+=mieDetail::phaseProbability(f.table,d,t,g.weights,f.phaseBrackets,f.scaling+std::size_t(cell)*g.directions,g.directions,angle,a)*v;}}
  RadiationReal feedback=f.thermal&&f.thermal->linearizedEmission&&f.thermal->thermalFeedback?f.thermal->thermalFeedback[cell]:0;
- y[row]=value-g.volume[cell]*(f.scattering[cell]*mean+f.absorption[cell]*feedback*G/fourPi);
+ const RadiationReal applied=value-g.volume[cell]*(f.scattering[cell]*mean+f.absorption[cell]*feedback*G/fourPi);
+ y[row]=coarse?input[row]-applied:applied;
 }
 __global__ void domRhs(Geometry g,Fields f,RadiationReal* rhs){
  const std::size_t row=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x;if(row>=std::size_t(g.cells)*g.directions)return;const int angle=row/g.cells,cell=row%g.cells;
@@ -25,12 +31,12 @@ __global__ void domRhs(Geometry g,Fields f,RadiationReal* rhs){
 __global__ void domRestrict(Geometry g,const RadiationReal* input,RadiationReal* scalar){
  const int cell=blockIdx.x*blockDim.x+threadIdx.x;if(cell>=g.cells)return;RadiationReal sum=0,weight=0;for(int a=0;a<g.directions;++a){sum+=g.weights[a]*input[std::size_t(a)*g.cells+cell];weight+=g.weights[a];}scalar[cell]=sum/weight;
 }
-__global__ void domProlong(Geometry g,const RadiationReal* scalar,RadiationReal* angular){
- const std::size_t row=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x;if(row<std::size_t(g.cells)*g.directions)angular[row]=scalar[row%g.cells];
+__global__ void domAddCorrection(Geometry g,const RadiationReal* scalar,const RadiationReal* sweep,RadiationReal* angular){
+ const std::size_t row=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x;if(row<std::size_t(g.cells)*g.directions)angular[row]=scalar[row%g.cells]+sweep[row];
 }
 __device__ void domSweepCell(int cell,OrderedUpwindDevice matrix,Geometry g,Fields f,int angle,const RadiationReal* rhs,RadiationReal* solution){
  RadiationReal value=rhs[cell];
- for(int j=matrix.offsets[cell];j<matrix.offsets[cell+1];++j){int neighbour=matrix.neighbour[j];if(neighbour<cell){RadiationReal v=matrix.flux[j]*solution[neighbour];if(matrix.subtract[j])value-=v;else value+=v;}}
+ for(int j=matrix.offsets[cell];j<matrix.offsets[cell+1];++j){int neighbour=matrix.neighbour[j];if(matrix.allUpstreamReady||neighbour<cell){RadiationReal v=matrix.flux[j]*solution[neighbour];if(matrix.subtract[j])value-=v;else value+=v;}}
  const RadiationReal diagonal=g.transportDiagonal[std::size_t(angle)*g.cells+cell]+(f.absorption[cell]+f.scattering[cell])*g.volume[cell];
  solution[cell]=diagonal!=0?value/diagonal:RadiationReal(0);
 }

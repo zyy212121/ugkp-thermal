@@ -43,7 +43,7 @@ class DeviceService {
     std::map<Batch*,std::shared_ptr<Batch>> active_;
     Batch* readyHead_=nullptr;Batch* readyTail_=nullptr;
     bool stopping_=false;std::size_t launching_=0,retiringObservers_=0;std::thread worker_;
-    // Called with mutex_ held. The CUDA callback never allocates or calls CUDA.
+
     void queue(Batch* batch) noexcept {
         if(batch->queued)return;
         batch->queued=true;batch->next=nullptr;
@@ -72,7 +72,7 @@ class DeviceService {
             check(cudaEventCreateWithFlags(&batch->event,cudaEventDisableTiming|cudaEventBlockingSync));
             check(cudaGraphLaunch(work->graph,work->stream));launched=true;
             check(cudaLaunchHostFunc(work->stream,&DeviceService::ready,batch.get()));
-            // This event also certifies the callback has returned before Batch is retired.
+
             check(cudaEventRecord(batch->event,work->stream));
             auto observer=work->observer;
             {
@@ -83,8 +83,8 @@ class DeviceService {
             submission(work);
         }catch(...){
             const auto failure=std::current_exception();
-            // Submission failures may follow a successful graph/callback enqueue.
-            // Drain that stream only on this exceptional path before retiring its payload.
+
+
             if(launched)cudaStreamSynchronize(work->stream);
             submission(work,failure);
             {std::lock_guard<std::mutex> lock(mutex_);batch->failure=failure;batch->observed=true;queue(batch.get());}
@@ -101,10 +101,10 @@ class DeviceService {
                 if(observer->batches.empty())return;
                 batch=observer->batches.front();observer->batches.pop_front();
             }
-            // cudaLaunchHostFunc is not guaranteed to run after a context error.
-            // Each stream has a persistent blocking observer, so a long stream
-            // cannot hide another stream's error. Normal callback processing and
-            // capacity service never wait for these observers.
+
+
+
+
             const auto status=deviceStatus==cudaSuccess?cudaEventSynchronize(batch->event):deviceStatus;
             {std::lock_guard<std::mutex> lock(mutex_);batch->status=status;batch->observed=true;queue(batch);}
             changed_.notify_one();
@@ -140,8 +140,8 @@ class DeviceService {
                 workerBusy_=true;
             }
             if(retiredObserver){
-                // Never join under mutex_: an observer may still be returning
-                // to its wait loop. Erasing first gives a reused handle a new generation.
+
+
                 retiredObserver->changed.notify_one();retiredObserver->thread.join();
                 {std::lock_guard<std::mutex> lock(mutex_);--retiringObservers_;}continue;
             }
@@ -210,11 +210,11 @@ public:
         {std::lock_guard<std::mutex> lock(mutex_);--observer->users;}
         changed_.notify_one();
     }
-    // Read-only counters for lifecycle regression tests, not solver policy.
+
     std::size_t observerCount(){std::lock_guard<std::mutex> lock(mutex_);return observers_.size()+retiringObservers_;}
     void submit(std::shared_ptr<Work> work){
-        // A service callback may submit another task. Submit it inline so the
-        // caller's submission acknowledgement cannot wait on this same worker.
+
+
         if(std::this_thread::get_id()==worker_.get_id()){
             try{launch(work);}catch(...){fail(work,std::current_exception());}
             return;
@@ -223,10 +223,10 @@ public:
         changed_.notify_one();
     }
 };
-// Registry ownership remains present until every worker has destroyed its
-// current Work/Batch locals. Thus a closing callback cannot release the final
-// service reference on its own worker. Late static Tasks keep their service
-// alive independently, without referring back to this registry during reset.
+
+
+
+
 class DeviceServiceRegistry {
     std::mutex mutex_;std::map<int,std::shared_ptr<DeviceService>> services_;
 public:
@@ -236,15 +236,15 @@ public:
         auto service=std::make_shared<DeviceService>(device);
         services_.emplace(device,service);return service;
     }
-    // As with any object destruction, external submitters must have stopped.
-    // Already-running service callbacks remain supported throughout this drain.
+
+
     ~DeviceServiceRegistry(){
         for(;;){
             std::vector<std::shared_ptr<DeviceService>> snapshot;
             {std::lock_guard<std::mutex> lock(mutex_);for(auto& item:services_)snapshot.push_back(item.second);}
             for(auto& service:snapshot)service->awaitIdle();
-            // Workers may submit across devices or register another device while
-            // draining. Confirm one atomic all-service idle point before release.
+
+
             std::lock_guard<std::mutex> registryLock(mutex_);
             std::vector<std::unique_lock<std::mutex>> locks;
             for(auto& item:services_)locks.emplace_back(item.second->mutex_);
@@ -267,8 +267,8 @@ public:
     GraphContinuationTask(const GraphContinuationTask&)=delete;
     GraphContinuationTask& operator=(const GraphContinuationTask&)=delete;
     ~GraphContinuationTask(){reset();}
-    // Release before the owning CUDA stream is destroyed. Outstanding Batch
-    // leases retain the observer until its callback-return event has retired.
+
+
     void reset()noexcept{
         if(result_.valid())result_.wait();
         if(observer_){executor_->unregisterStream(observer_);observer_.reset();executor_=nullptr;}
@@ -287,8 +287,8 @@ public:
         result_=work->completion.get_future().share();auto submitted=work->submitted.get_future();
         try{executor->submit(work);}
         catch(...){work->completion.set_exception(std::current_exception());throw;}
-        // Preserve start()'s stream-ordering contract: later caller launches
-        // cannot overtake this graph. This waits for submission, not GPU work.
+
+
         submitted.get();
     }
 };

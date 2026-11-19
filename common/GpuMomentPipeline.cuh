@@ -1,7 +1,7 @@
 #pragma once
-// The sole post-transport moment/gather/recovery dispatch for all applications.
-// The compile-time payload schedule is identical for S1/S2 in an application.
-// It controls copy placement only; particle moments and field copy bodies are shared.
+
+
+
 int submitPostTransportMomentPipeline(DeviceState* s,const int particleGrid,const int block,cudaStream_t stream,bool heavy)
 {
     const int grid = (s->nCells + block - 1)/block;

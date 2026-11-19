@@ -1,6 +1,6 @@
 #pragma once
-// Preserve kernel selection, shared bytes, occupancy errors and final publication.
-// Application-only work grids are configured before syncDeviceState.
+
+
 int configureLaunchOccupancy(DeviceState* s)
 {
     const int block = s->reductionBlockThreads;

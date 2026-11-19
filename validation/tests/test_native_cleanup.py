@@ -97,7 +97,7 @@ template<class T>int copyToDevice(T* d,const T* s,size_t n,const char*){return n
 template<class T>int copyToHost(T* d,const T* s,size_t n,const char*){return n?cudaMemcpy(d,s,n*sizeof(T),2):0;}
 #include "common/GpuParticleSavedVelocityRestart.inl"
 int main(){
- for(int owner=0;owner<2;++owner){ // Both native owners use this exact include and double fields.
+ for(int owner=0;owner<2;++owner){
   for(int count:{0,1,3,5}){DeviceState s;for(int i=0;i<5;++i)s.a[i]=s.b[i]=s.c[i]=-99;
    double x[5]={1+std::ldexp(1.,-30),-2,3,4,5},y[5]={6,7,8,9,10},z[5]={11,12,13,14,15};counters();
    assert(ugkwpGpuResidentStrictUploadParticleSavedVelocity(&s,count,x,y,z)==0);
@@ -199,7 +199,7 @@ def test_ledger_reset_actual_owner_no_download_and_partial_errors(tmp_path):
     text = re.sub(r'(\w+)\s*<<<.*?>>>', r'(++launches, \1)', text, flags=re.S)
     (tmp_path/'cuda_runtime.h').write_text('#pragma once\n')
     code = CUDA+text+r'''
-// Configuration is not exercised by this reset-only owner fixture.
+
 extern "C" int ugkpInvalidateGasWallEnergyGraph(void*){assert(false);return 1;}
 extern "C" int ugkpPrepareParticleWallEnergyRestore(void*){assert(false);return 1;}
 int main(){
@@ -241,7 +241,7 @@ int main(){Resident r;r.resetGasWallEnergy();r.resetParticleWallHeatLedgers();as
  r.particleWallHeatTransferEnabled_=true;r.resetParticleWallHeatLedgers();assert(particleCalls==1);
  failGas=1;bool failed=false;try{r.resetGasWallEnergy();}catch(const std::runtime_error&){failed=true;}assert(failed);
  failParticle=1;failed=false;try{r.resetParticleWallHeatLedgers();}catch(const std::runtime_error&){failed=true;}assert(failed);
- // Retained allocated inventory may exist when these selectors are disabled.
+
  r.gasWallEnergyFaceIds_.clear();r.particleWallHeatTransferEnabled_=false;int g=gasCalls,p=particleCalls;r.resetGasWallEnergy();r.resetParticleWallHeatLedgers();assert(g==gasCalls&&p==particleCalls);
  assert(copies==0&&memsets==0&&allocations==0);puts("actual frontend wrappers preserve selected-channel/no-op/error semantics");
 }

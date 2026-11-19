@@ -26,12 +26,12 @@ Result solve(const PhysicsConfig& p,const SolidQ& q,double h,double cfl){Result 
  for(int s=0;s<Ns;++s){m+=r.q.pore[s];m0+=q.pore[s];if(r.q.pore[s]<0)throw std::runtime_error("negative pore inventory");}
  if(std::abs(m-m0)>1e-11||q.energy!=r.q.energy)throw std::runtime_error("reaction conservation failed");
  return r;}
-// Independent RK4 reference for a fractional chain, not production stepping/rates.
+
 double fractionalChainReference(double t){double b=0;const int n=131072;const double h=t/n;
  auto rhs=[](double time,double B){return 1.6*std::exp(-2*time)-10*std::sqrt(std::max(0.,B));};
  for(int i=0;i<n;++i){const double time=i*h,k1=rhs(time,b),k2=rhs(time+h/2,b+h*k1/2),k3=rhs(time+h/2,b+h*k2/2),k4=rhs(time+h,b+h*k3);b+=h*(k1+2*k2+2*k3+k4)/6;}return b;}
-// Host composition of the actual legacy participant assembly and shared device
-// timestep math. This is not a CUDA kernel/runtime test.
+
+
 SolidQ legacyMidpointChain(const PhysicsConfig& p,double interval,double cfl,double seed=0){SolidQ q=initial(p,.8,seed,.1);double elapsed=0;
  while(elapsed<interval){SolidQ unused,midpoint;double dt=0;bool active=false;
   if(!reactionStepCandidate(q,.001,p,interval-elapsed,cfl,unused,dt,active))throw std::runtime_error("legacy shared bound failed");
@@ -92,8 +92,8 @@ int main(){try{std::cout<<std::setprecision(17);auto p=config();const double h=.
  p=config();p.nReactions=1;p.condensed[0].e0=300000;p.condensed[0].cp0=700;p.condensed[0].cp1=.4;
  p.condensed[1].e0=-400000;p.condensed[1].cp0=1200;p.condensed[1].cp1=.15;p.species[0].e0=-200000;p.species[0].cp0=1000;p.species[0].cp1=.25;
  p.reactions[0].condensedNu[1]=.65;p.reactions[0].gasNu[0]=.35;p.reactions[0].temperaturePower=.5;p.reactions[0].activationEnergy=55000;p.reactions[0].A=.6*std::exp(55000/(universalGasConstant*650))/std::sqrt(650.);
- // Independent 60-digit chain-rule reference: C=1012.3 J/K,
- // dT/dextent=455.60728045045935 K/mol at 650 K.
+
+
  check(reactionStepControl(initial(p,.72,.18,.1,650),.001,p,.1,control)
      &&std::abs(control.sensitivity-2.6330012920660717)<1e-11,"shared thermal-feedback Jacobian matches independent caloric chain rule");
  previous=1e6;for(double cfl:{.1,.05,.025}){auto r=solve(p,initial(p,.72,.18,.1,650),.5,cfl);double error=std::abs(r.T-862.5149208212807);std::cout<<"adiabatic "<<cfl<<' '<<r.steps<<' '<<error<<'\n';check(error<previous*.7,"Arrhenius variable-cp thermal feedback converges");previous=error;}

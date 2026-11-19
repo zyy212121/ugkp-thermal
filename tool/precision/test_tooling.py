@@ -32,6 +32,27 @@ class PrecisionToolingTests(unittest.TestCase):
         self.assertNotEqual(os.stat(tree64 / "common/GpuPrecisionTypes.H").st_ino,
                             os.stat(tree32 / "common/GpuPrecisionTypes.H").st_ino)
 
+    def test_advance_and_coupling_owners_are_shared(self):
+        shared = (
+            "common/FoamPhysicalAdvanceTime.H", "common/FoamGasTimeStepControls.H",
+            "common/FoamAdvanceBoundary.H", "common/gpu/PhysicalEventClock.H",
+            "common/FoamAdvanceProgress.H", "common/gpu/AdvanceApi.H",
+            "common/operators/computeGasPrimitiveGradientsKernel.cuh", "common/operators/computeGasGradientLimiterKernel.cuh", "common/gpu/SolidThermalIteration.cu",
+            "common/gpu/SolidThermalConvergence.cuh", "common/gpu/SolidThermalConvergence.H",
+            "common/gpu/AdvanceState.cuh", "common/GpuAdvanceSequence.cuh",
+            "common/FoamMomentumTransportInput.H", "common/FoamGasTurbulenceControls.H",
+            "applications/CHMT/configuration/SharedPhasePhysics.H", "common/gasNumerics/GasWindowStep.H", "common/gasWall/WallReferenceSolver.H",
+            "applications/gasUGKPSteady/steadyGasLoop.H", "applications/gasUGKPSteady/steadyParticleLoop.H",
+            "applications/CHT/diluteUgkwpFoam.C", "applications/CHT/thermal/GpuSolidThermalCoupler.C",
+            "applications/CHMT/coupling/CouplingWindow.H", "applications/CHMT/configuration/CouplingInput.H",
+            "applications/CHMT/gpu/GasWindowControl.cuh", "applications/CHMT/io/MultirateEvolution.C",
+            "applications/CHMT/io/CoupledRadiation.C",
+        )
+        for name in shared:
+            with self.subTest(path=name):
+                self.assertTrue((ROOT/name).is_file())
+                self.assertFalse((ROOT/"precision/fp32"/name).exists())
+
     def test_launcher_selects_once_and_preserves_arguments(self):
         launcher = ROOT / ".build/precision/launcher/ugkpPrecisionLauncher"
         self.assertTrue(launcher.is_file(), "Build the host-only launcher first.")

@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 namespace Foam { namespace gpuThermal {
-// Matches the common diagnostic output-only switch; never controls solving.
+
 inline bool hostDiagnosticWarningsEnabled()
 {
     const char* value = std::getenv("UGKP_DIAGNOSTIC_WARNINGS");

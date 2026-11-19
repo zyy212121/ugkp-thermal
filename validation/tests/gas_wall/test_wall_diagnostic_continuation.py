@@ -60,7 +60,7 @@ def test_large_species_demand_rejects_unconverged_publication(tmp_path):
  m.in.matchingDistance=1;m.in.ownerDistance=.5;m.in.massFlux[0]=3e38;m.in.massFlux[1]=-3e38;
  m.in.model.diffusivity[0]=m.in.model.diffusivity[1]=2e38;
  ugkp::diagnostics::DeviceContext diagnostic{};m.in.diagnostics=&diagnostic;
- // Positive heat capacity keeps this a diagnostic-residual test.
+
  for(int j=0;j<6;++j)m.coef[j]=j%3==0?1000:0;
  WallModelConfig<double> c;c.nodes=3;c.maxIterations=0;WallWorkspace<double,2,3> w;WallOutput<double,2> out;WallStatus status;
  auto in=detail::wallComputationInput(m.in);auto controls=detail::wallComputationConfig(c);WallOutput<double,2> exact;
@@ -81,7 +81,7 @@ def test_disabled_omega_channel_cannot_veto_complete_physics(tmp_path):
  detail::LayerContext<double,2> ctx;detail::makeContext(m.in,c,ctx);
  assert(detail::publishLayer(m.in,c,ctx,w,out.iterations,out.residual,expected));sameOutput(out,expected);
  assert(std::isfinite(out.conductiveHeatFlux)&&out.conductiveHeatFlux<0&&out.traction[0]>0);
- // Disabled transport leaves the unused omega scratch untouched; it must not evaluate inf/inf.
+
  detail::LayerFlux<double,2> last;last.omega=123;
  assert(detail::intervalFlux(m.in,c,ctx,w.state[1],w.state[2],w.y[1],w.y[2],last));assert(last.omega==123);
  assert(std::isfinite(last.energy)&&std::isfinite(last.k));
@@ -104,7 +104,7 @@ def test_optional_nonfinite_chemistry_audit_preserves_physical_profile(tmp_path,
  for(int j=0;j<2;++j){assert(out.chemistryMismatch[j]==out.reactionIntegral[j]-coarse[j]);
   assert(out.speciesBalanceResidual[j]==plain.speciesBalanceResidual[j]);}
  assert(std::isinf(out.chemistryMismatch[1])&&out.chemistryMismatch[1]>0);
- // Adapter must preserve the same actual diagnostic even without narrowing.
+
  WallOutput<double,2> converted;assert(detail::publishWallPrecision(m.in,out,converted));sameOutput(out,converted);
 '''.replace('RATE',str(rate)))
 
@@ -143,7 +143,7 @@ def test_optional_owner_source_integral_overflow_preserves_physics(tmp_path):
  m.in.quadrature={&distance,&weight,1,SCALAR(1),SCALAR(1)};m.in.integrateOwnerKSource=true;
  std::memset(static_cast<void*>(&out),0xA5,sizeof(out));assert(evaluateWallModel(m.in,c,w,out,status));
  assert(status.code==WallCode::Success&&!std::isfinite(out.integratedKSource));
- // Optional source work changes no required output or residual trajectory.
+
  out.integratedKSource=plain.integratedKSource;sameOutput(out,plain);
  in=detail::wallComputationInput(m.in);WallOutput<double,2> exact;
  assert(detail::publishLayer(in,controls,ctx,w,status.iteration,status.residual,exact));

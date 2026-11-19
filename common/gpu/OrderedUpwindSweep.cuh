@@ -6,10 +6,15 @@
 #include <limits>
 namespace ugkp { namespace gpu {
 constexpr RadiationReal upwindIntensityRoundoff=256*std::numeric_limits<RadiationReal>::epsilon();
+__device__ inline RadiationReal minimumRoundoffIntensity(RadiationReal reference){
+    const RadiationReal magnitude=fabs(reference);
+    return -upwindIntensityRoundoff*(magnitude>1?magnitude:1);
+}
 struct OrderedUpwindDevice {
     int cells=0;
     const int *offsets=nullptr,*neighbour=nullptr,*subtract=nullptr,*residualOrder=nullptr,*levelCells=nullptr;
     const RadiationReal* flux=nullptr;
+    bool allUpstreamReady=false;
 };
 struct UpwindIntensityFailure {int cell;RadiationReal value;};
 __global__ void snapshotUpwind(int cells,const RadiationReal* current,RadiationReal* previous,const int* active=nullptr){
@@ -22,15 +27,15 @@ __device__ inline void orderedUpwindCell(int cell,OrderedUpwindDevice matrix,
     const RadiationReal* deviceReference){
     RadiationReal rhs=source[cell];
     for(int i=matrix.offsets[cell];i<matrix.offsets[cell+1];++i){
-        const int neighbour=matrix.neighbour[i];const RadiationReal value=neighbour<cell?current[neighbour]:previous[neighbour];
+        const int neighbour=matrix.neighbour[i];const RadiationReal value=(matrix.allUpstreamReady||neighbour<cell)?current[neighbour]:previous[neighbour];
         if(matrix.subtract[i])rhs-=matrix.flux[i]*value;else rhs+=matrix.flux[i]*value;
     }
     RadiationReal value=rhs/diagonal[cell];
     if(deviceReference)reference=*deviceReference;
-    // Same physical intensity consumption and roundoff bound as the native DO.
+
     if(!std::isfinite(value)){failures[cell]={cell,value};if(firstFailure)atomicMin(firstFailure,unsigned(cell));return;}
-    if(value<0){const RadiationReal magnitude=fabs(reference);const RadiationReal scale=magnitude>1?magnitude:1;
-        if(value>=-upwindIntensityRoundoff*scale)value=0;
+    if(value<0){
+        if(value>=minimumRoundoffIntensity(reference))value=0;
         else {failures[cell]={cell,value};if(firstFailure)atomicMin(firstFailure,unsigned(cell));return;}}
     current[cell]=value;failures[cell]={-1,0};
 }
@@ -64,7 +69,7 @@ __global__ void upwindResidual(OrderedUpwindDevice matrix,const RadiationReal* d
     const int cell=blockIdx.x*blockDim.x+threadIdx.x;if(cell>=matrix.cells)return;
     RadiationReal value=diagonal[cell]*current[cell]-source[cell];
     const RadiationReal a=fabs(diagonal[cell]*current[cell]),b=fabs(source[cell]);magnitude[cell]=a>b?a:b;
-    // The native residual accumulates internal faces in global face order.
+
     for(int j=matrix.offsets[cell];j<matrix.offsets[cell+1];++j){const int i=matrix.residualOrder[j];
         if(matrix.subtract[i])value+=matrix.flux[i]*current[matrix.neighbour[i]];
         else value-=matrix.flux[i]*current[matrix.neighbour[i]];}

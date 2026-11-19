@@ -6,8 +6,8 @@
 #include <vector>
 #include <cmath>
 namespace ugkwp {
-// Transport storage keeps its V1 ABI. Only available quantities have CSV
-// interfaces: flow/species here; finite off-wall SST in its separate opt-in file.
+
+
 inline bool writeGasBoundaryLayerProfiles(std::ostream& output,
     const std::vector<int>& faces,const std::vector<double>& centres,
     const std::vector<double>& geometry,const std::vector<std::string>& species,
@@ -38,10 +38,10 @@ inline bool writeGasBoundaryLayerSstProfiles(std::ostream& output,
     bool localSst,const std::vector<int>& faces,int nodes,std::size_t species,
     const double* profiles,double stageTime,double outputTime)
 {
-    if(!localSst)return false; // No local-SST export interface for algebraic ODE.
+    if(!localSst)return false;
     const std::size_t columns=7+species;
-    // node 0 is the wall boundary, where omega has a singular asymptotic limit.
-    // Do not manufacture a finite wall omega or put an infinity into a data row.
+
+
     for(std::size_t slot=0;slot<faces.size();++slot)
         for(int node=1;node<nodes;++node){
             const double* r=profiles+(slot*nodes+node)*columns;

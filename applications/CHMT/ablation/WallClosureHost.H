@@ -5,8 +5,8 @@
 #include "../../../common/gasWall/WallGeometryBuilder.H"
 #include <memory>
 namespace chmt {
-// Geometry is cached per immutable stage version. The caller invalidates this
-// cache on rollback/alternate geometry, whose version can be reused by a trial.
+
+
 class WallClosureHost {
     ugkwp::gaswall::WallGeometryCache<Real> cache_;
     std::unique_ptr<ugkwp::gaswall::WallWorkspace<Real,Ns,24>> smallWorkspace_;

@@ -1,4 +1,4 @@
-// Native CPU reference is selected from the frozen pre-migration include root.
+
 #define main unused_polyhedral_geometry_main
 #include "../gpu_coupled_pipeline/polyhedral_geometry_cuda.cpp"
 #undef main
@@ -59,8 +59,8 @@ int main(){
     }
     auto mesh=boxes(7,1.,false);for(int c=0;c<7;++c)mesh.boundaryKind[6*c]=mesh.boundaryKind[6*c+1]=chmt::BoundaryKind::Empty;
     auto endpoint=mesh.points;for(int p=0;p<8;++p)endpoint[8+p]=endpoint[p];compareStage(mesh,endpoint);
-    // Two individually valid cells exchange places: the midpoint has duplicate
-    // Empty coordinates although the endpoint and per-cell trajectories pass.
+
+
     endpoint=mesh.points;for(int p=0;p<8;++p){endpoint[p]=mesh.points[8+p];endpoint[8+p]=mesh.points[p];}compareStage(mesh,endpoint);
     auto simple=boxes(1,1.,false);chmt::Tolerances invalid;invalid.absoluteGeometry=-1;compareStage(simple,simple.points,invalid);
     compareStage(simple,simple.points,{},0);compareStage(simple,simple.points,{},std::numeric_limits<double>::quiet_NaN());

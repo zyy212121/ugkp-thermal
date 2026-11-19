@@ -2,8 +2,8 @@
 #define CHMT_CORE_AUDITARITHMETIC_H
 #include "Types.H"
 namespace chmt {
-// Diagnostic reductions must not raise OpenFOAM's enabled overflow/invalid traps.
-// An infinity/NaN here describes an unrepresentable audit, never a repaired state.
+
+
 CHMT_HD inline Real auditAdd(Real a,Real b) {
     const Real bound=std::numeric_limits<Real>::max();
     if(!finite(a)||!finite(b)) {
@@ -12,8 +12,8 @@ CHMT_HD inline Real auditAdd(Real a,Real b) {
     }
     if(((a>0&&b>0)||(a<0&&b<0))
         &&(absValue(a)>bound*Real(.5)||absValue(b)>bound*Real(.5))) {
-        // max-b may round upward at the last ULP. Binary scaling performs
-        // the same rounded addition without ever forming an overflowing sum.
+
+
         const Real half=a*Real(.5)+b*Real(.5);
         if(absValue(half)>bound*Real(.5))return a<0
             ?-std::numeric_limits<Real>::infinity():std::numeric_limits<Real>::infinity();
@@ -28,21 +28,21 @@ CHMT_HD inline Real auditProduct(Real a,Real b) {
     if(aa<=1||bb<=1)return a*b;
     int ea=0,eb=0,em=0;
     const Real ma=::frexp(aa,&ea),mb=::frexp(bb,&eb);
-    const Real mantissa=ma*mb; // [1/4,1), so this multiplication cannot overflow.
+    const Real mantissa=ma*mb;
     (void)::frexp(mantissa,&em);
     const int exponent=ea+eb+em;
     if(exponent>std::numeric_limits<Real>::max_exponent)
         return ((a<0)!=(b<0))?-std::numeric_limits<Real>::infinity():std::numeric_limits<Real>::infinity();
     if(exponent==std::numeric_limits<Real>::max_exponent) {
-        // max/b may round upward. Scale the already rounded mantissa here;
-        // a result rounding to finite MAX must remain finite, not a warning.
+
+
         const Real result=::ldexp(mantissa,ea+eb);
         return ((a<0)!=(b<0))?-result:result;
     }
     return a*b;
 }
-// Quotients used only by diagnostics/tolerances, including explicit IEEE
-// audit sentinels. Never execute zero division or an overflowing division.
+
+
 CHMT_HD inline Real auditQuotient(Real numerator,Real denominator) {
     if(numerator!=numerator||denominator!=denominator)return undefinedValue();
     const bool negative=::copysign(Real(1),numerator)!=::copysign(Real(1),denominator);
@@ -59,8 +59,8 @@ CHMT_HD inline Real auditQuotient(Real numerator,Real denominator) {
     if(exponent>maximum||(exponent==maximum&&mantissa>maximumMantissa))return negative?-infinity:infinity;
     return numerator/denominator;
 }
-// Keep an unrepresentable denominator product from destroying a representable
-// audit quotient. The usual path keeps its original division order.
+
+
 CHMT_HD inline Real auditQuotientProduct(Real numerator,Real first,Real second) {
     const Real product=auditProduct(first,second);
     if(finite(product)&&product!=0)return auditQuotient(numerator,product);

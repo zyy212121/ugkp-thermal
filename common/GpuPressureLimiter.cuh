@@ -1,5 +1,5 @@
 #pragma once
-// Identical pressure positivity and face-limiting equations for every application.
+
 __device__ PressureReal pressureKickInternalEnergy
 (
     const PressureReal rhoP,

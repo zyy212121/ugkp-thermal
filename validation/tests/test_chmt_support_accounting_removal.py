@@ -35,7 +35,7 @@ int main(int argc,char**){
   for(const auto& a:step.state.filmAux){scalar(a.pressure);scalar(a.thickness);scalar(a.temperature);vector(a.meanVelocity);vector(a.topVelocity);scalar(a.kineticEnergy);scalar(a.solidFront);scalar(a.gasFront);}
   for(auto x:step.state.solidMesh.points)vector(x);for(auto x:step.state.gasMesh.points)vector(x);
  }
- // Both packet producers preserve phase energy and mass for signed phase rates.
+
  for(Real rate:{-.01,0.,.01}){
   SurfacePhysicsInput in;in.hasSolid=true;in.dt=.001;in.area=2;in.solidArea=3;in.gasArea=4;
   in.normal=in.solidNormal=in.gasNormal={0,0,1};in.aux.thickness=.02;in.baseVelocity={.2,.3,0};

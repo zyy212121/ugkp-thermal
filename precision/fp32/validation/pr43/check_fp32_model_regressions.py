@@ -68,12 +68,12 @@ int main() {
     assert(state.resident.boundaryTemperatureFp32==nullptr);
     const unsigned char useTemperature[1]={1},contact[1]={1};
     const double area[1]={1.};
-    // CoupledRadiation::advance has populated this from the final WallProgram knot.
+
     double temperature[1]={1200.},emissivity[1]={1.};
     importBoundaryState<double>(1,state.resident,useTemperature,contact,area,temperature,emissivity);
     assert(temperature[0]==1200.);
     assert(emissivity[0]==0.8*(1.-0.25));
-    // The ordinary gas-backed import is still allowed to use its FP32 entry.
+
     RadiationParticleDeviceView gas;
     ugkwpGpuResidentStrictBorrowRadiationParticleState(nullptr,&gas);
     const unsigned char noContact[1]={0};

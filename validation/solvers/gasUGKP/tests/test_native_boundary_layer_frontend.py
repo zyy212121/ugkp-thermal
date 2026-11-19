@@ -13,6 +13,7 @@ import pytest
 ROOT = SOURCE_ROOT
 PROBE = r'''
 #include "fvCFD.H"
+#include "FoamMomentumTransportInput.H"
 #include "physicoChemicalConstants.H"
 #include "gasTransport/GasNumericsIO.H"
 #include "gpu/SharedGasModelInput.H"

@@ -10,14 +10,14 @@ struct BoundaryLayerWorkspaceSizing
     int slots=0;
     std::size_t bytes=0,budget=0;
 };
-// Initialization-only policy. One warp per SM is a starting configuration,
-// not an occupancy or throughput guarantee; explicit slots permit tuning.
+
+
 inline BoundaryLayerWorkspaceSizing resolveBoundaryLayerWorkspace(
     int faces,std::uint32_t requestedSlots,int multiprocessors,std::size_t freeBytes,std::size_t bytesPerWorkspace)
 {
     BoundaryLayerWorkspaceSizing result;
     if(faces<=0 || bytesPerWorkspace==0)return result;
-    (void)freeBytes; // Advisory free memory must not impose an allocation policy.
+    (void)freeBytes;
     if(requestedSlots==0)
     {
         const std::size_t desired=std::size_t(std::max(multiprocessors,1))*32;

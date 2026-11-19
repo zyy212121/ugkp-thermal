@@ -23,8 +23,8 @@ def main():
   original=json.loads(subprocess.check_output([probe,case/'chmtOutput/checkpoint-4'],text=True))
   resumed=json.loads(subprocess.check_output([probe,restart/'chmtOutput/checkpoint-4'],text=True))
   assert original==resumed,(original,resumed)
-  # Cumulative wall-energy counters restart at zero; subtracting adjacent
-  # counters can differ by roundoff. All physical state/profile bytes agree.
+
+
   ledger_delta=0.
   for left,right in zip(table(case/'chmtOutput/exchange-4.csv'),table(restart/'chmtOutput/exchange-4.csv')):
    for key in left:

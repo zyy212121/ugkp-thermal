@@ -36,7 +36,7 @@ COMMON=(
 )
 WALL_FILES=tuple('applications/gasUGKP/'+p for p in APP)+tuple('common/'+p for p in COMMON)
 REPOS=('gpu-riemann-gkp-main','ugkp-thermal')
-# These tests now resolve repository-specific validation and case paths.
+
 LAYOUT_LOCAL_FILES={
     'applications/gasUGKP/tests/test_boundary_layer_lifecycle.py',
     'applications/gasUGKP/tests/test_boundary_layer_protocol.py',
@@ -62,8 +62,8 @@ def make_wall_pair(tmp_path):
         assert path in entries,'unregistered wall input: '+path
         assert entries[path]['upstream']==upstream
         assert entries[path]['downstream']==next(repo for repo in REPOS if repo!=upstream)
-    # A real mirror checker over a bounded isolated pair, using the production
-    # classification and actual wall input bytes; no external repository writes.
+
+
     data['mirrors']=[entries[path] for path in WALL_FILES if path not in LAYOUT_LOCAL_FILES]
     data['local_only']={repo:sorted(LAYOUT_LOCAL_FILES) for repo in REPOS}
     for repo in REPOS:

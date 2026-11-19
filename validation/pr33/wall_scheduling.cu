@@ -1,5 +1,5 @@
-// Shared nonlinear wall functions: fixed versus dynamic work assignment and
-// phase cycle counts. No timing callback or instrumentation enters production.
+
+
 #include "validation/tests/gas_wall/fixtures/sst_restart004_capture.H"
 #include "common/gasWall/WallCudaTeam.cuh"
 #include <cuda_runtime.h>
@@ -13,7 +13,7 @@ struct Result {double heat=0,residual=0;int iterations=0;bool ok=false;};
 UGKWP_GAS_HD void configure(int face,bool ewm,CapturedSstWall& f){
  f.config.maxIterations=200;
  if(ewm){f.config.model=BoundaryLayerModel::EquilibriumOde;f.config.nodes=8;f.config.enableSst=false;}
- // A repeating, nonuniform input distribution, shared by both schedulers.
+
  const double scales[5]={.5,.75,1.,1.25,1.5};
  f.input.matching.velocity[0]*=scales[face%5];
 }
@@ -61,7 +61,7 @@ int main(){
   const int faces=1024,workers=32;W* w=device<W>(workers);Result* result=device<Result>(faces);int*cursor=device<int>(1);
   std::vector<Result> reference(faces),actual(faces);
   for(bool dynamic:{false,true}){
-   // Warm the module before measuring; every solve still uses its cold seed.
+
    ck(cudaMemset(cursor,0,sizeof(int)));solveWalls<<<workers,32>>>(dynamic,ewm,faces,workers,cursor,w,result);ck(cudaDeviceSynchronize());
    cudaEvent_t a,b;ck(cudaEventCreate(&a));ck(cudaEventCreate(&b));double total=0;
    for(int repeat=0;repeat<5;++repeat){ck(cudaMemset(cursor,0,sizeof(int)));ck(cudaEventRecord(a));solveWalls<<<workers,32>>>(dynamic,ewm,faces,workers,cursor,w,result);ck(cudaEventRecord(b));ck(cudaEventSynchronize(b));float ms;ck(cudaEventElapsedTime(&ms,a,b));total+=ms;}

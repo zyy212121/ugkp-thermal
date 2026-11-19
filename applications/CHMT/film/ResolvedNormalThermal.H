@@ -35,8 +35,8 @@ CHMT_HD inline bool recoverNormalEnthalpy(Real mass, Real H, Real volume, Real p
     }
     temperature=T; liquidFraction=fraction; return true;
 }
-// Initial finite-volume cut-cell diagnostic. This preserves supplied phase
-// inventory; it does not substitute an analytic future temperature or front.
+
+
 CHMT_HD inline bool recoverNormalSensibleAverage(Real mass, Real H, Real fraction,
     Real pressure, const PhysicsConfig& p, Real& temperature) {
     const int c=p.material.phaseCondensed;
@@ -55,5 +55,5 @@ CHMT_HD inline Real normalConductivePower(Real Ta, Real Tb, Real da, Real db,
 int launchResolvedNormalThermalRhs(NormalThermalView, const PhysicsConfig&, Real stageDt,
     DeviceStatus*, void* stream);
 int launchNormalThermalValidate(NormalThermalView, const PhysicsConfig&, DeviceStatus*, void* stream);
-} // namespace chmt
+}
 #endif

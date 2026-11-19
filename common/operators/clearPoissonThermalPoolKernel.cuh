@@ -1,5 +1,5 @@
 #pragma once
-// One operator implementation; scalar/time adapters are compile-time only.
+
 #if GPU_POOL_INITIALIZATION_WITH_PROBABILITY
 __global__ void clearPoissonThermalPoolKernel(DeviceState* sp, const GPU_OPERATOR_TIME dt)
 #else
@@ -23,7 +23,7 @@ __global__ void clearPoissonThermalPoolKernel(DeviceState* sp)
     }
 
 #if GPU_POOL_INITIALIZATION_WITH_PROBABILITY
-    // Preserve pressure kick -> primitive recovery -> probability publication.
+
 #ifdef UGKP_RESIDENT_CSR_CHOICE
     const bool heavy=s.csrHeavyReductionMode==2&&s.csrAutomaticRuntime
         ?s.csrAutomaticRuntime->active!=0:s.csrHeavyReductionEnabled!=0;
@@ -37,8 +37,8 @@ __global__ void clearPoissonThermalPoolKernel(DeviceState* sp)
     }
 #endif
 #ifdef GPU_PAIRED_PARTICLE_HEAT
-    // Gas RK is complete; rhoENext is now dead scratch. This existing launch
-    // supplies the global clear-before-correction/heat-atomics boundary.
+
+
     clearPairedParticleHeatCell(s, c);
 #endif
     s.poolThermalCount[c] = 0;

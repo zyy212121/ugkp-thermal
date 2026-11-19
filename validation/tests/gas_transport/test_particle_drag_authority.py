@@ -44,7 +44,7 @@ int main(){
  assert(s.rhoE[0]==energy&&s.rho[0]==before[0]&&s.rhoUx[0]==before[1]&&s.rhoUy[0]==before[2]&&s.rhoUz[0]==before[3]);
  assert(s.couplingRhoOld[0]==1&&s.couplingUxOld[0]==1&&s.couplingUyOld[0]==0&&s.couplingUzOld[0]==0&&s.couplingTgasOld[0]==300);
  assert(s.thetaDragAlpha[0]==(dt==0?Real(1):Real(exp(Real(-2)*dt))));}
- // Equal velocities are insufficient for the strict-zero shortcut: real internal repair runs.
+
  {DeviceState s;s.rhoE[0]=0;drag<0>(&s,.25,0);assert(s.rhoE[0]>.5&&s.rhoUx[0]==1&&s.thetaDragAlpha[0]<1);}
  {DeviceState s;s.rhoUx[0]=s.Ux[0]=0;drag<0>(&s,.25,0);assert(s.rhoUx[0]>0&&s.rhoUx[0]<1);const long double igMin=.75L*s.Rgas*s.TgasMin/(s.gammaGas-1);
  const long double diss=.5L-(.5L*.75L*s.rhoUx[0]*s.rhoUx[0]+.5L*std::pow((1.-.75*s.rhoUx[0]),2));

@@ -14,8 +14,8 @@ struct ConstrainedPressureLaunch
     static cudaError_t project(DeviceState* s,PressureTime dt,int grid,int block,int threads,bool split,bool compact)
     {
         const size_t shared=(FullMoments?7u:4u)*static_cast<size_t>((threads+31)/32)*sizeof(PressureReal);
-        // Read the limited faces directly. Base and injection share one closure,
-        // removing stale cached deltas and the split scratch/publish roundtrip.
+
+
         if(split)applyUnifiedSplitPressureKernel<FullMoments>
             <<<s->nCells,threads,shared,ugkp::gpu::particleRecordingStream(s)>>>(s->deviceState,dt);
         else if(compact)applyCollisionalPressureProjectionKernel<FullMoments,true>

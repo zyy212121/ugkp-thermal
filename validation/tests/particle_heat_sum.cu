@@ -20,8 +20,8 @@ template<class S> __device__ auto cachedResponse(const S&s,int i){return s.parce
 template<class Team> __device__ int test(const State& s,const Team& team,bool csr,bool split){
  const mixtureThermalParticles::Response<State,Team> response{s,0,1.,1.,csr,split,team};
  int failures=0;
- // Repeated nearby evaluations reuse a segment; large jumps cross caloric and
- // phase cuts. Direct per-parcel calorics remain the independent oracle.
+
+
  for(int j=0;j<100;++j){
   const double t=j%10==0?100.:j%10==1?3000.:1000.+(j%10)*.03;
   double q,d;const auto status=response(t,q,d);

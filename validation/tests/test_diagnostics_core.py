@@ -168,9 +168,9 @@ def production_diagnostic_callsites():
                'clipPhysicsMassFraction':2,'gasRecordFaceFailure':3,
                'gasRecordEvaluatedFaceFailure':3,'gasRecordTransportDiagnostic':4,'failure':1,
                'gasEddyFinite':3,'gasProducerScalarValid':3,'gasStencilIndexFailure':3,'interfaceFailure':1,'materialInversionFailure':1,'reactionControlFailure':2}
-    # A logical diagnostic can be emitted by scalar/cooperative/reference
-    # implementations. Keep the shared IDs explicit; unrelated producers must
-    # obtain a new ID instead of silently inheriting another source's label.
+
+
+
     shared={
         2422:{'common/gasTransport/GasCoherentBoundaryLayer.H','common/gasWall/EquilibriumOdeWallLayer.H','common/gasWall/ReactingWallLayer.H'},
         10015:{'common/gasWall/ReactingWallLayer.H'},
@@ -189,7 +189,7 @@ def production_diagnostic_callsites():
         for path in sorted((ROOT/folder).rglob('*')):
             if path.suffix not in ('.H','.cuh','.cu','.C') or path.name.startswith('Diagnostics'):
                 continue
-            # A compatibility symlink is the same physical call site, not a second ID.
+
             resolved=path.resolve()
             if resolved in resolved_sources:
                 continue

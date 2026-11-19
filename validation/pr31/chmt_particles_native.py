@@ -20,8 +20,8 @@ def prepare(path,model,impact,end_time=0.001,aligned_calorics=False):
     d=path/'constant/particleProperties'
     set_input(path/'constant/schedulingProperties','gpuResidentPureGasOnly','false')
     set_input(path/'constant/schedulingProperties','gpuResidentParticleCapacity',64)
-    # A separate conservation fixture aligns the liquid datum of the two
-    # existing caloric laws. Default-model runs remain available and explicit.
+
+
     cp=lambda t:(153.5+.0031*(min(4000.,max(2327.,t))-2327.))/.101961276
     liquid_h=lambda t:cp(2327.)*t+.5*(.0031/.101961276)*max(0.,t-2327.)**2
     cold_without_latent=1273.*2317.+.5*(1273.+cp(2327.))*20.
@@ -68,8 +68,8 @@ def main():
     report['aligned_calorics']=args.aligned_calorics
     assert all(math.isfinite(float(v)) for q in last['parcels'] for k,v in q.items() if k not in ('id',))
     report['energy_absolute_below_2e_4_J']=abs(report['total_energy_change_J'])<2e-4
-    # Report the physical residual, including the accepted macro/micro error;
-    # successful execution or restart parity alone is not a conservation pass.
+
+
     if args.restart_check:
         restart=case.parent/(case.name+'-restart')
         assert not restart.exists(),restart
@@ -96,9 +96,9 @@ def main():
         reference=output/f'checkpoint-{indices[-1]}/state.chmt'
         resumed=restart/'chmtOutput'/f'checkpoint-{indices[-1]}/state.chmt'
         report['restart_checkpoint_byte_identical']=reference.read_bytes()==resumed.read_bytes()
-        # Wall-heat counters restart at zero. Their differenced ledger heat can
-        # round differently while every physical owner/history bit is unchanged.
-        # Prove that distinction with the production codec before allowing it.
+
+
+
         probe=case/'physical-checksum.cpp';probe.write_text(r'''
 #include "restart/Checkpoint.C"
 #include <iostream>

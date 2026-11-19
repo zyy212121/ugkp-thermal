@@ -1,5 +1,5 @@
 
-// Compile offline now; execute only during a GPU correctness window.
+
 #include <cuda_runtime.h>
 #include <cassert>
 #include <cmath>

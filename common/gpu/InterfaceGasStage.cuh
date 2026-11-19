@@ -1,4 +1,4 @@
-// Included after InterfaceGasPointMotion.cuh and ResidentStageGeometry.cuh.
+
 #include "InterfaceGasStage.H"
 namespace ugkp { namespace gpu { namespace geometry { namespace {
 __global__ void beginInterfaceGasStage(const InterfaceGasStageInput* input,
@@ -17,9 +17,9 @@ __global__ void selectInterfaceGasStagePoints(int count,const InterfaceGasStageI
 }
 __global__ void publishInterfaceGasStageStatus(const StageGeometryStatus* input,StageGeometryStatus* output,
     const InterfaceGasMotionStatus* motion,ugkp::diagnostics::DeviceContext* diagnostics){
-    // Failed motion has already published the immutable old coordinates as
-    // nonphysical scratch. Keep its failure authoritative and discard the
-    // speculative certification, including warnings. It is never accepted.
+
+
+
     if(motion->failure!=InterfaceGasMotionFailure::None){*output={};*diagnostics={};}
     else *output=*input;
 }
@@ -33,6 +33,10 @@ struct InterfaceGasStage::Implementation {
     std::unique_ptr<InterfaceGasPointMotion> motion;
     std::unique_ptr<ResidentStageGeometry> stage;
     cudaStream_t stream=nullptr;cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;PinnedTransferQueue transfer;
+    Array<WetOffsetFace> wetFaces;
+    Array<WetOffsetVertex> wetVertices;
+    Array<int> invalidWet;
+    int wetCount=0;
     Array<Point> old;
     Array<InterfaceGasStageInput> input;
     Array<StageGeometryControls> controls;
@@ -45,6 +49,11 @@ struct InterfaceGasStage::Implementation {
             d.motion.emptyAxis,d.motion.emptyMate));
         old.reserve(points);input.reserve(1);controls.reserve(1);status.reserve(1);diagnostics.reserve(1);
         checked(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));transfer.bind(stream);
+        wetCount=d.wetFaces.size();
+        if(wetCount){
+            wetFaces.upload(d.wetFaces,transfer);wetVertices.upload(d.wetVertices,transfer);
+            invalidWet.reserve(1);transfer.finish();
+        }
     }
     ~Implementation(){transfer.discard();if(stream)cudaStreamSynchronize(stream);
         if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);if(stream)cudaStreamDestroy(stream);}
@@ -88,6 +97,42 @@ InterfaceGasStageResult InterfaceGasStage::collect(){
     if(result.motion.status.failure!=InterfaceGasMotionFailure::None||result.status.failure!=StageGeometryFailure::None){
         result.motion.points.clear();result.endpoint={};result.oldVolume.clear();result.sweep.clear();result.velocity.clear();}
     return result;
+}
+namespace {
+__global__ void initializeWetOffset(int* first){*first=INT_MAX;}
+__global__ void checkWetOffset(int count,const WetOffsetFace* faces,const WetOffsetVertex* vertices,
+    LocalFrameStageView solid,InterfaceGasStageView gas,int* invalid){
+    if(!gas.motion.status->changed||gas.motion.status->failure!=InterfaceGasMotionFailure::None||
+        solid.geometry.status->failure!=StageGeometryFailure::None||gas.geometry.status->failure!=StageGeometryFailure::None)return;
+    for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<count;i+=gridDim.x*blockDim.x){
+        const auto face=faces[i];bool moving=false;
+        for(int k=face.first;k<face.end&&!moving;++k){
+            const auto v=vertices[k];const auto s=solid.points[v.solid];
+            moving=s.x!=v.oldSolid.x||s.y!=v.oldSolid.y||s.z!=v.oldSolid.z;
+            if(v.gas>=0){const auto p=gas.motion.points[v.gas];moving|=p.x!=v.oldGas.x||p.y!=v.oldGas.y||p.z!=v.oldGas.z;}
+        }
+        if(!moving)continue;
+        const auto a=gas.geometry.endpointGeometry.area[face.gas],b=solid.geometry.endpointGeometry.area[face.solid];
+        const double ga=::sqrt(a.x*a.x+a.y*a.y+a.z*a.z),sa=::sqrt(b.x*b.x+b.y*b.y+b.z*b.z);
+        const double x=a.x/ga+b.x/sa,y=a.y/ga+b.y/sa,z=a.z/ga+b.z/sa;
+        if(face.oldMismatch||::fabs(ga-sa)>1e-10*::fmax(ga,sa)||::sqrt(x*x+y*y+z*z)>1e-10)
+            atomicMin(invalid,face.interfaceIndex);
+    }
+}
+}
+const int* InterfaceGasStage::invalidWetOffset()const{return data_->invalidWet.pointer;}
+ExecutionGraphNode InterfaceGasStage::appendBorrowed(ExecutionGraph graph,ExecutionGraphNode dependency,
+    LocalFrameStageView solid,StageGeometryControls controls){
+    auto& d=*data_;auto& motion=*d.motion->data_;
+    auto bound=executionGraphDetail::appendCaptured(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},d.stream,[&]{
+        bindBorrowedInterfaceStage<<<1,1,0,d.stream>>>(motion.hostInput.pointer,solid.points,solid.geometry.endpointGeometry.area,controls,d.input.pointer);
+    });
+    auto checkedStage=appendTo(graph,bound,d.input.pointer);
+    if(!d.wetCount)return checkedStage;
+    return executionGraphDetail::appendCaptured(graph,{checkedStage},d.stream,[&]{
+        initializeWetOffset<<<1,1,0,d.stream>>>(d.invalidWet.pointer);
+        checkWetOffset<<<(d.wetCount+127)/128,128,0,d.stream>>>(d.wetCount,d.wetFaces.pointer,d.wetVertices.pointer,solid,view(),d.invalidWet.pointer);
+    });
 }
 InterfaceGasStageResult InterfaceGasStage::solveBorrowed(const Point* endpoint,const Point* area,StageGeometryControls controls){
     auto& d=*data_;auto& m=*d.motion->data_;PinnedTransferQueue::Operation pending(d.transfer);

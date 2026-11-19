@@ -45,7 +45,7 @@ BODY += r'''
  #define SEED(name) seed(sp.name)
  SEED(rho);SEED(initial);SEED(flux);SEED(gradX);SEED(gradY);SEED(gradZ);SEED(limiter);SEED(boundaryMassFraction);SEED(positivityScale);SEED(compositionBoundaryFixed);SEED(soundSpeed);SEED(heatCapacity);SEED(gasConstant);SEED(cellStatus);SEED(faceStatus);
  #undef SEED
- // Only real resident solver channels have owners; removed audit arrays do not.
+
  const auto old=v;auto count=live.size();h.gas[0].mass=999;h.gas[0].energy=777;h.sst[0]={888,444};
  gas.thermoHash+=19;gas.speciesOrderHash=37;gas.coefficients[0]=1140;gas.diffusionCoefficients[0]=.03;
  resetCounts();
@@ -144,8 +144,8 @@ def test_real_geometry_rebinding_preserves_resident_inventory(tmp_path):
  chmt::HostStageGeometry stage;stage.oldVolume={3,9};stage.newVolume={3.1,10};stage.sweptVolume={0,.1,0};stage.interval=.1;
  assert(storage.bindStageGeometry(stage));assert(storage.deviceView()->gasGeometry.oldVolume[1]==9);
  stage.oldVolume.clear();assert(!storage.bindStageGeometry(stage));
- // Extra supplied geometric cells have no gas inventory source: geometry
- // ownership grows, while the real resident transport extent remains one.
+
+
  m.volumes={3,4};m.cellCentres.push_back({2,0,0});m.cellFaceOffsets={0,1,2};m.cellFaces={0,1};m.owner[1]=1;
  assert(storage.uploadGeometry(m));assert(v.nCells==1&&v.rho==rho&&rho[0]==13&&live.at(v.V)==2*sizeof(double));
  assert(storage.deviceView()->V==v.V&&storage.deviceView()->rho==rho);

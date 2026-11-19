@@ -15,7 +15,7 @@ SOURCE = r'''
 #include <type_traits>
 using namespace chmt;
 using chmt_test::check; using chmt_test::near;
-// Keep the regression executable on the unfixed tree so RED is behavioral.
+
 template<class T> auto setMechanical(T& value, Real pressure, int) -> decltype(value.mechanicalPressure=pressure,void()) {value.mechanicalPressure=pressure;}
 template<class T> void setMechanical(T&,Real,long) {}
 template<class T> void setMechanical(T& value,Real pressure) {setMechanical(value,pressure,0);}
@@ -31,7 +31,7 @@ int main(){
  context.matching.temperature=bulk.temperature;context.matching.velocity[1]=10;
  for(int s=0;s<Ns;++s)context.matching.massFraction[s]=bulk.Y[s];
  SurfacePacketIdentity id;id.gasCell=0;id.solidCell=0;id.filmFace=0;
- // Static, translating, and translating/blowing use the same mechanical p.
+
  for(int mode=0;mode<3;++mode){
   GasWallInput in;in.bulk=bulk;in.wallContext=context;in.temperature=600;
   in.gasDistance=.2;in.area=in.gasArea=2;in.dt=.01;in.normal={1,0,0};in.velocity={0,2,0};
@@ -63,7 +63,7 @@ int main(){
   near(candidate.gasEnergy*in.area*in.dt,result.primary.energy,"CPU and GPU packet energy agree");
   ExchangePacket packets[3];check(assembleSurfacePackets(surface,candidate,id,p,packets),"CPU packet assembly");
   near(packets[0].momentum.x,result.primary.momentum.x,"CPU and GPU packet momentum agree");
-  // Top-liquid p*w must cancel gas p*w without changing film thermodynamic p.
+
   surface.hasFilm=true;surface.film.mass=surface.filmBase.mass=1;surface.film.species[0]=surface.filmBase.species[0]=1;
   surface.aux.topVelocity={0,2,0};surface.acceptedCondensed[0]=0;surface.acceptedPoreSpecies[0]=surface.acceptedPoreSpecies[1]=0;
   SurfacePhysicsResult wet,wetEqual;
@@ -73,7 +73,7 @@ int main(){
   near(wet.thermalResidual,wetEqual.thermalResidual,"wet top gas and liquid pressure work cancels");
   near(wet.phasePressureWork,wetEqual.phasePressureWork,"bottom film phase work retains thermodynamic pressure");
   near(wet.phaseAdvective,wetEqual.phaseAdvective,"bottom film enthalpy retains matching pressure");
-  // Existing low-Re path ignores the boundary-layer-only field.
+
   auto legacy=p;legacy.wallModel.family=ugkwp::gaswall::WallFamily::LowRe;
   GasWallResult old,oldEqual;check(evaluateGasWall(in,id,legacy,old)&&evaluateGasWall(baseline,id,legacy,oldEqual),"legacy pressure control");
   near(old.primary.energy,oldEqual.primary.energy,"legacy energy unchanged");near(old.primary.momentum.x,oldEqual.primary.momentum.x,"legacy momentum unchanged");
@@ -123,7 +123,7 @@ def test_backend_preserves_common_reconstructed_pressure_flux(tmp_path):
  b->microTime=0;b->microDt=.0001;assert(chmt::transport::CoupledTrialPolicy::begin(b.get())==0);
  auto&v=b->storage.hostView();
  if(mode%2){
-  // A rigid translating stage has zero volume change and exact closed-cell GCL.
+
   for(std::size_t f=0;f<m.areaVectors.size();++f)b->gasStage.sweptVolume[f]=m.areaVectors[f].z*sample.normalVelocity*b->microDt;
   assert(b->storage.bindStageGeometry(b->gasStage));b->gasGeometry=v.gasGeometry;
  }
@@ -132,11 +132,11 @@ def test_backend_preserves_common_reconstructed_pressure_flux(tmp_path):
  assert(b->storage.refreshView());blockIdx.x=0;blockDim.x=1;threadIdx.x=0;
  assert(chmt::prepareCoupledBoundaryLayer(b.get(),.0001,0)==0);
  assert(b->preparedMatching[0].pressure==100000);assert(b->preparedMatching[0].state.temperature==900);
- assert(b->preparedMatching[0].mechanicalPressure==0); // unavailable until the common flux has been evaluated.
+ assert(b->preparedMatching[0].mechanicalPressure==0);
  b->preparedMatching[0].mechanicalPressure=123;assert(chmt::prepareCoupledBoundaryLayer(b.get(),.0001,0)==0);
- assert(b->preparedMatching[0].mechanicalPressure==0); // a new prepared stage cannot retain old mechanical data.
- // Inject a known nonzero normal viscous stress into the physical wall output.
- // This isolates the recovery formula's stress subtraction as well as m*u.
+ assert(b->preparedMatching[0].mechanicalPressure==0);
+
+
  auto& layer=b->preparedWallLayers[0];layer.traction[2]=7.5;
  const auto& input=v.gasBoundaryLayerModel.input[0];
  assert(ugkwp::publishGasBoundaryLayerOutput(v,0,input,layer,1.,sample.normalVelocity));
@@ -155,7 +155,7 @@ def test_backend_preserves_common_reconstructed_pressure_flux(tmp_path):
  assert(chmt::rollbackGasWindow(*b,error));assert(!b->preparedWallReady);
  assert(chmt::beginGasWindow(*b,program,error));b->microTime=0;b->microDt=.0001;
  assert(chmt::transport::CoupledTrialPolicy::begin(b.get())==0);
- assert(chmt::applyCoupledFaces(b.get(),.0001,0)!=0); // old snapshot cannot cross rollback.
+ assert(chmt::applyCoupledFaces(b.get(),.0001,0)!=0);
 }
 int main(){for(int mode=0;mode<4;++mode)run(mode);}
 '''

@@ -53,7 +53,7 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
     R norm=std::numeric_limits<R>::infinity();
     R previousStress=0,previousDefect=0,lower=0,upper=0;
     bool previous=false,hasLower=false,hasUpper=false;
-    int updates=0;
+    int updates=0,searchesRemaining=c.maxIterations;
     R initialNorm=std::numeric_limits<R>::infinity();
     bool stalledUpdate=false;
     for(int outer=0;outer<c.maxIterations;++outer){
@@ -67,13 +67,13 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
             return false;
         }
         if(outer==0)initialNorm=norm;
-        while(norm>tolerance&&updates<c.maxIterations){
+        while(norm>tolerance&&updates<c.maxIterations&&searchesRemaining>0){
             if(!newtonStep(in,c,ctx,w,team)){
                 if(team.leader())fail(status,WallCode::SingularJacobian);
                 return false;
             }
             R alpha=0;
-            if(!applyLayerNewtonUpdate(in,c,ctx,w,norm,alpha,team)){
+            if(!applyLayerNewtonUpdate(in,c,ctx,w,norm,alpha,team,&searchesRemaining)){
                 if(team.leader())fail(status,WallCode::InadmissibleState);
                 return false;
             }
@@ -134,21 +134,20 @@ UGKWP_GAS_HD inline bool evaluateEquilibriumOdeWallLayerImpl(
             ?next*measuredTraction[d]/measuredStress:R(0);
         ++updates;
     }
+    bool published=false;
     if(team.leader()){
-        fail(status,WallCode::NonConvergence);
-        status.iteration=updates;status.residual=GpuReal(norm);
-
-        printf("WALL_ODE_NONCONVERGENCE face=%d updates=%d maxIterations=%d initialResidual=%.9g finalResidual=%.9g relativeTolerance=%.9g absoluteTolerance=%.9g stalledUpdate=%d\n",
-            int(in.diagnosticEntity),updates,c.maxIterations,double(initialNorm),double(norm),
-            double(c.relativeTolerance),double(c.absoluteTolerance),int(stalledUpdate));
-
-
-        using namespace ugkp::diagnostics;
-        if(in.diagnostics)recordFatal(in.diagnostics,makeRecord(
-            gasFinite(norm)?Code::InvalidPhysicalState:Code::NonFinite,2422,23,in.diagnosticNode,
-            EntityKind::Face,in.diagnosticEntity,-1,GpuReal(norm),GpuReal(tolerance),0,Quantity::Accuracy));
+        status.iteration=updates;status.residual=norm;
+        if(!gasFinite(norm)){
+            fail(status,WallCode::InadmissibleState);
+            wallFatal(in,ugkp::diagnostics::Code::NonFinite,2422,norm);
+        }else{
+            status.code=WallCode::NonConvergence;
+            wallWarning(in,ugkp::diagnostics::Code::AccuracyResidual,2422,norm,tolerance);
+            published=publishLayer(in,c,ctx,w,updates,norm,output);
+            if(!published)fail(status,WallCode::InadmissibleState);
+        }
     }
-    return false;
+    return team.broadcast(published);
 }
 
 template<class R,int N,int M,class TableReal=R>

@@ -48,7 +48,7 @@ def prepare(work):
             text, count = re.subn(r"\benableSst\s+true;", "enableSst false;", text)
             assert count == 1, props
             props.write_text(text)
-            # The analytic wall model requires constant molecular viscosity.
+
             (baseline/"constant/gasTransportProperties").unlink()
             overrides.update(gasMaxDt="couplingInterval/4", wallModel="constantTransport",
                              enableSst=False, molecularViscosity="constant")
@@ -79,8 +79,8 @@ def execute(work, baseline, candidate):
             assert counts and min(counts) >= 4, (case, counts)
             stage_snapshots = 0
             if name == "moving-microsteps":
-                # For the four equal microsteps, the last SSPRK3 RHS is at the
-                # midpoint of the last microstep, not at its accepted endpoint.
+
+
                 assert all(count == 4 for count in counts), (case, counts)
                 props = (case/"constant/chmtProperties").read_text()
                 dt = float(re.search(r"\bgasMaxDt\s+([^;]+)", props)[1])

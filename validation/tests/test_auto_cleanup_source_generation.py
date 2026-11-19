@@ -41,7 +41,7 @@ def test_generate_cleanup_source_without_cuda(tmp_path, app):
     if app == "FSH":
         old_cold = old_cold.replace("s.pContactAge[", "s.pTheta[")
     assert old_cold in generated
-    # Mechanical age must use the app's real alias: CHT pContactAge, FSH pTheta.
+
     folder = "private_backend" if app == "FSH" else "gpu"
     production = (ROOT / "applications" / app / folder / "GpuResidentStrict.cu").read_text()
     age_field = "pTheta" if app == "FSH" else "pContactAge"
@@ -53,8 +53,8 @@ def test_generate_cleanup_source_without_cuda(tmp_path, app):
     assert "PASS positive-area full-dt cold-wall outer kernel bitwise" in generated
     assert "test_cold_wall_contact_routes.py" in generated
 
-    # Compile the exact generated host-side setup, using real field types and
-    # the production area curve. This checks the oracle domain, not heat flow.
+
+
     scope = generated[generated.index(" const GpuTime coldDt ="):]
     scope = scope[:scope.index(" for(int step=0;")]
     fields = [age_field, "pContactDuration", "pContactMaximumArea",

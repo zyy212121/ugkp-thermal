@@ -43,8 +43,8 @@ CHMT_HD inline FilmProfile withNormalProfile(FilmProfile p, Vec3 normal, Real bo
     p.topVelocity=profileVelocity(p,p.delta);
     return p;
 }
-// The interface owner supplies a reference-frame normal trace independently
-// of film mass. A dry owner explicitly clears it; no old wet trace is inferred.
+
+
 template<bool Terminal=false>
 CHMT_HD inline bool setCoupledFilmNormalTrace(FilmAux& aux, Vec3 normal, bool wet,
     Real bottom, Real top, DeviceStatus* status=nullptr, int index=-1,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
@@ -69,9 +69,9 @@ CHMT_HD inline bool setCoupledFilmNormalTrace(FilmAux& aux, Vec3 normal, bool we
     }
     aux=next; return true;
 }
-// Thermal recovery does not own a coupled interface's normal kinematics. The
-// plain recoverFilm empty-film convention remains unchanged for standalone EOS
-// callers. Only a finite, explicitly coupled trace is restored here.
+
+
+
 template<bool Terminal=false>
 CHMT_HD inline bool recoverFilmThermalState(const FilmQ& q, Real area, Real pressure,
     const PhysicsConfig& p, Vec3 normal, bool coupled, FilmAux& aux,
@@ -103,7 +103,7 @@ CHMT_HD inline bool recoverFilmThermalState(const FilmQ& q, Real area, Real pres
     }
     aux=next; return true;
 }
-// Shared by the actual CUDA profile kernel and the host sequence regression.
+
 template<bool Terminal=false>
 CHMT_HD inline bool updateFilmProfileState(FilmAux& aux, const PhysicsConfig& p, Vec3 normal,
     Vec3 shear, Vec3 pressureBodyGradient, bool coupled, DeviceStatus* status=nullptr, int index=-1) {
@@ -133,7 +133,7 @@ CHMT_HD inline bool updateFilmProfileState(FilmAux& aux, const PhysicsConfig& p,
     aux=next; return true;
 }
 CHMT_HD inline Real profileKineticFlux(const FilmProfile& p, Vec3 gridVelocity, Vec3 conormal) {
-    // Four-point Gauss quadrature exactly integrates the degree-six polynomial.
+
     const Real x[4]={-0.8611363115940525752,-0.3399810435848562648,
         0.3399810435848562648,0.8611363115940525752};
     const Real w[4]={0.3478548451374538574,0.6521451548625461426,
@@ -189,5 +189,5 @@ CHMT_HD inline bool freezeFilmRemainder(const FilmQ& q, Real pressure,
     packet.advective=packet.energy;
     out=packet; return true;
 }
-} // namespace chmt
+}
 #endif

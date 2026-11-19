@@ -1,4 +1,4 @@
-// Immutable fa71f477 reference for old/new regression, never production.
+
 __global__ void clearPoissonThermalPoolKernel(DeviceState* sp, const double dt)
 {
     DeviceState& s = *sp;
@@ -15,8 +15,8 @@ __global__ void clearPoissonThermalPoolKernel(DeviceState* sp, const double dt)
         return;
     }
 
-    // This producer runs after this step's pressure kick and primitive
-    // recovery. Only multi-segment consumers need cross-block reuse.
+
+
     if (s.csrHeavyReductionEnabled != 0 && s.csrCellTaskCount[c] > 1)
     {
         s.poissonCellCollisionProbability[c] =

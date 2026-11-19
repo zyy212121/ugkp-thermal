@@ -83,7 +83,7 @@ void actualNonuniformDrySweep() {
 }
 void explicitIntegratedTargets() {
     const HostState base=coupledPair(); auto candidate=base.filmAux;
-    // Deliberately stale front guesses: only the integrated volume is authoritative.
+
     candidate[0].solidFront=-.003; candidate[1].solidFront=-.006;
     const std::vector<Real> target={-.023,-.071};
     HostMesh gas,solid; SurfaceMesh surface; SweepConstraintReport report; std::string error;
@@ -146,7 +146,7 @@ HostMesh tetrahedralBulk() {
     }
     std::string error; require(rebuildGeometry(mesh,error),error); return mesh;
 }
-// Independent five-point Gauss quadrature of velocity dot moving triangle area.
+
 Real quadratureSweep(const HostMesh& mesh,const std::vector<Vec3>& endpoint,int f) {
     const Real node[5]={-.9061798459386639928,-.538469310105683091,0,.538469310105683091,.9061798459386639928};
     const Real weight[5]={.236926885056189088,.478628670499366468,.568888888888888889,.478628670499366468,.236926885056189088};
@@ -237,7 +237,14 @@ void rebuildActualTrajectorySurface() {
     require(result.area==expected.area && result.edgeLength==expected.edgeLength
         && result.sweptEdgeArea==expected.sweptEdgeArea,"surface endpoint recomputes actual edge/area metrics");
     require(result.edgeOwner==expected.edgeOwner && result.edgeNeighbour==expected.edgeNeighbour,"surface edge topology rebuilt");
-    require(result.baseVelocity[0].x==.02 && result.prescribedTopTraction[1].z==6,"nongeometric surface data preserved");
+    const auto unchanged=[](const auto& now,const auto& initial){
+        if(now.size()!=initial.size())return false;
+        for(std::size_t f=0;f<now.size();++f)
+            if(now[f].x!=initial[f].x||now[f].y!=initial[f].y||now[f].z!=initial[f].z)return false;
+        return true;
+    };
+    require(unchanged(result.baseVelocity,base.surface.baseVelocity)
+        &&unchanged(result.prescribedTopTraction,base.surface.prescribedTopTraction),"nongeometric surface data preserved");
     HostMesh halfSolid,halfGas; auto sp=solid.points,gp=gas.points; std::vector<Real> sweep;
     for (std::size_t p=0;p<sp.size();++p) sp[p]=(sp[p]+base.solidMesh.points[p])*.5;
     for (std::size_t p=0;p<gp.size();++p) gp[p]=(gp[p]+base.gasMesh.points[p])*.5;
@@ -289,7 +296,7 @@ void scaledRotatedDryMotion() {
     for (Real scale:std::vector<Real>{1e-4,1,1e3}) {
         HostState base=coupledPair();
         auto transform=[&](Vec3 x) {
-            // Two independent rotations: the interface normal has all 3 components.
+
             const Real c=.8,t=.6; Vec3 y={c*x.x-t*x.y,t*x.x+c*x.y,x.z};
             return Vec3{.6*y.x+.8*y.z,y.y,-.8*y.x+.6*y.z}*scale;
         };
@@ -409,6 +416,7 @@ void denseSmallCellSweepAccuracy() {
         require(rebuildGeometry(base.gasMesh,error),error);
         base.solid.resize(base.solidMesh.volumes.size());
         for (std::size_t c=0;c<base.solid.size();++c)base.solid[c].condensed[0]=1000*base.solidMesh.volumes[c];
+        const auto initialInventory=base.solid;
         auto candidate=base.filmAux;candidate[0].solidFront=-.03e-8*scale;candidate[1].solidFront=-.12e-8*scale;
         const std::vector<Real> targets={-.04e-8*scale*scale*scale,-.1e-8*scale*scale*scale};
         HostMesh gas,solid,measured;SurfaceMesh surface;SweepConstraintReport report;std::vector<Real> sweeps;
@@ -420,7 +428,7 @@ void denseSmallCellSweepAccuracy() {
             std::ostringstream detail;detail<<"dense small-cell sweep exceeds inventory budget scale="<<scale
                 <<" offset="<<offset<<" residual="<<absValue(sweeps[base.surface.solidFace[f]]-targets[f])<<" allowed="<<allowed;
             require(absValue(sweeps[base.surface.solidFace[f]]-targets[f])<=allowed,detail.str());
-            require(base.solid[f].condensed[0]==1000*base.solidMesh.volumes[f],"geometry may not repair physical mass");
+            require(base.solid[f].condensed[0]==initialInventory[f].condensed[0],"geometry may not repair physical mass");
         }
     }
 }

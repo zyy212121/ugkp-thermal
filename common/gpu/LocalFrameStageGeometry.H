@@ -29,8 +29,8 @@ struct LocalFrameStageResult {
     std::vector<double> oldVolume,sweep;
     std::vector<Point> velocity;
 };
-// Converts a resident local-frame trial to its representable world-coordinate
-// trajectory and certifies it. All geometry and diagnostic state is trial-local.
+
+
 class LocalFrameStageGeometry {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:
@@ -39,6 +39,8 @@ public:
     LocalFrameStageView view()const;
     ExecutionGraphNode appendTo(ExecutionGraph,ExecutionGraphNode,const LocalFrameStageInput*);
     void prepare(const LocalFrameStageInput*,void* stream=nullptr);
+    ExecutionGraphNode appendBorrowed(ExecutionGraph,ExecutionGraphNode,const Point*,StageGeometryControls);
+    LocalFrameStageResult collect();
     LocalFrameStageResult solveBorrowed(const Point* localEndpoint,StageGeometryControls);
 };
 }}}

@@ -13,7 +13,7 @@ foam=Path(os.environ['WM_PROJECT_DIR']);lib=Path(os.environ['FOAM_LIBBIN']);mpi=
 results=[]
 for kind,source,build in [('baseline',a.baseline_source,a.baseline_build),('candidate',a.candidate_source,a.candidate_build)]:
     out=a.output/kind;out.mkdir();app=source/'applications/CHMT'
-    code=(app/'materials/CpuMaterialDriver.C').read_text();code=code[:code.index('// The dry interface owns geometry')]
+    code=(app/'materials/CpuMaterialDriver.C').read_text();code=code[:code.index('std::vector<FilmAux> dryGeometryAux(')]
     (out/'native_conduction.inc').write_text(code)
     flags=['g++','-std=c++17','-O2','-ffp-contract=off','-fopenmp','-ffunction-sections','-fdata-sections','-DNoRepository','-DWM_DP','-DWM_LABEL_SIZE=32','-DUGKWP_GAS_SPECIES=2']
     if 'MaterialConductionWorkspace& workspace' in code:flags+=['-DCHMT_RETAINED_CONDUCTION_WORKSPACE']

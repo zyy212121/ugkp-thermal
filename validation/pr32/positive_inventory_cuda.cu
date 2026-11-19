@@ -1,4 +1,4 @@
-// CUDA arithmetic regression for the shared density/flux inventory limiter.
+
 #include "gasTransport/PositiveInventory.H"
 #include <cuda_runtime.h>
 #include <cstdio>

@@ -1,4 +1,4 @@
-// Standalone host accuracy probe. Compile with -I<repo> -I<repo>/common.
+
 
 #include "common/gasWall/WallGeometryBuilder.H"
 #include <cassert>

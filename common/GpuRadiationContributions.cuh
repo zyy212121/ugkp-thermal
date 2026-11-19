@@ -8,8 +8,8 @@ __device__ __forceinline__ ParticleRadiationContribution particleRadiationContri
 (const DeviceState& s, const int i)
 {
     const GPU_OPERATOR_REAL mass=clampMin(finiteOr(s.pm[i],GPU_OPERATOR_R(0.0)),GPU_OPERATOR_R(0.0));
-    // The radiation mean uses the same represented enthalpy as the material
-    // response; even an ordinary carry must not give DO a different source.
+
+
     const ugkwp::ParticleCaloric law;
     const GPU_OPERATOR_REAL effective=GPU_OPERATOR_REAL(law.temperature(
         law.enthalpy(double(s.pT[i]))+s.pThermalEnthalpyResidual[i]));

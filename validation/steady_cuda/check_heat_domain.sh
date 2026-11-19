@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the production paired CUDA kernel against an independent analytic root.
+
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
 out=${1:?usage: check_heat_domain.sh OUTPUT_DIRECTORY}

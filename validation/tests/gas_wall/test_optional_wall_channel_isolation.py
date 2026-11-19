@@ -32,7 +32,7 @@ struct Model {
  auto& t=in.model.thermo;t.species=sp;t.coefficients=coef;t.coefficientCount=6;t.elementCount=1;t.elementComposition=elements;t.speciesOrderHash=1;
  rx[0].reactantCount=1;rx[0].productCount=1;rx[0].highRate.preExponential=2;re[0].species=0;re[0].coefficient=1;pr[0].species=1;pr[0].coefficient=1;
  auto& m=in.model.mechanism;m.reactions=rx;m.reactionCount=1;m.reactants=re;m.reactantTermCount=1;m.products=pr;m.productTermCount=1;m.referencePressure=101325;m.speciesOrderHash=1;m.stoichiometricBasis=basis;m.independentRank=1;
- in.integrateOwnerKSource=true; // This fixture explicitly tests auxiliary source integrals.
+ in.integrateOwnerKSource=true;
  in.pressure=101325;in.temperature=300;in.normal[1]=1;in.matchingDistance=.01;in.ownerDistance=.004;
  in.matching.temperature=500;in.matching.velocity[0]=10;in.matching.massFraction[0]=.7;in.matching.massFraction[1]=.3;
  in.model.viscosity=2e-5;in.model.conductivity=.04;in.model.diffusivity[0]=in.model.diffusivity[1]=1e-5;
@@ -85,7 +85,7 @@ int main(){
  std::memset(static_cast<void*>(&out),0xA5,sizeof(out));assert(evaluateWallModel(m.in,c,w,out,status));
  assert(status.code==WallCode::Success&&!std::isfinite(out.integratedKSource));
  assert(!ugkp::diagnostics::hasFatal(&diagnostics)&&diagnostics.warnings[1].count>0);
- // Optional source work changes no required output or residual trajectory.
+
  out.integratedKSource=plain.integratedKSource;sameOutput(out,plain);
  in=detail::wallComputationInput(m.in);WallOutput<double,2> exact;
  assert(detail::publishLayer(in,controls,ctx,w,status.iteration,status.residual,exact));
@@ -95,12 +95,12 @@ int main(){
   ||(std::isnan(converted.integratedKSource)&&std::isnan(exact.integratedKSource)));
 
 
- // A singular consumed owner omega reports itself, not the finite heat flux.
+
  diagnostics={};in.ownerDistance=0;in.integrateOwnerKSource=false;
  assert(!detail::publishLayer(in,controls,ctx,w,0,0.,exact));
  assert(diagnostics.firstFatal.sourceSiteId==31301);
  assert(diagnostics.firstFatal.component==-1&&std::isinf(diagnostics.firstFatal.observed)&&diagnostics.firstFatal.observed>0);
- // Invalid physical state still returns failure and records the consumed value.
+
  diagnostics={};w.state[0][2]=std::numeric_limits<double>::quiet_NaN();
  assert(!detail::publishLayer(in,controls,ctx,w,0,0.,exact));
  assert(ugkp::diagnostics::hasFatal(&diagnostics)&&diagnostics.firstFatal.sourceSiteId==2410);
@@ -127,7 +127,7 @@ struct Model {
  auto& t=in.model.thermo;t.species=sp;t.coefficients=coef;t.coefficientCount=6;t.elementCount=1;t.elementComposition=elements;t.speciesOrderHash=1;
  rx[0].reactantCount=1;rx[0].productCount=1;rx[0].highRate.preExponential=2;re[0].species=0;re[0].coefficient=1;pr[0].species=1;pr[0].coefficient=1;
  auto& m=in.model.mechanism;m.reactions=rx;m.reactionCount=1;m.reactants=re;m.reactantTermCount=1;m.products=pr;m.productTermCount=1;m.referencePressure=101325;m.speciesOrderHash=1;m.stoichiometricBasis=basis;m.independentRank=1;
- in.integrateOwnerKSource=true; // This fixture explicitly tests auxiliary source integrals.
+ in.integrateOwnerKSource=true;
  in.pressure=101325;in.temperature=300;in.normal[1]=1;in.matchingDistance=.01;in.ownerDistance=.004;
  in.matching.temperature=500;in.matching.velocity[0]=10;in.matching.massFraction[0]=.7;in.matching.massFraction[1]=.3;
  in.model.viscosity=2e-5;in.model.conductivity=.04;in.model.diffusivity[0]=in.model.diffusivity[1]=1e-5;
@@ -153,7 +153,7 @@ int main(){
  assert(std::isfinite(out.conductiveHeatFlux)&&std::isfinite(out.traceDensity));
  WallOutput<double,2> converted;assert(detail::publishWallPrecision(m.in,out,converted));
  assert(converted.speciesBalanceResidual[0]==out.speciesBalanceResidual[0]);
- // Finite nodal sources whose required integrated flux overflows still fail.
+
  diagnostics={};m.in.massFlux[0]=m.in.massFlux[1]=0;
  m.in.model.diffusivity[0]=m.in.model.diffusivity[1]=1e-5;
  m.in.model.mode=GasMode::MixtureChemistry;m.rx[0].highRate.preExponential=1e307;
@@ -186,7 +186,7 @@ struct Model {
  auto& t=in.model.thermo;t.species=sp;t.coefficients=coef;t.coefficientCount=6;t.elementCount=1;t.elementComposition=elements;t.speciesOrderHash=1;
  rx[0].reactantCount=1;rx[0].productCount=1;rx[0].highRate.preExponential=2;re[0].species=0;re[0].coefficient=1;pr[0].species=1;pr[0].coefficient=1;
  auto& m=in.model.mechanism;m.reactions=rx;m.reactionCount=1;m.reactants=re;m.reactantTermCount=1;m.products=pr;m.productTermCount=1;m.referencePressure=101325;m.speciesOrderHash=1;m.stoichiometricBasis=basis;m.independentRank=1;
- in.integrateOwnerKSource=true; // This fixture explicitly tests auxiliary source integrals.
+ in.integrateOwnerKSource=true;
  in.pressure=101325;in.temperature=300;in.normal[1]=1;in.matchingDistance=.01;in.ownerDistance=.004;
  in.matching.temperature=500;in.matching.velocity[0]=10;in.matching.massFraction[0]=.7;in.matching.massFraction[1]=.3;
  in.model.viscosity=2e-5;in.model.conductivity=.04;in.model.diffusivity[0]=in.model.diffusivity[1]=1e-5;
@@ -236,7 +236,7 @@ struct Model {
  auto& t=in.model.thermo;t.species=sp;t.coefficients=coef;t.coefficientCount=6;t.elementCount=1;t.elementComposition=elements;t.speciesOrderHash=1;
  rx[0].reactantCount=1;rx[0].productCount=1;rx[0].highRate.preExponential=2;re[0].species=0;re[0].coefficient=1;pr[0].species=1;pr[0].coefficient=1;
  auto& m=in.model.mechanism;m.reactions=rx;m.reactionCount=1;m.reactants=re;m.reactantTermCount=1;m.products=pr;m.productTermCount=1;m.referencePressure=101325;m.speciesOrderHash=1;m.stoichiometricBasis=basis;m.independentRank=1;
- in.integrateOwnerKSource=true; // This fixture explicitly tests auxiliary source integrals.
+ in.integrateOwnerKSource=true;
  in.pressure=101325;in.temperature=300;in.normal[1]=1;in.matchingDistance=.01;in.ownerDistance=.004;
  in.matching.temperature=500;in.matching.velocity[0]=10;in.matching.massFraction[0]=.7;in.matching.massFraction[1]=.3;
  in.model.viscosity=2e-5;in.model.conductivity=.04;in.model.diffusivity[0]=in.model.diffusivity[1]=1e-5;
@@ -250,7 +250,7 @@ int main(){Model m;m.in.temperature=m.in.matching.temperature=500;m.in.matching.
  WallModelConfig<GpuReal> c;c.enableSst=true;c.nodes=32;c.maxIterations=100;
  WallWorkspace<GpuReal,2,48> w;WallOutput<GpuReal,2> with,without;WallStatus s;
  m.in.integrateOwnerKSource=true;assert(evaluateWallModel(m.in,c,w,with,s));assert(std::isfinite(with.integratedKSource));
- // No valid quadrature pointers: this path cannot touch even one point.
+
  m.in.integrateOwnerKSource=false;m.in.quadrature.distance=nullptr;m.in.quadrature.volumeWeight=nullptr;
  assert(evaluateWallModel(m.in,c,w,without,s));assert(std::isnan(without.integratedKSource));
  assert(with.traceTemperature==without.traceTemperature&&with.traceDensity==without.traceDensity&&with.ownerOmega==without.ownerOmega&&with.wallKFlux==without.wallKFlux&&with.conductiveHeatFlux==without.conductiveHeatFlux&&with.residual==without.residual&&with.iterations==without.iterations);
@@ -286,7 +286,7 @@ struct Model {
  auto& t=in.model.thermo;t.species=sp;t.coefficients=coef;t.coefficientCount=6;t.elementCount=1;t.elementComposition=elements;t.speciesOrderHash=1;
  rx[0].reactantCount=1;rx[0].productCount=1;rx[0].highRate.preExponential=2;re[0].species=0;re[0].coefficient=1;pr[0].species=1;pr[0].coefficient=1;
  auto& m=in.model.mechanism;m.reactions=rx;m.reactionCount=1;m.reactants=re;m.reactantTermCount=1;m.products=pr;m.productTermCount=1;m.referencePressure=101325;m.speciesOrderHash=1;m.stoichiometricBasis=basis;m.independentRank=1;
- in.integrateOwnerKSource=true; // This fixture explicitly tests auxiliary source integrals.
+ in.integrateOwnerKSource=true;
  in.pressure=101325;in.temperature=300;in.normal[1]=1;in.matchingDistance=.01;in.ownerDistance=.004;
  in.matching.temperature=500;in.matching.velocity[0]=10;in.matching.massFraction[0]=.7;in.matching.massFraction[1]=.3;
  in.model.viscosity=2e-5;in.model.conductivity=.04;in.model.diffusivity[0]=in.model.diffusivity[1]=1e-5;
@@ -307,7 +307,7 @@ int main(){
  assert(!detail::publishLayer(m.in,c,ctx,w,0,0.,out));
  assert(diagnostics.firstFatal.sourceSiteId==31302&&diagnostics.firstFatal.component==0);
  assert(std::isinf(diagnostics.firstFatal.observed)&&std::signbit(diagnostics.firstFatal.observed));
- // Required heat overflow from finite species enthalpies/mass fluxes.
+
  diagnostics={};m.in.model.mode=GasMode::MixtureFrozen;
  m.coef[2]=-499999;m.coef[5]=-500001;
  m.in.massFlux[0]=1e308;m.in.massFlux[1]=-1e308;ctx={};

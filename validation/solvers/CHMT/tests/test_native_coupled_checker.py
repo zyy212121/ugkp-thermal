@@ -32,8 +32,8 @@ def write_csv(path, rows, columns=None):
 
 def checkpoint(path, time, step):
     path.parent.mkdir(parents=True)
-    # Minimal synthetic body sufficient for the independent wire header/tail
-    # checks. It is intentionally NOT a loadable production checkpoint.
+
+
     model = b'synthetic-model'
     state = b'synthetic-state' + struct.pack('<dQQQ', time, step, 0, step) + bytes((45 + 5*2 + 8)*8 + 8)
     body = model + state
@@ -75,7 +75,7 @@ def test_accepts_balanced_nonzero_exchange(tmp_path):
     assert report['gas_energy_change'] == pytest.approx(-.6, abs=1e-8)
     assert report['material_energy_change'] == pytest.approx(.6, abs=1e-6)
     assert report['evidence'] == 'independent-output-checks-only'
-    assert report['maximum_total_energy_residual'] > 0  # retain sub-ULP total-inventory cancellation
+    assert report['maximum_total_energy_residual'] > 0
 
 
 @pytest.mark.parametrize('file,column,value,reason', [

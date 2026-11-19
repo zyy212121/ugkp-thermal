@@ -9,21 +9,41 @@
 namespace chmt {
 bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const ModelConfig& model,
     const CouplingControls& controls,const CpuMaterialControls& materialControls,Real targetTime,
-    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport& report,std::string& error,WindowRadiation* radiation,bool publishHostState) {
+    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport& report,std::string& error,WindowRadiation* radiation,bool publishHostState,bool outputBoundary) {
     report=WindowEvolutionReport{};
     try {
         const HostState& base=accepted;
         CouplingWindowController controller;
         if(!controller.begin(base.time,targetTime,base.commitSequence+1,controls,error))return false;
         const CouplingInterval interval=controller.interval();
+        const bool radiate=radiation && radiation->due(interval,controls,base,
+            outputBoundary || ugkp::gpu::reachedEventTime(interval.end,targetTime,interval.end-interval.begin));
         WallProgram program;
         CpuMaterialReport prediction;
         if(!material.predictWall(base,interval,program,error,&prediction))return false;
         if(!beginGasWindow(backend,program,error))return false;
+        auto executionControls=materialControls;
+        executionControls.retainWallProgram=false;
+        executionControls.retainDonorHistory=false;
         Real gasTime=interval.begin;WindowTime gasElapsed{};
-        // Ordinary physical gas microsteps remain. A failed operation returns
-        // directly to the frontend fatal boundary, without rollback or replay.
-        while(gasElapsed<intervalDuration(interval)) {
+
+
+
+
+
+        if(!retainStageGeometry){
+            if(radiate&&!radiation->prepareParent(backend,program,base,error))return false;
+            if(!prepareGasWindow(backend,controls.gasMaxDt,error))return false;
+            MaterialBackend* materialOwner=nullptr;
+            if(!material.prepareParentWindow(base,program,pendingGasWindowDriveHistory(backend),
+                gasWindowHistory(backend).externalRadiationDevice(),executionControls,materialOwner,error))return false;
+            if(materialOwner&&!bindGasWindowMaterial(backend,*materialOwner,error))return false;
+            GasMicroReport completed;
+            if(!enqueuePreparedGasWindow(backend,error)||!collectGasWindow(backend,completed,error))return false;
+            report.nextGasDt=completed.nextGasDt;gasTime=completed.time;gasElapsed=completed.localTime;
+            std::cout<<"CHMT_GAS window="<<interval.identity.sequence<<" microstep="<<completed.microSequence
+                <<" time="<<completed.time<<" nextDt="<<completed.nextGasDt<<" execution=device_window"<<std::endl;
+        } else while(gasElapsed<intervalDuration(interval)) {
             GasMicroReport micro;
             if(!advanceGasMicrostep(backend,controls.gasMaxDt,micro,error))return false;
             report.nextGasDt=micro.nextGasDt;
@@ -37,23 +57,21 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
             }
             gasTime=micro.time;gasElapsed=micro.localTime;
         }
-        // The backend owns the immutable history until material consumers
-        // finish; ledger publication then consumes and releases its storage.
+
+
         HostState gasEndpoint;
         if(!(publishHostState?downloadGasWindow(backend,gasEndpoint,error):publishGasWindow(backend,gasEndpoint,error)))return false;
         const IntervalHistory& history=gasWindowHistory(backend);
-        Real externalRadiationHeat=0;
-        if(radiation&&!radiation->advance(backend,program,gasEndpoint,externalRadiationHeat,error))return false;
+        EnergyReal externalRadiationHeat=0;
+        if(radiate&&!radiation->advance(backend,program,gasEndpoint,externalRadiationHeat,error))return false;
         HostState candidate;WallProgram corrected;CpuMaterialReport cpu;
         ++report.materialSolves;
-        auto executionControls=materialControls;
-        executionControls.retainDonorHistory=false; // Corrected donor history is not replayed in this single-pass driver.
         const auto residentHistory=residentGasWindowDriveHistory(backend);
-        if(!material.advanceCandidate(base,gasEndpoint,history,executionControls,candidate,corrected,cpu,error,&program,&residentHistory))return false;
+        if(!material.advanceCandidate(base,gasEndpoint,history,executionControls,candidate,corrected,cpu,error,&program,&residentHistory,gasWindowHistoryArchive(backend)))return false;
         candidate.radiationTime=gasEndpoint.radiationTime;
-        candidate.budget.radiation+=externalRadiationHeat;
         WallProgramComparison comparison;
-        if(!compareWallPrograms(program,corrected,model.physics.tolerances,comparison,error))return false;
+        if(cpu.streamedWallComparison)comparison=cpu.wallComparison;
+        else if(!compareWallPrograms(program,corrected,model.physics.tolerances,comparison,error))return false;
         const Real residual=std::max(comparison.geometryError,std::max(comparison.thermalError,comparison.massPredictionError));
         if(!comparison.regimeMatches||residual>1) {
             using namespace ugkp::diagnostics;
@@ -64,16 +82,12 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
             dispatch(snapshot,makeFoamSink());
         }
         report.acceptedGasMicrosteps=history.records().size();
-        if(!finalizeReleasedIntervalLedger(releaseGasWindowRecords(backend),candidate,error))return false;
-        candidate.acceptedSteps=base.acceptedSteps+1;
-        candidate.commitSequence=base.commitSequence+1;
-        candidate.lastAcceptedDt=interval.end-interval.begin;
-        candidate.nextDt=report.nextGasDt;
-        if(!commitGasWindow(backend,candidate,error,true))return false;
+        if(!finalizeReleasedIntervalLedger(releaseGasWindowHistory(backend),candidate,error))return false;
+        if(!acceptCoupledWindow(backend,candidate,cpu.deviceCommit,externalRadiationHeat,report.nextGasDt,error))return false;
         accepted=std::move(candidate);error.clear();return true;
     } catch(const Foam::error&) {
-        // Preserve the original GPU/OpenFOAM diagnostic for the application
-        // boundary; Foam::error::what() alone discards its physical context.
+
+
         throw;
     } catch(const std::exception& exception) {
         error=std::string("single-pass multirate operation failed: ")+exception.what();

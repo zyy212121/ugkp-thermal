@@ -18,7 +18,7 @@ template<class Storage> void run(){
   ugkwp::ParticleThermalCarry<Storage> p{Storage(row[0]),row[1]};
   const double t=ugkwp::effectiveParticleTemperature(p,law);
   const double next=t+std::fma(row[2]-1,t,row[3]);
-  // A row rounded to the other storage precision may be old-refused.
+
   if(next<200||next>4000)continue;
   auto r=ugkwp::publishAffineRadiationThermalHeat(p,row[2],row[3],Storage(200),Storage(4000),law);
   std::printf("affine %zu %a %d %d %a %a %a\n",sizeof(Storage),row[0],r.valid,r.limited,double(p.temperature),p.specificEnthalpyResidual,r.acceptedSpecificHeat);

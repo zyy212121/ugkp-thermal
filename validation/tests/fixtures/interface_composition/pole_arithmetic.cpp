@@ -17,8 +17,8 @@ int main(){
         Real sum=0;for(int i=0;i<Ns;++i){if(out[i]<0||out[i]>1)return 3;sum+=out[i];}
         if(absValue(sum-1)>1e-12)return 4;}
     bool direct=composition_detail::recoverPole(0,d,u,v,r,bulk,1e-310,1,out);
-    // This input is not asserted to have a physical root. Neither mathematical
-    // trial may trap, change the host trap mask, or publish a default on failure.
+
+
     if((fegetexcept()&mask)!=mask || fetestexcept(mask))return 5;
     std::cout<<"public="<<ok<<" direct="<<direct<<" typed="<<int(info.state)<<"\n";
 }

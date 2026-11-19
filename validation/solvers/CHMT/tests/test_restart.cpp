@@ -36,8 +36,8 @@ void setReal(std::string& data,std::size_t offset,Real value) {
  std::uint64_t bits=0;std::memcpy(&bits,&value,sizeof(bits));setInteger(data,offset,bits);
 }
 void refreshDigest(std::string& data) {
- // Explicit wire header: magic/schema (16), six uint32 values (24),
- // field-schema/config-size/payload-size/digest (32), then model/state bytes.
+
+
  constexpr std::size_t body=72;std::uint64_t digest=14695981039346656037ULL;
  for(std::size_t i=body;i<data.size();++i){digest^=static_cast<unsigned char>(data[i]);digest*=1099511628211ULL;}
  setInteger(data,64,digest);
@@ -79,15 +79,15 @@ int main(){
  require(sameBits(restored.solidSweepRemainder,h.solidSweepRemainder),"signed numerical sweep remainder bitwise roundtrip");
  require(restored.solidMesh.thermalBoundary==m.thermalBoundary,"explicit fixed/zeroGradient policies roundtrip independently of values");
  require(writeCheckpoint(directory,model,restored,error)&&bytes(file)==original,"entire dry checkpoint bitwise reserialization");
- // Dry pore diffusivity is part of the serialized model evidence. The
- // restart reader deliberately takes active model controls from its caller.
+
+
  auto diffusive=model;diffusive.physics.poreEffectiveDiffusivity[0]=1.234e-5;
  require(writeCheckpoint(directory,diffusive,h,error),error);
  require(bytes(file)!=original,"pore diffusivity is recorded in checkpoint model");
  require(readCheckpoint(directory,diffusive,restored,error),error);
  require(writeCheckpoint(directory,diffusive,restored,error),error);
  require(writeCheckpoint(directory,model,h,error)&&bytes(file)==original,"restore nondiffusive checkpoint");
- // Physical identity is checked before publishing any restored owner state.
+
  for(int change=0;change<13;++change){auto wrong=model;
   if(change==0)wrong.physics.gasThermoFingerprint=123;
   if(change==1)wrong.physics.species[0].nasa7[7]=99;
@@ -113,7 +113,7 @@ int main(){
   }
  }
 
- // Wet and phase-boundary inventory states retain the geometry carry exactly.
+
  auto filmModel=model;filmModel.physics.enableFilm=true;auto phase=h;phase.film.resize(h.surface.area.size());
  for(int phaseCase=0;phaseCase<3;++phaseCase) {
   for(std::size_t f=0;f<phase.film.size();++f) {
@@ -135,7 +135,7 @@ int main(){
  require(writeCheckpoint(directory,model,h,error)&&bytes(file)==original,"restore accepted dry checkpoint");
  auto changed=h;changed.time=.75;changed.acceptedSteps=changed.commitSequence=2;changed.solidSweepRemainder={-2.5*epsilon,3.25*epsilon};
  for(int failure:{1,2}){syncCalls=0;failSync=failure;require(!writeCheckpoint(directory,model,changed,error),"injected pre-publication fsync failure reports failure");failSync=0;require(bytes(file)==original,"failed pre-publication write preserves accepted checkpoint and carry");require(error.find("sync")!=std::string::npos,"fsync cause retained");}
- // Directory fsync follows atomic rename; failure does not imply rollback.
+
  syncCalls=0;failSync=3;require(!writeCheckpoint(directory,model,changed,error),"post-rename durability failure reported");failSync=0;
  require(readCheckpoint(directory,model,restored,error)&&restored.time==changed.time&&sameBits(restored.solidSweepRemainder,changed.solidSweepRemainder),"post-rename file remains complete including carry");
  require(writeCheckpoint(directory,model,h,error),"safe retry restores original checkpoint");
@@ -148,7 +148,7 @@ int main(){
   require(restored.time==999&&sameBits(restored.solidSweepRemainder,sentinel),label+" output unchanged");
   require(writeCheckpoint(survivorDirectory,model,restored,error)&&bytes(survivorFile)==survivorBytes,label+" entire output is bitwise unchanged");
  };
- // A decoded transport configuration requires an intact, supported wire header.
+
  for(std::size_t offset:{0,8,16,20,24,28,32,36,40,64}) {
   auto tagged=original;tagged[offset]^=0x31;
   const std::string cause=offset==0?"magic":offset==8?"schema":offset<40?"dimensions":offset==40?"field schema":"checksum";
@@ -176,7 +176,7 @@ int main(){
  auto shortHeader=original.substr(0,39);expectReadFailure(shortHeader,"truncated","required header bytes absent");
  auto badConfigSize=original;setInteger(badConfigSize,48,std::numeric_limits<std::uint64_t>::max());
  expectReadFailure(badConfigSize,"length","config span unavailable");
- // Locate the unique encoded vector, then alter payload with a correct digest:
+
 
  std::string encoded(24,0);setInteger(encoded,0,2);setReal(encoded,8,h.solidSweepRemainder[0]);setReal(encoded,16,h.solidSweepRemainder[1]);
  const auto carryOffset=original.find(encoded,72+getInteger(original,48));

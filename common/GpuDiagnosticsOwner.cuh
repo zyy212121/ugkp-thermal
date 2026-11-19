@@ -6,9 +6,9 @@
 #include <atomic>
 #include <algorithm>
 namespace ugkp { namespace diagnostics {
-// Host-only owner, one independent resident lane. First fatal and first warning
-// samples stay sticky across asynchronous operations until an existing host
-// completion point. No per-operation reset, synchronization, or download.
+
+
+
 class GpuOwner {
     DeviceContext* device_=nullptr;
     DeviceContext staging_{};
@@ -48,9 +48,9 @@ public:
     void setOperationContext(std::uint64_t sequence,std::int64_t step,double time) {
         sequence_=sequence;step_=step;time_=time;
     }
-    // Call ONLY after an already existing blocking readback or synchronization.
-    // This is one bounded companion copy at the same completion point, not a
-    // new synchronization cadence. Asynchronous advance never calls this.
+
+
+
     cudaError_t observeCompletedWork() {
         const auto rc=cudaMemcpy(&staging_,device_,sizeof(staging_),cudaMemcpyDeviceToHost);
         if(rc!=cudaSuccess) {
@@ -59,8 +59,8 @@ public:
         consumeCompletedSnapshot(staging_);
         return rc;
     }
-    // The caller has completed this snapshot on its own stream. No copy or
-    // synchronization is performed here, allowing one batched host boundary.
+
+
     void consumeCompletedSnapshot(const DeviceContext& completed) {
         auto next=takeSnapshot(completed,{},"ugkp-diagnostics-v1");
         for(auto& warning:next.warnings) {

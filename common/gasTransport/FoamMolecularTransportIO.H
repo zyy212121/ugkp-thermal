@@ -2,8 +2,8 @@
 #include "fvCFD.H"
 #include "MolecularTransportIO.H"
 namespace Foam {
-// Expand includes and dictionary substitutions identically in all applications.
-// Keep the case/region registry so OpenFOAM resolves relative includes normally.
+
+
 inline ugkwp::MolecularTransportConfiguration readFoamMolecularTransport(
     const Time& time,const objectRegistry& registry,
     const std::vector<std::string>& speciesNames)

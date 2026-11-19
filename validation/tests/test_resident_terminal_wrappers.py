@@ -111,7 +111,7 @@ int main(){Time runTime{"DIR"};std::filesystem::create_directories(runTime.path)
 const std::string restartPath=Resident::particleRestartFile(runTime);bool hasParticleRestart=true;int restartParticleCount=-1;
 PROBE
 assert(restartParticleCount==2);r.readParticleRestartMirrorIfPresent(runTime);assert(uploads==1&&savedUploads==1&&written==restored);
-// The same real restore route must expose truncated stored bytes.
+
 std::filesystem::resize_file(restartPath,32);bool failed=false;try{r.readParticleRestartMirrorIfPresent(runTime);}catch(const std::runtime_error&){failed=true;}assert(failed&&uploads==1);
 }
 '''.replace('METHODS',methods).replace('PROBE',probe).replace('DIR',str(tmp_path/'files'))

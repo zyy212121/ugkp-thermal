@@ -29,27 +29,27 @@ def test_device_profile_is_prepared_once_then_split_into_material_packets(tmp_pa
  assert(b->preparedMatching[0].state.temperature==900);
  const auto layer=b->preparedWallLayers[0];
  blockIdx.x=wall;chmt::transport::computeGasInternalFaceFluxKernel<false>(b->deviceState,.0001);blockIdx.x=0;
- // A later packet assembly is prohibited from invoking the core again.
+
  b->model.physics.wallModel.maxIterations=0;b->model.physics.gasViscosity=0;
  assert(chmt::applyCoupledFaces(b.get(),.0001,0)==0);
  assert(b->faceRates[0].layer.conductiveHeatFlux==layer.conductiveHeatFlux);
  assert(std::abs(b->faceRates[0].primary.mass-1e-6)<1e-18);
  assert(std::abs(v.gasPhiRho[wall]+.01)<1e-14);
- // Apply the real positivity publication between packet construction and
- // material ledger accounting, matching the production schedule.
+
+
  blockIdx.x=wall;chmt::transport::applyGasFluxPositivityScaleKernel(b->deviceState);blockIdx.x=0;
  assert(std::abs(v.gasPhiRho[wall]+.01)<1e-14);
  assert(chmt::accountCoupledFaces(b.get(),.0001)==0);
  assert(std::abs(b->record.packets[0].mass-1e-6)<1e-18);
  assert(b->record.packets[0].energy==b->faceRates[0].primary.energy);
  assert(b->trial.gasChemistryAudit.empty());
- // A different stage needs the real producer and dependent mechanical flux.
+
  b->gasStageIndex=1;v.Tgas[1]=1100;v.p[0]=130001;
  assert(chmt::applyCoupledFaces(b.get(),.0001,.0001)==0);
  assert(b->preparedMatching[0].state.temperature==1100);
  assert(b->faceRates[0].layer.conductiveHeatFlux!=layer.conductiveHeatFlux);
  assert(std::abs(b->preparedMatching[0].mechanicalPressure-130001)<1e-8);
- // Supplied physical wall velocity does not invent a mesh sweep/work channel.
+
  for(auto& knot:b->program.knots)knot.faces[0].normalVelocity=knot.faces[0].solidNormalVelocity=.25;
  assert(chmt::prepareCoupledBoundaryLayer(b.get(),.0001,.0001)==0);
  blockIdx.x=wall;chmt::transport::computeGasInternalFaceFluxKernel<false>(b->deviceState,.0001);blockIdx.x=0;
@@ -58,8 +58,8 @@ def test_device_profile_is_prepared_once_then_split_into_material_packets(tmp_pa
  assert(std::abs(b->faceRates[0].trace.velocity.z-(.25+.01/b->faceRates[0].trace.rho))<1e-12);
  for(double sweep:b->gasStage.sweptVolume)assert(sweep==0);
  assert(chmt::rollbackGasWindow(*b,error));assert(chmt::beginGasWindow(*b,program,error));
- // Numeric wall diagnostics complete the actual stage; outer transaction
- // status cleanup belongs to the separate final-consumer integration.
+
+
  b->microTime=0;b->microDt=.0001;assert(chmt::transport::CoupledTrialPolicy::begin(b.get())==0);
  v.gasMu=std::numeric_limits<double>::quiet_NaN();assert(b->storage.refreshView());
  blockIdx.x=0;assert(chmt::prepareCoupledBoundaryLayer(b.get(),.0001,0)==0);

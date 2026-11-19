@@ -52,7 +52,7 @@ int main(int argc,char**argv){
   }
   if(mode=="consume_error") {bool fail=false;try{advance();}catch(const std::runtime_error& e){fail=std::string(e.what()).find("consume error")!=std::string::npos;}ck(fail,"actual failure hidden");const auto& sm=runTime.lookupObject<fvMesh>("solid");near(sm.lookupObject<volScalarField>("T")[0],300,0);ck(resident.gasResets==0,"reset on failed consume");Info<<"PASS "<<mode<<nl;return 0;}
   auto result=advance();ck(result.coupled,"no actual exchange");near(result.elapsedCouplingTimeS,.1,0);
-  // Observe the host fields only through the production output publication.
+
   coupler.persistAtWriteTime(runTime,rho,rhoU,rhoE,U,p,T,epsilonS,rhoUs,rhoEs,rhoDs,rhoHp,Us,theta,Tp,dMeanCell,true);
   const auto& sm=runTime.lookupObject<fvMesh>("solid");const auto& ts=sm.lookupObject<volScalarField>("T");
   scalar energy=0;forAll(ts,i)energy+=1000*sm.V()[i]*(ts[i]-300);

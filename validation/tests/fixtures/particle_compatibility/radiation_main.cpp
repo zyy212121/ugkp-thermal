@@ -9,7 +9,7 @@ int main(){
 #ifdef ORIGINAL_RADIATION_PREFLIGHT
   ParticleRadiationValidationError error;
   validateParticleRadiationAffineTemperatureKernel(&s,&update,&error);
-  if(error.code!=0)std::abort(); // Every comparison row must really be old-success.
+  if(error.code!=0)std::abort();
 #endif
   applyParticleRadiationAffineTemperatureKernel(&s,&update);
   printf("affine %a %a %a\n",row[0],double(s.pT[0]),s.pThermalEnthalpyResidual[0]);

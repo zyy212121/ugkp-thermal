@@ -12,7 +12,7 @@ int main(int argc,char** argv){
     #include "setRootCase.H"
     #include "createTime.H"
     fvMesh mesh(IOobject(fvMesh::defaultRegion,runTime.timeName(),runTime,IOobject::MUST_READ));
-    // Materialize the immutable cell-face cache before native OpenMP sweeps.
+
     (void)mesh.cells();
     MieTable table(runTime.path()/"constant/mie.table");
     const label right=mesh.boundaryMesh().findPatchID("right");labelList coupled(1,right);

@@ -13,9 +13,9 @@ __host__ __device__ __forceinline__ void swapParticleBuffersDevice(DeviceState& 
     GPU_PARTICLE_FIELDS_IDENTITY(GPU_SWAP_FIELD)
 #undef GPU_SWAP_FIELD
 }
-// Both the host mirror and downstream device consumers need the directory
-// identity after compaction. Device-controlled multi-step callers must not
-// infer it from the number of API calls made on the host.
+
+
+
 template<class State>
 __host__ __device__ auto publishParticleBaseDirectory(State& s,int ready,int)
     ->decltype(s.preBaseDirectoryReady=ready,void()){s.preBaseDirectoryReady=ready;}
@@ -28,6 +28,7 @@ __global__ void commitCellLocalParticleBuffersKernel(DeviceState* sp)
         return;
     }
 
+    if(ugkp::diagnostics::hasFatal(sp->diagnostics))return;
     DeviceState& s = *sp;
     int compactCount = s.compactCellOffset[s.nCells];
     compactCount = compactCount < 0 ? 0 : compactCount;
@@ -46,6 +47,7 @@ __global__ void commitSelectedParticleBuffersKernel(DeviceState* sp)
         return;
     }
 
+    if(ugkp::diagnostics::hasFatal(sp->diagnostics))return;
     DeviceState& s = *sp;
     const int compactCount =
         clampRange(*s.compactCountDevice, 0, s.particleCapacity);

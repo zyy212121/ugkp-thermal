@@ -1,10 +1,10 @@
-// Host-only sequential replay of the production operators; not a CUDA runtime test.
-// Regression origin: reviewed common tree 040bf096d79755808bda04f1e2cca7a81421d901
-// rejects Euler step 1378, cell 0 (InvalidThermodynamics), normal velocity
-// 415.2714529614 m/s. SSPRK3 also rejects step 1378: changing integrators does
-// not repair the nonlocal matching-pressure force. Restoring only local p*n
-// reaches t=.05 with the original N128/.4 Co/growth1.05 settings.
-// BVP matching pressure remains the second-cell donor pressure in walls().
+
+
+
+
+
+
+
 #include "gasWall/WallModel.H"
 #include "gasTransport/GasBoundaryLayerEvaluation.H"
 void check(State&s,const char*stage,int step){

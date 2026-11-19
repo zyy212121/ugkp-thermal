@@ -8,8 +8,8 @@
 namespace chmt {
 namespace coupled_geometry_detail {
 using namespace ugkp::gpu::geometry;
-// Candidate owners expose status without forcing a host decision. The consuming
-// application records an invalid physical trajectory in its existing fatal latch.
+
+
 __global__ void consumeStageStatus(const StageGeometryStatus* status,int region,
     ugkp::diagnostics::DeviceContext* diagnostics){
     if(threadIdx.x||blockIdx.x||!ugkp::diagnostics::blockMayProceed(diagnostics)
@@ -51,9 +51,9 @@ __global__ void acceptSurface(int count,const SurfaceFaceGeometry* endpoint,Surf
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i<count)accepted[i]=endpoint[i];
 }
 }
-// Application adapter only: topology, ownership and CHMT's private interface
-// identity are supplied here. All mesh, surface and matching mathematics is
-// delegated to the shared resident owners.
+
+
+
 class ResidentCoupledGeometry {
     using Point=ugkp::gpu::geometry::Point;
     using Face=ugkp::gpu::geometry::SurfaceFaceGeometry;
@@ -107,7 +107,15 @@ public:
             error=fault_.message.empty()?storage.error():fault_.message;return false;}
         dirty_=false;return true;
     }
-    bool prepare(double interval,const ResidentWallKnotTime* times,int knots,const ResidentWallClock* clock,
+
+
+    void bind(SharedGasDeviceStorage& storage){
+        auto& g=storage.hostView().gasGeometry;g.enabled=true;g.oldVolume=gas.view().oldVolume;
+        g.newVolume=gas.view().newVolume;g.faceSweptVolume=gas.view().sweptVolume;
+        g.absoluteGeometryTolerance=absoluteTolerance_;g.relativeGeometryTolerance=relativeTolerance_;
+    }
+    template<class Interval>
+    bool prepare(Interval interval,const ResidentWallKnotTime* times,int knots,const ResidentWallClock* clock,
         const int* gasFaces,CoupledSurfaceInput* input,SharedGasDeviceStorage& storage,cudaStream_t stream,std::string& error){
         using namespace coupled_geometry_detail;
         auto* diagnostics=storage.hostView().diagnostics;
@@ -122,9 +130,8 @@ public:
         const int count=surface_->view().faces;
         if(count)publishSurfaceInput<<<(count+ugkp::gpu::workPlan().faceBlockThreads-1)/ugkp::gpu::workPlan().faceBlockThreads,ugkp::gpu::workPlan().faceBlockThreads,0,stream>>>(count,gasFaces,acceptedSurface_.data(),surface_->view().face,
             support_.data(),gas.view().sweptVolume,input,diagnostics);
-        auto& g=storage.hostView().gasGeometry;g.enabled=true;g.oldVolume=gas.view().oldVolume;
-        g.newVolume=gas.view().newVolume;g.faceSweptVolume=gas.view().sweptVolume;g.interval=interval;
-        g.absoluteGeometryTolerance=absoluteTolerance_;g.relativeGeometryTolerance=relativeTolerance_;
+        bind(storage);
+        if constexpr(std::is_arithmetic<Interval>::value)storage.hostView().gasGeometry.interval=interval;
         ugkwp::bindGasStageGeometryKernel<<<1,1,0,stream>>>(storage.deviceView(),gas.view(),gas.controls());
         if(!fault_.check(cudaGetLastError(),"prepare resident coupled geometry")){error=fault_.message;return false;}return true;
     }

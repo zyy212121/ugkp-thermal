@@ -1,5 +1,5 @@
 #pragma once
-// Common indexed/direct range traversal and eight-component block reduction.
+
 template<bool PoissonMode>
 __device__ void accumulateCsrHeavyPoolTask
 (

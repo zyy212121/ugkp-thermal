@@ -1,5 +1,5 @@
 #pragma once
-// Directory representation and tile ownership are compile-time scheduling policies.
+
 __global__ void countCsrReductionTasksKernel(DeviceState* sp, const int GPU_DIRECTORY_SELECTOR)
 {
     DeviceState& s = *sp;

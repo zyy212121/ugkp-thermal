@@ -26,8 +26,8 @@ def test_noncold_carry_lifecycle_preserves_sub_float_bits(tmp_path):
     assert fields[NAME]["compact"] == "compactPThermalEnthalpyResidual"
     module = contract_module()
     code = module.build_probe(ROOT, meta, "CHT")
-    # The real allocation, transfer, copy and swap expressions are extracted
-    # by build_probe; use a value that a float roundtrip cannot preserve.
+
+
     index = [field for field in meta["fields"] if "CHT" in field["storage"]].index(fields[NAME])
     code = code.replace(f"static_cast<double>({index+1}*7+j)", "static_cast<double>(0.00030000000000000003 + j*0.00010000000000000002)")
     code = code.replace("copyCellLocalParticle(*s,1,9,0);", """
@@ -80,7 +80,13 @@ ASSIGNMENTS
   assert(pColdNodeSpecificEnthalpy==expectedNodes);
   for(double h:pColdNodeSpecificEnthalpy)assert(h!=double(float(h)));
   assert(marker==Foam::gpuThermalRestart::native64ChtMarker);
-  assert(!nativeRestartSupported(schema9FormatName));
+  assert(particleEncoding(schema9FormatName)==Encoding::floatCold);
+  std::istringstream renumbered("UGKP_CHT_PARTICLES_SCHEMA400_NATIVE64_RAW_COLD_BIN"+
+      wire.str().substr(wire.str().find(' ')),std::ios::binary);
+  const auto header=readHeader<int>(renumbered);
+  assert(header.count==3 && header.encoding==Encoding::raw64);
+  readBinaryPayload(renumbered,header.chunk,out,header.encoding);
+  assert(pColdNodeSpecificEnthalpy==expectedNodes);
   for (int kind=0;kind<3;++kind) {
     std::string broken=wire.str();
     if(kind==0) broken.pop_back();
@@ -230,7 +236,7 @@ int main(){
   initialiseColdWallParticleState(s,0,temperature);
   assert(s.pThermalEnthalpyResidual[0]==0.);
   double mean=0;for(double h:s.pColdNodeSpecificEnthalpy)mean+=h/8.;
-  s.pThermalEnthalpyResidual[0]=123.; // stale shared noncold state cannot alter cold authority
+  s.pThermalEnthalpyResidual[0]=123.;
   assert(particleEffectiveSpecificEnthalpyDevice(s,0)==mean);
   const ugkwp::ParticleCaloric freeLaw;
   publishFrozenReleaseEnergy(s,0,mean,true);
@@ -284,7 +290,7 @@ void wireRoundtrip(double& temperature,double& residual){
 int main(){
  const ugkwp::ParticleCaloric caloric;
  const unsigned char masks[3]={1,3,4};
- // Both sides of each ordinary piecewise endpoint, plus the reported7.6J case.
+
  for(double wireTemperature:{300.00001,2326.99995,2327.00005,3000.00005,3999.99995,4000.00005,4500.00005}) {
   for(double residual:{.00030000000000000003,-.00020000000000000001}) {
    for(int kind:{0,1,2,3}) {
@@ -293,7 +299,7 @@ int main(){
     MutableView view{};view.count=1;view.pT=&temperature;view.pThermalEnthalpyResidual=&carry;view.pStuck=&stuck;view.pStuckFaceId=&face;
     wireRoundtrip(temperature,carry);
     assert(temperature==wireTemperature && carry==residual);
-    // The direct double backend needs no host temperature or carry rebase.
+
     wireRoundtrip(temperature,carry);
     assert(temperature==wireTemperature && carry==residual);
    }

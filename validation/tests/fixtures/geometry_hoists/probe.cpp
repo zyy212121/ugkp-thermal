@@ -25,7 +25,7 @@ void dump(const SweepConstraintReport& x){dump(static_cast<int>(x.status));dump(
 void reset(){edgeScaleCalls=materialScaleCalls=allScaleCalls=pointVisits=0;}
 void counts(int id,int edges,int targets){std::cerr<<id<<' '<<edges<<' '<<targets<<' '<<edgeScaleCalls<<' '<<materialScaleCalls<<' '<<allScaleCalls<<' '<<pointVisits<<'\n';}
 int main(){std::cout<<std::hexfloat;int id=0;
- // Same successful dense small-cell fixtures, without unrelated test execution.
+
  for(Real scale:{1e-4,1e-3,1.})for(Real offset:{0.,.25}){
   auto base=coupledPair();for(auto* m:{&base.gasMesh,&base.solidMesh}){for(auto& p:m->points)p=(p+Vec3{offset,offset,offset})*scale;std::string e;require(rebuildGeometry(*m,e),e);}
   base.solid.resize(2);for(int c=0;c<2;++c)base.solid[c].condensed[0]=1000*base.solidMesh.volumes[c];
@@ -43,7 +43,7 @@ int main(){std::cout<<std::hexfloat;int id=0;
   require(moveCoupledMeshesConstrained(base,base.filmAux,targets,1,gas,solid,surface,report,error),error);
   counts(id++,surface.edgeOwner.size(),0);dump(gas);dump(solid);dump(surface);dump(report);dump(error);
  }
- // Periodic surface incidence: original global topology and metric outputs.
+
  {
   auto periodic=coupledPair();std::string error;
   for(auto* m:{&periodic.gasMesh,&periodic.solidMesh}){
@@ -54,8 +54,8 @@ int main(){std::cout<<std::hexfloat;int id=0;
   SurfaceMesh surface;reset();require(rebuildTrajectorySurface(periodic,periodic.gasMesh,periodic.solidMesh,1,surface,error),error);
   counts(id++,surface.edgeOwner.size(),0);dump(surface);dump(error);
  }
- // Direct surface rebuild: strong, nonsingular affine compression requires
- // more than the first quadrature refinement; no gas mapping is needed.
+
+
  auto base=coupledPair();auto endpoint=base.solidMesh;
  for(auto& p:endpoint.points)p={.02*p.x,p.y,p.z+.1*p.x};
  base.surface.gasFace={-1,-1};SurfaceMesh surface;std::string error;reset();

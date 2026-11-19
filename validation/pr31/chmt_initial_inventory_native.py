@@ -11,7 +11,7 @@ def main():
     head=PROBE[:PROBE.index(' std::cout<<std::setprecision(17)')].replace('if(argc!=2)return 2;', 'if(argc<2||argc>3)return 2;')
     probe.write_text(head+r"""
  if(argc==3){
-  // Reproduce a legacy initial checkpoint with the omitted derived diagnostic.
+
   for(auto& particle:state.particles)particle.contactMechanicalEnergy=0;
   if(!chmt::writeCheckpoint(argv[1],model,state,error)){std::cerr<<error;return 5;}
   return 0;

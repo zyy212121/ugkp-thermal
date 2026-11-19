@@ -26,8 +26,8 @@ void compare(const SurfacePhysicsResult& a,const SurfacePhysicsResult& b){
     for(int i=0;i<4;++i){near(va[i].x,vb[i].x,"vector x",2e-9);near(va[i].y,vb[i].y,"vector y",2e-9);near(va[i].z,vb[i].z,"vector z",2e-9);}
     chmt_test::check(!a.wet&&!b.wet,"dry execution retains zero film storage");
 }
-// Compare named state fields, never padding; successful statuses deliberately
-// retain a NaN residual when no wall iteration was needed.
+
+
 void identical(Real a,Real b){chmt_test::check(a==b||(std::isnan(a)&&std::isnan(b)),"launch preserves scalar result");}
 void identical(Vec3 a,Vec3 b){identical(a.x,b.x);identical(a.y,b.y);identical(a.z,b.z);}
 void identical(const SurfacePhysicsResult& a,const SurfacePhysicsResult& b){
@@ -192,8 +192,8 @@ void materialClosureCoverage(){
 }
 int main(int argc,char** argv){
     setvbuf(stdout,nullptr,_IOLBF,0);
-    // Instrument the production cooperative kernel without spending most of
-    // memcheck's runtime inside the unchanged scalar nonlinear oracle.
+
+
     bool memoryOnly=false;
     for(int i=1;i<argc;++i)if(std::strcmp(argv[i],"--memory-only")==0){
         memoryOnly=true;for(int j=i;j<argc;++j)argv[j]=argv[j+1];--argc;--i;
@@ -270,7 +270,7 @@ int main(int argc,char** argv){
             if(!solveDrySurfaceInterface(cpu,*p,expected[f],&device,&numerical)){
                 std::fprintf(stderr,"CPU surface failed variant=%d face=%d wall=%d numerical=%d\n",variant,f,int(wallStatus.code),numerical);return 3;}
             expectedWall[f]=dryWallFaceSample(cpu,expected[f],*p);
-            // Device must read resident inventories, never these host placeholders.
+
             in.solid.energy=-1;in.solidVolume=-1;in.solidLocalRate.condensed[0]=1e30;
         }
         if(memoryOnly){
@@ -286,8 +286,8 @@ int main(int argc,char** argv){
             std::printf("PASS instrumented production material surface depth=%d faces=%d workers=%d\n",probeDepth,count,workers);
             continue;
         }
-        // Poison inactive output too: both launch plans must reset it, while
-        // workers 0..2 serially own faces worker, worker+3, worker+6.
+
+
         for(int f=0;f<count;++f){result[f].gasEnergy=12345;walls[f].temperature=12345;status[f]={};}
         std::fprintf(stderr,"BEGIN original scalar material surface variant=%d\n",variant);
         evaluateMaterialSurfaceKernel<<<1,32>>>(view,p);cudaCheck(cudaGetLastError());cudaCheck(cudaDeviceSynchronize());
@@ -311,8 +311,8 @@ int main(int argc,char** argv){
                     return p->tolerances.absoluteEnergy/(inputs[f].area*inputs[f].dt)+p->tolerances.relativeEnergy*scale;
                 };
                 std::printf("ROOT residual variant=%d face=%d CPU=%.17g GPU=%.17g difference=%.17g CPUbudget=%.17g GPUbudget=%.17g\n",variant,f,expected[f].thermalResidual,result[f].thermalResidual,result[f].thermalResidual-expected[f].thermalResidual,energyGoal(expected[f]),energyGoal(result[f]));
-                // The existing solver warns and returns on a stalled bracket.
-                // Keep that CPU outcome visible instead of imposing a new gate.
+
+
                 const bool cpuConverged=std::abs(expected[f].thermalResidual)<=energyGoal(expected[f]);
                 if(cpuConverged)chmt_test::check(std::abs(result[f].thermalResidual)<=energyGoal(result[f]),"GPU preserves CPU thermal root convergence");
                 chmt_test::check(std::abs(result[f].thermalResidual-expected[f].thermalResidual)<=energyGoal(result[f])+energyGoal(expected[f]),"paired thermal residual within original energy budgets");

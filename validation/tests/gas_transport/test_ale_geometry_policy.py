@@ -160,8 +160,8 @@ void tolerance_threshold(){
  }
 }
 void deformation_metrics(){
- // Uniform diagonal dilation: V=abc. Sum exact time-integrated swept faces
- // equals abc at t1 minus abc at t0, while endpoint area*speed*dt does not.
+
+
  const Real oldV=Real(2)*3*4,newV=Real(2.2)*Real(3.3)*Real(4.4);const Real expansion=Real(.1);
  const Real sweepPerAxis=oldV*(expansion+expansion*expansion+expansion*expansion*expansion/3);
  check(validateGasEulerGeometry(oldV,newV,3*sweepPerAxis),"exact deformation sweep rejected");

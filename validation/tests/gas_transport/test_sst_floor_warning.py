@@ -19,8 +19,8 @@ int main(){
  const Real dt=.001,target=TARGET;const int component=COMPONENT;
  Real oldV[2]={1,1},newV[2]={1.1,.9},sweeps[3]={.1,0,0};
  if(MOVING)moving(s,oldV,newV,sweeps,dt);
- // Set a finite finalized transport flux so the actual source+flux update
- // reaches the chosen raw inventory, independently of its subsequent floor.
+
+
  Real sk,so;ck(sstSourcesForCell(s,0,MOVING?Real(100):Real(0),sk,so),"source evaluation");
  const Real ov=1,nv=MOVING?newV[0]:Real(1);
  const Real initial=component?s.rhoOmega[0]:s.rhoK[0];
@@ -70,8 +70,8 @@ def test_acoustic_cfl_does_not_bound_explicit_lowre_sst_source(tmp_path):
 #include "DiagnosticsHost.H"
 int main(){using namespace ugkp::diagnostics;
  State s;initialise(s);DeviceContext d{};s.diagnostics=&d;s.sstConfigured=1;
- // Independent synthetic fine-cell LowRe source witness, not a replay of
- // a user case: two faces of unit area, height 2e-8 m, rho=2, p=1e5.
+
+
  const Real height=2e-8,nu=1e-5; s.V[0]=height;s.cellLength[0]=height;
  s.sstWallDistance[0]=height/2;s.gasMu=nu*s.rho[0];
  s.omega[0]=6*nu/(.075*s.sstWallDistance[0]*s.sstWallDistance[0]);

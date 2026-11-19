@@ -3,7 +3,7 @@
 
 namespace ugkwp
 {
-// Inputs gradNormalArea already contain oriented face area. Output is kg/s,
+
 
 template<class Real, int Ns, class TableReal>
 UGKWP_GAS_HD inline bool correctedSpeciesDiffusion
@@ -15,7 +15,7 @@ UGKWP_GAS_HD inline bool correctedSpeciesDiffusion
 )
 {
     using namespace ugkp::diagnostics;
-    (void)trialEligibility; // compatibility only: there is one physical evaluation.
+    (void)trialEligibility;
     if(evaluated)*evaluated=false;
     if(!gasFinite(density)||!gasFinite(eddyViscosity)||!gasFinite(schmidt)||schmidt==Real(0)) {
         gasThermoDetail::failure(thermo.diagnostics,ThermoStatus::NonFiniteInput,(!gasFinite(density)||!gasFinite(eddyViscosity)||!gasFinite(schmidt))?Code::NonFinite:Code::ZeroDenominator,-1,!gasFinite(density)?density:(!gasFinite(eddyViscosity)?eddyViscosity:schmidt),!gasFinite(density)?Quantity::Density:(!gasFinite(eddyViscosity)?Quantity::Unspecified:Quantity::Denominator));
@@ -35,15 +35,15 @@ UGKWP_GAS_HD inline bool correctedSpeciesDiffusion
     const Real tolerance=Real(64*Ns)*std::numeric_limits<Real>::epsilon();
     if(gasThermoDetail::absValue(sumY-Real(1))>tolerance)
         recordWarning(thermo.diagnostics,makeRecord(Code::ConservationResidual,10005,0,0,EntityKind::None,-1,-1,sumY,1,sumY,Quantity::Conservation));
-    // Close on the largest carrier, including when the last species is a
-    // nonzero trace. Subtracting carrier-sized raw fluxes first loses the
-    // trace channel to roundoff; assigning that remainder to a trace creates
-    // an outflow unrelated to its inventory and can suppress the bulk flux.
+
+
+
+
     int dependent=0;
     for(int k=1;k<Ns;++k)if(Y[k]>Y[dependent])dependent=k;
     Real sumCorrected=0,energy=0;
     for(int k=0;k<Ns;++k){corrected[k]=raw[k]-Y[k]*sumRaw;if(k!=dependent)sumCorrected+=corrected[k];}
-    // Original conservative diffusion closure, not composition renormalization.
+
     corrected[dependent]=-sumCorrected;
     for(int k=0;k<Ns;++k) {
         gasThermoDetail::SpeciesValues<Real> values;

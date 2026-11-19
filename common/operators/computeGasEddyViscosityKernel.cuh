@@ -10,7 +10,7 @@ __device__ bool gasEddyFinite(const GasState& s, int c, GPU_OPERATOR_REAL value,
         EntityKind::Cell,c,component,value,0,0,quantity));
     return false;
 }
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<class GasState>
 __global__ void computeGasEddyViscosityKernel(GasState* sp)
 {
@@ -57,7 +57,7 @@ __global__ void computeGasEddyViscosityKernel(GasState* sp)
         }
         const GPU_OPERATOR_REAL nu = ugkwp::gasCellMolecularViscosity(s,c)/rhoSafe;
         if(!gasEddyFinite(s,c,nu,30305)) return;
-        // Inspect the actual F2 operands before its finite min/max caps can erase a fault.
+
         const auto omegaSafe=ugkwp::sstPositive(s.omega[c],GPU_OPERATOR_R(1e-300));
         const auto ySafe=ugkwp::sstPositive(s.sstWallDistance[c],GPU_OPERATOR_R(1e-300));
         const GPU_OPERATOR_REAL denominators[] = {s.sstCoefficients.betaStar*omegaSafe*ySafe,ySafe*ySafe*omegaSafe};

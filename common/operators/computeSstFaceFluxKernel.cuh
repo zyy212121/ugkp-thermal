@@ -7,11 +7,11 @@
 #include "gasTransport/GasCapabilities.H"
 #include "gasTransport/MixtureThermo.H"
 #include "gasTransport/GasGeometryValidation.H"
-// One operator implementation; scalar/time adapters are compile-time only.
-// Interpolate the conservative cell diffusion coefficients with the same
-// owner-oriented weight used by the face flux, including coupled faces.
-// Producer classification: physical scalar faults and finite residuals are
-// separate, so legacy status enums never decide diagnostic severity.
+
+
+
+
+
 template<class GasState,class Scalar>
 __device__ void gasCellPhysicalDiagnostic(const GasState& s,int c,unsigned op,
     ugkp::diagnostics::Code code,Scalar value,int component=-1,
@@ -22,8 +22,8 @@ __device__ void gasCellPhysicalDiagnostic(const GasState& s,int c,unsigned op,
         EntityKind::Cell,c,component,double(value),0,0,quantity);
     if(s.diagnostics)recordFatal(s.diagnostics,record);
     if(isWarning(code))return;
-    // Preserve the coarse channel even when the detailed context is optional.
-    // Record detail first so transport propagation cannot replace its provenance.
+
+
     const bool recorded=ugkwp::gasRecordCellFailure(s,c,code==Code::NonFinite
         ? ugkwp::GasTransportCode::NonFiniteState
         : ugkwp::GasTransportCode::InvalidThermodynamics);
@@ -261,9 +261,9 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
         massFlux*omegaUpwind - rhoDomega*snGradOmega*area;
     if constexpr(ugkwp::GasBoundaryLayerCapability<GasState>::value)
     {
-        // Correct a shared internal face once. The BVP supplies total k
-        // transport for its prescribed wall-normal mass. Tangential diffusion
-        // and the remaining ALE advection are retained by both adjacent cells.
+
+
+
         if(nei>=0&&ugkwp::gasBoundaryLayerEnabled(s)
             &&(ugkwp::gasBoundaryLayerOwnerSlot(s,own)>=0||ugkwp::gasBoundaryLayerOwnerSlot(s,nei)>=0)){
             const GPU_OPERATOR_REAL unit[3]={s.Sfx[f]/area,s.Sfy[f]/area,s.Sfz[f]/area};
@@ -306,8 +306,8 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
             if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))
             {if(!ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
             s.sstPhiRhoK[f]=ugkwp::gasBoundaryLayerWallKFlux(s,slot,s.gasPhiRho[f],s.k[own]);
-            // The selected omega row is algebraic. No independent physical
-            // wall omega injection or diffusion is imposed on top of it.
+
+
             s.sstPhiRhoOmega[f]=GPU_OPERATOR_R(0.0);
         }
     }
@@ -353,16 +353,16 @@ __device__ GPU_OPERATOR_REAL sstKProductionForCell
         const int slot=ugkwp::gasBoundaryLayerOwnerSlot(s,c);
         if(slot>=0 && ugkwp::gasBoundaryLayerSlotReady(s,slot))
         {
-            // The volume closure is applied in sstSourcesForCell. The old
-            // shear*sqrt(k_macro)/(kappa*y) relation belongs to a different
-            // wall function and must not be superimposed on this SST BVP.
+
+
+
             const auto& closure=s.gasBoundaryLayer.sst[slot];
             if(closure.kFluxCount>0)return fmin(production,productionLimit);
-            // Boundary-exchange coupling: use the solved wall traction and
-            // the current macro k in the wall production relation. Apply the
-            // macro SST limiter before adding its destruction/compression.
-            // No BVP integral is rescaled to the macro inventory. Analytic
-            // and material-interface adapters retain this existing relation.
+
+
+
+
+
             const GPU_OPERATOR_REAL wallProduction=closure.wallShearStress/s.rho[c]
                 *sqrt(sqrt(s.sstWallCmu))*sqrt(s.k[c])/(s.sstWallKappa*closure.ownerDistance);
             return fmin(wallProduction,productionLimit);
@@ -420,7 +420,7 @@ __device__ GPU_OPERATOR_REAL sstKProductionForCell
     const GPU_OPERATOR_REAL wallBlendedProduction = wallCount > 0
       ? wallProductionSum/GPU_OPERATOR_REAL(wallCount)
       : production;
-    // OF applies Pk after the wall function has updated/averaged G.
+
     return fmin
     (
         wallBlendedProduction,
@@ -473,9 +473,9 @@ __device__ bool sstSourcesForCell
         if(slot>=0&&ugkwp::gasBoundaryLayerSlotReady(s,slot)){
             const auto& closure=s.gasBoundaryLayer.sst[slot];
             if(closure.kFluxCount>0){
-                // The BVP combines its normal gradient with this stage's
-                // resolved tangential gradient before limiting production.
-                // Its projected source already contains full compression.
+
+
+
                 sourceK=closure.nonDestructiveKSource
                     -s.rho[c]*s.k[c]*closure.kDestructionRate;
             }
@@ -507,7 +507,7 @@ __global__ void applySstFluxAndSourceKernel
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
-    // A prior producer already diagnosed the fatal; retain its evidence until completion.
+
     if(ugkp::diagnostics::hasFatal(s.diagnostics))return;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells || s.sstConfigured == 0)
@@ -557,8 +557,8 @@ __global__ void applySstFluxAndSourceKernel
         const GPU_OPERATOR_REAL sign = s.faceOwner[f] == c ? -GPU_OPERATOR_R(1.0) : GPU_OPERATOR_R(1.0);
         fluxK += sign*s.sstPhiRhoK[f];
         fluxOmega += sign*s.sstPhiRhoOmega[f];
-        // Convert finalized relative ALE mass flux back to absolute fluid
-        // volume flux for compression; mesh motion is not a physical source.
+
+
         GPU_OPERATOR_REAL absoluteVolumeFlux=s.gasPhiRho[f]/sstFaceDensity(s, f);
         if(moving)
         {
@@ -590,8 +590,8 @@ __global__ void applySstFluxAndSourceKernel
         {
             if(!ugkwp::gasBoundaryLayerSlotReady(s,slot))
             {if(!ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::InvalidStorage))asm("trap;");return;}
-            // The projected normal BVP row and resolved tangential row have
-            // already been assembled by sstSourcesForCell.
+
+
         }
     }
     const GPU_OPERATOR_REAL invV = GPU_OPERATOR_R(1.0)/clampMin(s.V[c], OfSmall);
@@ -606,8 +606,8 @@ __global__ void applySstFluxAndSourceKernel
     const GPU_OPERATOR_REAL rhoSafe = clampMin(s.rho[c], s.rhoMin);
     const GPU_OPERATOR_REAL rhoKFloor = rhoSafe*s.sstKMin;
     const GPU_OPERATOR_REAL rhoOmegaFloor = rhoSafe*s.sstOmegaMin;
-    // Explicit sources are evaluated from the old density and old inventory.
-    // Faces already carry the common ALE mass flux, so add no mesh term here.
+
+
     if(moving)
     {
         const GPU_OPERATOR_REAL nextK=(s.rhoK[c]*oldVolume+dt*(fluxK+oldVolume*sourceK))/newVolume;
@@ -633,9 +633,9 @@ __global__ void applySstFluxAndSourceKernel
     gasInventoryFloorWarning(s,c,s.rhoK[c]+deltaRhoK,rhoKFloor,0,2623,27);
     s.rhoK[c] =
         clampMin(s.rhoK[c] + deltaRhoK, rhoKFloor);
-    // Both wall treatments constrain the adjacent-cell omega equation.
-    // Suppress its RHS, then primitive recovery projects to the refreshed
-    // target after k and gas density evolve. Other equations remain active.
+
+
+
     if (!constrainedOmega)
     {
         gasInventoryFloorWarning(s,c,s.rhoOmega[c]+deltaRhoOmega,rhoOmegaFloor,1,2623,27);
@@ -672,9 +672,9 @@ __global__ void computeGasCourantFieldKernel(GasState* sp, const GPU_OPERATOR_TI
             }
         }
     }
-    // Courant-only scratch lifetime: energy-flux storage holds amaxSf until
-    // computeGasConvectiveCourantByCellKernel consumes it. The next gas face
-    // flux overwrites all gasPhi arrays before any gas conservative update.
+
+
+
     const int own = s.faceOwner[f];
     if (own < 0 || own >= s.nCells)
     {
@@ -809,7 +809,7 @@ __global__ void computeGasConvectiveCourantByCellKernel
 
 
     const GPU_OPERATOR_REAL co =
-        GPU_OPERATOR_R(0.5)*dt*sumAmaxSf/clampMin(stabilityVolume, OfSmall);
+        GPU_OPERATOR_R(0.5)*ugkwp::gasResidentStepDt(s,dt)*sumAmaxSf/clampMin(stabilityVolume, OfSmall);
     s.gasFluxPositivityScale[c] = nativeRefinement && !ugkwp::gasFinite(co) ? OfGreat : co;
     if(!ugkwp::gasFinite(co))ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
 }
@@ -819,7 +819,7 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
-    // A prior producer already diagnosed the fatal; retain its evidence until completion.
+
     if(ugkp::diagnostics::hasFatal(s.diagnostics))return;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)
@@ -838,8 +838,8 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
     constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
 
 
-    // Reuse the publication scratch for face sums. Each species retains the
-    // original face accumulation order; no extra face/domain pass is added.
+
+
     GPU_OPERATOR_REAL trial[Ns>0?Ns:1]{};
     GPU_OPERATOR_REAL speciesFluxMagnitude=GPU_OPERATOR_R(0.0);
     bool repairableFlux=true;
@@ -914,9 +914,9 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
         dRhoE += Energy(sign)*Energy(s.gasPhiRhoE[faceI]);
     }
 
-    // In the steady application gravity belongs to the same old-state RHS as
-    // transport, so every RK stage targets the reported spatial residual.
-    // Transient applications retain their original exact split gravity update.
+
+
+
     if constexpr (ugkwp::HasGasSteadyTime<GasState>::value)
     {
         if (s.gasSteadyMode)
@@ -1012,7 +1012,7 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
                 beforeSum+=previous;
                 afterSum+=trial[k];
             }
-            // Choose the largest carrier from the unmodified state once.
+
             for(int k=0;k<Ns;++k)if(trial[k]>trial[dependent])dependent=k;
 
 
@@ -1094,7 +1094,7 @@ __global__ void blendGasConservativeStateKernel
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
-    // A prior producer already diagnosed the fatal; retain its evidence until completion.
+
     if(ugkp::diagnostics::hasFatal(s.diagnostics))return;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
     if (c >= s.nCells)
@@ -1144,7 +1144,7 @@ __global__ void blendGasConservativeStateKernel
         if(sumBlend!=target&&(!repairable||fabs(sumBlend-target)>bound))gasCellResidualDiagnostic(s,c,29,sumBlend,target);
         if(repairable&&fabs(sumBlend-target)<=bound&&sumBlend!=target)
         {
-            // This carrier is fixed before evaluating the closure correction.
+
             for(int k=0;k<reviewNs;++k)if(blendedSpecies[k]>blendedSpecies[dependent])dependent=k;
             GPU_OPERATOR_REAL independent=GPU_OPERATOR_R(0);for(int k=0;k<reviewNs;++k)if(k!=dependent)independent+=blendedSpecies[k];
             GPU_OPERATOR_REAL replacement=target-independent;
@@ -1190,10 +1190,12 @@ __global__ void blendGasConservativeStateKernel
     }
 }
 
+#include "operators/recoverStationaryGasPrimitive.cuh"
+
 template<class GasState>
 __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nativeRefinement=false)
 {
-    // A prior producer already diagnosed the fatal; retain its evidence until completion.
+
     if(ugkp::diagnostics::hasFatal(s.diagnostics))return;
     if constexpr (ugkwp::GasStateTraits<GasState>::speciesCount > 0)
     {
@@ -1240,8 +1242,8 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
                     partialDensity[k]=density*clipped;
                 }
             }
-            // This pre-clip total is conservation-audit data only. Thermodynamics
-            // below consumes the individually validated, finite clipped densities.
+
+
             if(fabs(densitySum-density)>species.densityClosureTolerance*density)
                 gasCellResidualDiagnostic(s,c,30,densitySum,density);
             const Energy ux = Energy(s.rhoUx[c])/density;
@@ -1302,7 +1304,7 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
         }
     }
     {
-        // Preserve the established homogeneous legacy numerical path.
+
     const GPU_OPERATOR_REAL conserved[]={s.rho[c],s.rhoUx[c],s.rhoUy[c],s.rhoUz[c]};
     for(int k=0;k<4;++k)if(!gasProducerScalarValid(s,c,conserved[k],30010))return;
     if(!gasProducerScalarValid(s,c,s.rhoE[c],30124))return;
@@ -1326,59 +1328,7 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
         s.Ux[c]=ux;s.Uy[c]=uy;s.Uz[c]=uz;s.p[c]=pressure;s.Tgas[c]=temperature;
         return;
     }
-    gasInventoryFloorWarning(s,c,s.rho[c],s.rhoMin,-1,2625,30,ugkp::diagnostics::Quantity::Density);
-    const GPU_OPERATOR_REAL rhoSafe =
-        clampMin(s.rho[c], s.rhoMin);
-    if(!gasProducerScalarValid(s,c,s.rhoUx[c]/rhoSafe,30012)
-        ||!gasProducerScalarValid(s,c,s.rhoUy[c]/rhoSafe,30104)
-        ||!gasProducerScalarValid(s,c,s.rhoUz[c]/rhoSafe,30105))return;
-    const GPU_OPERATOR_REAL ux = s.rhoUx[c]/rhoSafe;
-    const GPU_OPERATOR_REAL uy = s.rhoUy[c]/rhoSafe;
-    const GPU_OPERATOR_REAL uz = s.rhoUz[c]/rhoSafe;
-    const GPU_OPERATOR_REAL kinetic = ugkwp::gasLegacyKineticEnergy(rhoSafe, ux, uy, uz);
-    if(!gasProducerScalarValid(s,c,ux,30106)||!gasProducerScalarValid(s,c,uy,30107)
-        ||!gasProducerScalarValid(s,c,uz,30108)||!gasProducerScalarValid(s,c,kinetic,30109)
-        ||!gasProducerScalarValid(s,c,s.rhoE[c]-kinetic,30110))return;
-    // Preserve the established finite density and internal-energy floors.
-    const GPU_OPERATOR_REAL minimumInternalEnergy = fmax
-    (
-        s.rhoMin,
-        ugkwp::gasLegacyThermalMinimumInternalEnergy
-        (
-            rhoSafe, GPU_OPERATOR_REAL(s.Rgas), GPU_OPERATOR_REAL(s.TgasMin),
-            GPU_OPERATOR_REAL(s.gammaGas), GPU_OPERATOR_REAL(OfSmall)
-        )
-    );
-    gasInventoryFloorWarning(s,c,s.rhoE[c]-kinetic,minimumInternalEnergy,-1,2626,30,ugkp::diagnostics::Quantity::InternalEnergy);
-    const GPU_OPERATOR_REAL internalE = clampMin
-    (
-        s.rhoE[c] - kinetic,
-        minimumInternalEnergy
-    );
-    const GPU_OPERATOR_REAL p = (s.gammaGas - GPU_OPERATOR_R(1.0))*internalE;
-    const GPU_OPERATOR_REAL T = p/(rhoSafe*s.Rgas);
-
-    if(!gasProducerScalarValid(s,c,p,30013)||!gasProducerScalarValid(s,c,T,30111,true))return;
-    const bool repairDensity=!ugkwp::gasFinite(s.rho[c]) || s.rho[c]<s.rhoMin;
-    s.rho[c] = rhoSafe;
-    {
-        // Valid conserved momenta are inputs, not rounded primitive caches.
-        if (repairDensity || !ugkwp::gasFinite(s.rhoUx[c]/rhoSafe)) s.rhoUx[c]=rhoSafe*ux;
-        if (repairDensity || !ugkwp::gasFinite(s.rhoUy[c]/rhoSafe)) s.rhoUy[c]=rhoSafe*uy;
-        if (repairDensity || !ugkwp::gasFinite(s.rhoUz[c]/rhoSafe)) s.rhoUz[c]=rhoSafe*uz;
-    }
-    // A valid double inventory is authoritative; subtract/add can lose one ULP.
-
-    {
-        if (!ugkwp::gasFinite(s.rhoE[c]-kinetic)
-            || s.rhoE[c]-kinetic < minimumInternalEnergy)
-            s.rhoE[c] = kinetic + internalE;
-    }
-    s.Ux[c] = ux;
-    s.Uy[c] = uy;
-    s.Uz[c] = uz;
-    s.p[c] = p;
-    s.Tgas[c] = T;
+    recoverStationaryGasPrimitive<GPU_OPERATOR_REAL>(s,c,conserved[0],conserved[1],conserved[2],conserved[3],s.rhoE[c]);
     }
 }
 

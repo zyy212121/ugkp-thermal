@@ -9,7 +9,7 @@
 using namespace ugkp::gpu::geometry;
 struct Input {double volume[4];Point old,end,area[6];double sweep[6];int axis;};
 struct Output {bool inverts;Point sample[3];StageCellConservation conservation;};
-// Frozen native Geometry.C formulas at 573005d2, independently evaluated.
+
 Output reference(const Input& in){
     Output out{};const double v0=in.volume[0],v1=in.volume[1],v2=in.volume[2],v3=in.volume[3];
     const double a=4.5*(v3-3*v2+3*v1-v0),b=4.5*(v2-2*v1+v0)-a,d=3*(v1-v0)-a/9-b/3;

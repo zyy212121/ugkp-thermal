@@ -16,6 +16,7 @@ def test_recovery_epochs_and_direct_substage(tmp_path):
 #include <cassert>
 #include <cmath>
 #include <cstdio>
+#include <type_traits>
 using cudaError_t=int;constexpr int cudaSuccess=0;
 int cudaGetLastError(){return 0;}
 void setLastError(const char*,int){assert(false);}void setLastErrorText(const char*){assert(false);}
@@ -48,7 +49,7 @@ void updateLegacyGasBoundaryMirrorKernel(State*s,double){assert(s->primitive==s-
 void computeGasPrimitiveGradientsKernel(State*s,bool){assert(s->primitive==s->conserved);}
 void applySstWallFunctionStateKernel(State*,bool){}
 void computeGasHllcAdcSensorKernel(State*s){assert(s->primitive==s->conserved);}
-void computeGasGradientLimiterKernel(State*,bool){}
+template<class S,bool clearLaminarViscosity=false>void computeGasGradientLimiterKernel(S*,bool){}
 void computeGasEddyViscosityKernel(State*s){assert(s->primitive==s->conserved);}
 template<bool>void computeGasInternalFaceFluxKernel(State*s,double,bool){assert(s->primitive==s->conserved);}
 void enforcePeriodicGasFluxAntisymmetryKernel(State*,bool){}

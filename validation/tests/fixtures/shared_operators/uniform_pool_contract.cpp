@@ -48,7 +48,7 @@ int main(){
     assert(std::memcmp(a,b,sizeof a)==0 && actual.pRng.value==reference.pRng.value && actual.pStatus.value==reference.pStatus.value);
     if(probability==1.) {
       assert(observed.size()>=2);
-      // Accepted state is committed only after all physical loads/contributions.
+
       assert(observed[observed.size()-2]==80 && observed.back()==90);
     } else {
       assert(actual.pRng.value==124 && actual.pStatus.value==1);

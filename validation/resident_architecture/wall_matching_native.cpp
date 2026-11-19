@@ -1,12 +1,12 @@
-// Generated fixture header uses the existing native geometry test builders.
-// Its production includes resolve against a frozen pre-migration source root.
+
+
 #include "wall_geometry_native_meshes.H"
 #include "wall_matching_probe.H"
 #include <stdexcept>
 int configurations=0,validRows=0,invalidRows=0,invalidMeshes=0;double maximumError=0;
 void compare(WallGeometryMesh<double> mesh,bool reconstruction){
     wallMatchingProbe::Mesh input{mesh.points,mesh.cellCentres,mesh.volumes,mesh.faceOffsets,mesh.facePoints,mesh.owner,mesh.neighbour,{},mesh.physicalWall,mesh.omegaConstrained,mesh.gasCell};
-    // Preserve caller row order, including repeated requests for one wall.
+
     for(int f=int(mesh.owner.size())-1;f>=0;--f)if(mesh.neighbour[f]<0&&mesh.physicalWall[f])input.walls.push_back(f);
     if(input.walls.empty())input.walls.push_back(0);input.walls.push_back(input.walls.front());
     const auto device=wallMatchingProbe::evaluate(input,reconstruction);

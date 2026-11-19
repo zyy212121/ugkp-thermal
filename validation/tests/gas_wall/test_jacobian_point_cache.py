@@ -53,7 +53,7 @@ template<int N,class Fixture> int run(int nodes,int sst,int reacting,int scenari
  constexpr int Capacity=65,B=N+4;Fixture model;auto& in=model.in;
  in.matching.k=scenario==5?0:.5;in.matching.omega=200;in.integrateOwnerKSource=false;
  in.model.mode=reacting?GasMode::MixtureChemistry:GasMode::MixtureFrozen;
- // Distinct Cp and formation enthalpies expose an accidentally accumulated base point.
+
  if(N==2){model.coef[3]=1100;model.coef[5]=20000;}
  WallModelConfig<double> config;config.nodes=nodes;config.enableSst=sst;
  LayerContext<double,N> context;require(makeContext(in,config,context),"context preparation failed");
@@ -163,5 +163,3 @@ def test_constant_cp_table_endpoint_does_not_add_artificial_retry(jacobian_probe
     normal = observe(jacobian_probe, 2, 24, 1, 0, 0)
     retry = observe(jacobian_probe, 2, 24, 1, 0, 6)
     assert retry['reference_calls'] == normal['reference_calls'], (normal, retry)
-    # Constant-Cp thermodynamics evaluates finite positive temperatures outside
-    # tabulation bounds; the Newton probe is not a caloric inversion bracket.

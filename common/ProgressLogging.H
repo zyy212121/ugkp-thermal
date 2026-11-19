@@ -32,15 +32,20 @@ inline bool progressLogDue(const Step step, const Foam::label interval)
         && step % static_cast<Step>(interval) == Step(0);
 }
 
-inline void writeProgressLog(const Foam::Time& runTime)
+inline void writeProgressLog(const Foam::Time& runTime,Foam::label step,const Foam::word& timeName,double dt,bool collected=false)
 {
-    Foam::Info<< "UGKP_REPRO step=" << runTime.timeIndex()
-        << " time=" << runTime.timeName()
-        << " dt=" << runTime.deltaTValue()
-        << " elapsed=" << runTime.elapsedClockTime() << Foam::endl;
+    Foam::Info<< "UGKP_REPRO step=" << step
+        << " time=" << timeName
+        << " dt=" << dt
+        << (collected?" batchElapsed=":" elapsed=") << runTime.elapsedClockTime() << Foam::endl;
 }
 
-} // namespace logging
-} // namespace ugkwp
+inline void writeProgressLog(const Foam::Time& runTime)
+{
+    writeProgressLog(runTime,runTime.timeIndex(),runTime.timeName(),runTime.deltaTValue());
+}
+
+}
+}
 
 #endif

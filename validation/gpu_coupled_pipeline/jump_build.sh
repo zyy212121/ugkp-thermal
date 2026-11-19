@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Source OpenFOAM 10 first. Compile every linked CUDA unit from source.
+
 set -euo pipefail
 if [[ $# != 4 ]]; then echo "usage: $0 FIXED_REPOSITORY FROZEN_88BC FROZEN_2228479A OUTPUT" >&2; exit 2; fi
 R=$(realpath "$1"); B=$(realpath "$2"); F=$(realpath "$3"); O=$(realpath -m "$4")
@@ -12,8 +12,8 @@ libs=(-L"$FOAM_LIBBIN" -lfiniteVolume -lmeshTools -lOpenFOAM -L"$FOAM_LIBBIN/$FO
 for kind in before after; do
  tree=$R
  if [[ $kind == before ]]; then tree=$F; fi
- # Keep each frozen header and implementation together; the resident API can
- # evolve independently of the jump regression's historical sparse solver.
+
+
  for unit in ImplicitDiffusion ThermalFieldOperators; do
   /usr/local/cuda/bin/nvcc -std=c++17 -O2 --fmad=false -arch="${UGKWP_CUDA_ARCH:-sm_89}" -I"$R/common/gpu" -c "$tree/common/gpu/$unit.cu" -o "$O/build/$unit-$kind.o" > "$O/build/$unit-$kind.log" 2>&1
  done

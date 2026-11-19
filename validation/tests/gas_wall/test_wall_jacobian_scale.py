@@ -16,8 +16,8 @@ def test_sqrt_k_derivative_has_a_resolvable_physical_scale(tmp_path,capture):
         old_equation=derivative(capture,legacy_face_average=True)
         assert abs(old_equation-reference)<1e-7*abs(reference)
         reference=derivative(capture)
-        # ffd64367 changed mean(rho)*mean(alpha)*mean(nut) to
-        # mean(rho*alpha*nut). The retained JSON records the former equation.
+
+
     values=capture['input'];statements=[]
     fields=['m.in.matchingDistance','m.in.ownerDistance','m.in.temperature','m.in.matching.temperature','m.in.matching.velocity[0]','m.in.matching.k','m.in.matching.omega']
     statements.extend(f'{name}={value!r};' for name,value in zip(fields,values))

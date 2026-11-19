@@ -20,8 +20,8 @@ void validateStageLineage(){
  for(const auto& step:steps)if(step.success){CHECK(step.lastStage-step.firstStage==2);for(auto value:step.after)CHECK(std::isfinite(value)&&value!=-777);CHECK(std::isfinite(step.Tout)&&step.Tout!=-777);}
  for(const auto& stage:stages)if(stage.success){bool found=false;for(int i=stage.firstState;i<stage.lastState;++i){const auto& s=states[i];if(s.success && s.z==stage.after && s.T==stage.Tout)found=true;}
   if(!found && stage.after==stage.before && stage.rhs==stage.after){
-   // Exact equilibrium may reuse the stage-one state. Verify its zero scalar
-   // RHS was really evaluated; this does not license any nonzero residual seed.
+
+
    for(const auto& s:states)if(s.step==stage.step && s.success && s.z==stage.after && s.T==stage.Tout)
     for(const auto& rate:independent::rates)if(rate.step==stage.step && rate.success && rate.T==stage.Tout && rate.production[0]==0 && rate.production[1]==0)found=true;
   }
@@ -38,9 +38,9 @@ void validateStageLineage(){
  }
 
 }
-// Enumerate only genuine successful SDIRK edges whose exact base state and T
-// descend from a previous completed edge. Speculative full and half branches
-// remain distinct; no declared status or audit value creates an edge.
+
+
+
 long double coveredBy(const std::vector<long double>& base,long double T,const std::vector<long double>& target,long double targetT,std::size_t begin=0,long double used=0){
  long double answer=-1;
  for(std::size_t i=begin;i<steps.size();++i){const auto& s=steps[i];if(!s.success || s.h<=0 || !same(s.before,base)||s.Tin!=T)continue;

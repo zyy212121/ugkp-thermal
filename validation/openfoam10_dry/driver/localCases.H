@@ -8,7 +8,7 @@ void pyrolysisCase(Time& runTime,fvMesh& mesh,volScalarField& T,scalar dt,scalar
  for(label step=0;step<steps;++step){++runTime;forAll(T,i){auto source=dry::reactionSource(q[i],reactions,mesh.V()[i],solid,T[i]);dry::reactionEuler(q[i],source,dt);if(adiabatic)T[i]=dry::recoverTemperature(q[i],solid,gas,T[i]).temperature;else {double updated=dry::caloricState(q[i],solid,gas,300).energy;reservoir+=updated-q[i].energy;q[i].energy=updated;}}}
  double m=0,E=0,parent=0,element0=0,element1=0,tempErr=0;
  const double exactParent=500*std::exp(-.7*end),converted=500-exactParent;
- // Independent closed-form caloric solution, not recoverTemperature reused.
+
  const double exactT=(350185000-exactParent*400000-(0.5+converted)*160000)/(exactParent*1000+(0.5+converted)*700);
  forAll(T,i){m+=q[i].condensedMass[0]+q[i].poreMass[0]+q[i].poreMass[1];E+=q[i].energy;parent+=q[i].condensedMass[0];element0+=.6*q[i].condensedMass[0]+q[i].poreMass[0];element1+=.4*q[i].condensedMass[0]+q[i].poreMass[1];tempErr=max(tempErr,mag(T[i]-(adiabatic?exactT:300)));}
  out<<"mode,N,dt,parent_error,temperature_error,mass_residual,element_residual,energy_residual,temperature\n"<<(adiabatic?"adiabatic":"isothermal")<<','<<mesh.nCells()<<','<<dt<<','<<mag(parent-exactParent)<<','<<tempErr<<','<<m-initialMass<<','<<max(mag(element0-300.3),mag(element1-200.2))<<','<<E-initialE-reservoir<<','<<T[0]<<'\n';T.write();
@@ -26,10 +26,10 @@ void surfaceCase(Time& runTime,fvMesh& mesh,volScalarField& T,std::ofstream& out
   dry::DryEnergyInput in;in.wallTemperature=Tw;in.gasPressure=100000;in.gasConductiveFlux=-100*(1500-Tw);in.solidConductiveFlux=qsolid;
   balance=dry::dryEnergyBalance(flux,pore,solid,gas,in);residual=balance.residual;if(residual>0)hi=Tw;else lo=Tw;
  }
- // Independent analytic thermal resistance + mass-action and ALE work.
+
  auto analytical=[&](double w){double r=20*std::exp(-6000/w);double m=.012*r;double recession=m/1500;double hgO=200000+1000*w,hgCO=-1000000+1100*w,es=100000+700*w;return r*(-.016*hgO+.028*hgCO)-100000*recession-100*(1500-w)-m*es+20*(w-300);};
  lo=300;hi=1600;for(label i=0;i<80;++i){double mid=.5*(lo+hi);if(analytical(mid)>0)hi=mid;else lo=mid;}double exactT=.5*(lo+hi),r=20*std::exp(-6000/exactT);
- // A 1-second constant-rate front: physical-area extensive ledgers independently integrated.
+
  double mSolid=flux.condensedConsumption[0],carbon=mSolid-flux.gasSpecies[1]*12/28,oxygen=flux.gasSpecies[0]+flux.gasSpecies[1]*16/28;
  out<<"mode,N,wall_T,wall_T_error,rate_error,recession,recession_error,mass_residual,element_residual,energy_residual,analytic_residual\n"<<"surface,"<<mesh.nCells()<<','<<Tw<<','<<mag(Tw-exactT)<<','<<mag(mSolid-.012*r)<<','<<flux.recessionSpeed<<','<<mag(flux.recessionSpeed-.012*r/1500)<<','<<flux.gasMass-mSolid<<','<<max(mag(carbon),mag(oxygen))<<','<<residual<<','<<analytical(Tw)<<'\n';T.write();
 }

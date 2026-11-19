@@ -2,7 +2,7 @@
 #include "ParticleResidentInterval.H"
 #include "GpuPressureParticleUpdate.cuh"
 #include "GpuMaterialEnthalpyMoment.cuh"
-// Constrained particle pressure closure shared by FSH/CHT; scalar precision is an interface type.
+
 template<bool FullMoments, bool CompactParticles = false>
 __device__ void accumulatePressureParticleMomentsDevice
 (

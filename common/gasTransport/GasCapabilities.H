@@ -17,28 +17,28 @@ enum class GasTransportCode : int
     NegativeInventory,
     ChemistryFailure,
     SourceStepLimit,
-    BoundaryLayerFailure // terminal wall BVP failure; independent of bulk chemistry
+    BoundaryLayerFailure
 };
-// One producer/host contract for implemented conservative mixture fluxes.
+
 UGKWP_GAS_HD inline bool mixtureGasFluxImplemented(int createCode)
 { return createCode==1 || createCode==2 || createCode==4 || createCode==8; }
 
 struct GasCapabilityRequest
 {
     GasMode mode = GasMode::SingleLegacy;
-    int fluxScheme = 1; // existing create codes 1..9, not Scheme enum ordinals
+    int fluxScheme = 1;
     int reconstruction = 0;
     int limiter = 0;
     int timeIntegrator = 1;
     int turbulenceModel = 0;
     bool movingGeometry = false;
     bool particleCoupling = false;
-    // Explicit capability of the application owner, not a case option.
+
     bool pairedMixtureParticleCoupling = false;
     bool residentParticleGeometry = false;
     bool residentParticleWallCoupling = false;
-    int sstWallTreatment = 0; // 0 lowRe, 1 wallFunction, 2 boundaryLayer
-    int boundaryLayerModel = 1; // 0 restricted constantTransport, 1 reactingSst, 2 equilibriumOde
+    int sstWallTreatment = 0;
+    int boundaryLayerModel = 1;
 };
 struct GasCapabilityResult
 {
@@ -65,4 +65,4 @@ UGKWP_GAS_HD inline GasCapabilityResult validateGasCapabilities(const GasCapabil
     return {GasTransportCode::Success, "mixture shared Rusanov, Kurganov/HLL, HLLC or SLAU2 with firstOrder or MUSCL"};
 }
 
-} // namespace ugkwp
+}

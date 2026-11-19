@@ -1,6 +1,6 @@
 #pragma once
-// CHT owns this optional persistent field. Other resident states have no
-// allocation or extra payload; overload selection happens at compile time.
+
+
 template<class State>
 __device__ __forceinline__ auto resetParticleThermalEnthalpyResidual(State& s, const int i, int)
     -> decltype(s.pThermalEnthalpyResidual[i] = 0.0, void())

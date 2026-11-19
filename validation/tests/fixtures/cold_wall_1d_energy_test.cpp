@@ -70,7 +70,7 @@ long double totalEnergy(const Profile& state)
     return sum*static_cast<long double>(mass)/8;
 }
 
-// Independent dense Gaussian elimination, not the production tridiagonal solver.
+
 std::array<long double, 8> referenceBackwardEuler(
     const Profile& old, const ColdWallSolidificationParameters& p, const double dt)
 {
@@ -205,8 +205,8 @@ void uniformGas()
         const GpuReal initialTemperature = GpuReal(temperatures[0]);
         const GpuReal gasTemperature = GpuReal(temperatures[1]);
         const double cp = coldWallApparentSpecificHeat(initialTemperature, p);
-        // Vary gas stiffness without also making the internal diffusion solve
-        // arbitrarily ill-conditioned in FP32.
+
+
         const double dt = 1e-5;
         const GpuReal conductance = GpuReal(stiffness*mass*cp/dt);
         auto state = uniform(initialTemperature, p);
@@ -252,7 +252,7 @@ void phaseGas()
                     "phase-crossing gas source omitted latent enthalpy", error);
         }
     }
-    // Nonuniform enthalpies: a single bulk source, not eight local gas sources.
+
     auto state = uniform(GPU_R(3000), p);
     for (int n = 0; n < 8; ++n)
         state.enthalpy[n] = coldWallSpecificEnthalpyJkg(GPU_R(2100 + 150*n), p);
@@ -304,7 +304,7 @@ void sourceLimits()
         const auto p=parameters();
         const GpuReal h=coldWallSpecificEnthalpyJkg(GPU_R(50000),p);
         const GpuReal temperature=coldWallTemperatureFromSpecificEnthalpyK(h,p);
-        // This was a successful finite ceiling in original main, not a refusal.
+
         const GpuReal originalCeiling = GpuReal(25340.343749989537);
         require(temperature == originalCeiling, "original successful inverse ceiling",temperature);
     }
@@ -348,8 +348,8 @@ void phaseRefinement()
         }
         return double(h);
     };
-    // This is a convergence check for the explicitly documented first-order
-    // nonlinear integration, not a claim of exact exponential phase kinetics.
+
+
     const double reference = integrate(4096);
     const double coarse = std::fabs(integrate(64)-reference);
     const double medium = std::fabs(integrate(128)-reference);

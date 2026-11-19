@@ -276,7 +276,7 @@ def test_missing_selected_backend_never_falls_back(tmp_path):
 def test_completion_contract_requires_created_conserved_energy(tmp_path, name):
     case = tmp_path / name
     spec = load('generate').prepare(name, case)
-    # rhoE is READ_IF_PRESENT/AUTO_WRITE even when the initial template omits it.
+
     assert 'rhoE' in spec['completion_fields']
     directory = final_fields(case, spec)
     (directory / 'rhoE').unlink()
@@ -317,7 +317,7 @@ def test_path_lookup_frontend_is_resolved_before_changing_to_case_directory(tmp_
 
 @pytest.mark.parametrize('recorded', [False, True])
 def test_pair_report_preserves_backend_provenance_separately_from_frontend(tmp_path, recorded):
-    # Synthetic field/mesh/status fixtures exercise report metadata only.
+
     cases = []
     for index, family in enumerate(('lowRe', 'wallFunction')):
         case = tmp_path / family

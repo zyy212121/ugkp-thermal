@@ -4,9 +4,9 @@
 #include "gpu/ResidentMaterialStep.H"
 #include "gpu/MaterialSourceKernels.cuh"
 namespace chmt {
-// The enclosing material graph admits the step only after the driving,
-// transport, surface and geometry phases succeed. The row/source mathematics
-// is identical to the contiguous-packet entry point; only storage is borrowed.
+
+
+
 __global__ void applyResidentMaterialSources(const ResidentMaterialState* state,
     const ResidentMaterialStep* step,const SolidQ* rates,ResidentMaterialSlice packets,
     const int* offsets,const int* indices,const int* radiationOffsets,const int* radiationFaces,
@@ -34,9 +34,9 @@ __global__ void applyMaterialSliceSourcesKernel(int count,const SolidQ* current,
         next,donor,status,reactionMaxStep,reactionCfl,reactionBudget);
 }
 
-// This flag belongs to the whole material transaction, including endpoint
-// surface evaluation, not just its local source solve. Failed candidates keep
-// all accepted inventory, accumulated gas transfer and geometry bindings.
+
+
+
 __global__ void commitResidentMaterialState(ResidentMaterialState* state,const int* accepted){
     if(!blockIdx.x&&!threadIdx.x&&*accepted)acceptMaterialState(*state);
 }

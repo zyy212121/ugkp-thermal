@@ -90,8 +90,8 @@ int main(int argc, char** argv) {
                      f.mz[0],f.mz[1],f.energy[0],f.energy[1],f.temperature[0],f.temperature[1]};
     assert(std::memcmp(savedBulk, after, sizeof savedBulk) == 0);
     assert(f.partial[1] == savedPartial[1] && f.partial[3] == savedPartial[3]);
-    // Former input and rounded-conservation refusals now publish. Their exact
-    // residuals remain checked below against the masses actually written.
+
+
 
     assert(status);
     const Real tolerance = g.densityClosureTolerance*f.rho[0];
@@ -99,8 +99,8 @@ int main(int argc, char** argv) {
     else {assert(f.partial[0]==result.speciesMass[0]/volume);assert(f.partial[2]==result.speciesMass[1]/volume);}
     if (scenario == "closure" || scenario == "absent" || scenario == "zero") {
         assert(std::abs(savedPartial[0] + savedPartial[2] - f.rho[0]) <= tolerance);
-        // Golden counterexamples: only the nonbinary-volume conversion takes
-        // this already-admissible density beyond the unchanged closure gate.
+
+
         assert(std::abs(result.speciesMass[0]/volume + result.speciesMass[1]/volume
                         - f.rho[0]) > tolerance);
         if (scenario == "zero")
@@ -113,9 +113,9 @@ int main(int argc, char** argv) {
     }
 
     const Real published[2] = {f.partial[0]*volume, f.partial[2]*volume};
-    // Independently account actual stored mass and elements in wider precision.
-    // The direct reactor comparison above checks conversion/repair, while these
-    // checks detect lost species mass or an unintended energy source.
+
+
+
     long double deltaMass=0,deltaElement=0;
     for(int i=0;i<2;++i){
         const long double delta=static_cast<long double>(published[i])-input.speciesMass[i];

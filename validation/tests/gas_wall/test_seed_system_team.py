@@ -77,6 +77,6 @@ def test_seed_simt_recurrences_share_one_callsite():
     text=(SOURCE_ROOT/'common/gasWall/ReactingWallLayer.H').read_text()
     start=text.index('const Team& team,std::false_type){',text.index('bool solveSeedSystemsWithTeam('))
     end=text.index('\ntemplate<class',start)
-    # Different large if/else callsites can serialize an entire warp. Select
-    # the system parameters first, then execute one common recurrence body.
+
+
     assert text[start:end].count('seedScalarUsingScratch(')==1

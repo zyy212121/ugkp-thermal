@@ -41,7 +41,7 @@ for(int f=0;f<3;++f){
  a.sstPhiRhoK[f]=b.sstPhiRhoK[f]=f==0?.4:0;
  a.sstPhiRhoOmega[f]=b.sstPhiRhoOmega[f]=f==0?.5:0;
 }
-// A fractional reference interval must scale local steps, not replace it.
+
 for(int c=0;c<2;++c){threadIdx.x=c;OP(&a,.5);OP(&b,steps[c]*.5);CHECK}
 }
 '''.replace('OP',operator).replace('CHECK',comparisons))

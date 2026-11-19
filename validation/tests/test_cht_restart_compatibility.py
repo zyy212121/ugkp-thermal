@@ -21,10 +21,10 @@ import pytest
 
 ROOT = SOURCE_ROOT
 ORIGINAL = os.environ.get('C05_ORIGINAL', 'd6110c02745a8ad726208a426c4bb3a28233c1fd')
-# The accepted radiation caloric fixes (b86a5b9a / 4c080df8) intentionally
-# changed the old clamped-temperature result. Keep the original owner for
-# legacy routing/migration and use the frozen pre-optimization physics for
-# radiation field/ledger comparisons. Neither reference follows working HEAD.
+
+
+
+
 RADIATION_REFERENCE = os.environ.get('C05_RADIATION_REFERENCE', '4098c00c9199b7d8672ee036a6ace0ba06af2985')
 BASE = '038cbdac762fafc03ce60e9f94ae506ee155332d'
 NAMES = ['GpuSolidThermalCoupler', 'GpuSolidThermalProperties', 'GpuSolidPatchMapper',
@@ -168,10 +168,10 @@ def compare_records(original,current):
         if old==new:continue
         old_fields=old.split();new_fields=new.split()
         assert old_fields[:2]==new_fields[:2],(old,new)
-        # The implicit GPU preconditioner may change the reported cancellation
-        # residual. All published fields, ledgers, clocks and iteration counts
-        # remain bitwise comparisons; this audit is bounded more tightly than
-        # the fixture's existing 1e-8 J absolute energy tolerance.
+
+
+
+
         assert old_fields[1]=='candidateResidual',(old,new)
         a=float.fromhex(old_fields[2]);b=float.fromhex(new_fields[2])
         assert abs(a)<=1e-8 and abs(b)<=1e-8 and abs(a-b)<=1e-10,(old,new)

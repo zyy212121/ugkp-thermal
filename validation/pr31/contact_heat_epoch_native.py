@@ -34,8 +34,8 @@ __global__ void setupHeat(DeviceState* sp,int mode){
 }
 __global__ void prepareControlledPool(DeviceState*sp,int mode){
  auto& s=*sp;
- // Actual selected-contact correction receives zero random energy. Zero
- // remaining contact area releases; nonzero adhesion area remains attached.
+
+
  s.pStatus[0]=mode==2?1:2;*s.compactCountDevice=mode==2?0:1;s.compactPStatus[0]=0;
  s.poissonPoolSampleTargetCount[0]=1;s.poissonPoolMass[0]=s.pm[0];
  s.poissonPoolMomX[0]=s.poissonPoolMomY[0]=s.poissonPoolMomZ[0]=s.poissonPoolEnergy[0]=0;
@@ -73,7 +73,7 @@ int main(int argc,char**argv){
  const double dg=readOne(s->rhoE)*readOne(s->epsGPrev)-gasBefore,dp=particleHeat(s)-heatBefore;
  const int stuck=int(readOne(s->pStuck)),epoch=int(readOne(s->particleContactHeatEpoch));
  CHECK(stuck==(mode==1?1:0));CHECK(readOne(s->pStatus)==1);
- // Next source formation must retire the transaction after detachment.
+
  subtractContactParticleHeatMomentsKernel<<<1,1>>>(s->deviceState);CUDA_OK(cudaDeviceSynchronize());
  std::printf("{\"dt\":%.17g,\"mode\":%d,\"gas_J\":%.17g,\"particle_J\":%.17g,\"residual_J\":%.17g,\"state\":%d,\"epoch_before\":%.0f,\"epoch_settlement\":%d,\"epoch_next\":%.0f}\n",dt,mode,dg,dp,dg+dp,stuck,epochBefore,epoch,readOne(s->particleContactHeatEpoch));
  releaseState(s);

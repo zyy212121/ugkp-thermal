@@ -6,8 +6,8 @@
 
 namespace ugkwp
 {
-// The pointed-to scalar is authoritative. Never infer energy precision from rho
-// or pass these values through a Real-only clamp/finite helper.
+
+
 template<class State>
 using GasEnergyScalar = typename std::remove_cv<typename std::remove_reference
 <decltype(std::declval<State>().rhoE[0])>::type>::type;
@@ -36,8 +36,8 @@ UGKWP_GAS_HD inline Energy gasEnergyFiniteOr(Energy value, Energy fallback) noex
 template<class Energy>
 UGKWP_GAS_HD inline Energy gasEnergyClampMin(Energy value, Energy minimum) noexcept
 { return value < minimum ? minimum : value; }
-// Existing fixed-grid legacy EOS caloric conventions. Share these with heat
-// acceptance so its admissible budget is exactly the recovery budget.
+
+
 template<class Energy>
 UGKWP_GAS_HD inline Energy gasLegacyCaloricDenominator
 (Energy gamma, Energy small) noexcept

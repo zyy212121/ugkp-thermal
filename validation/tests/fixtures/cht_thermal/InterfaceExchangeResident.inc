@@ -1,6 +1,6 @@
-// CPU oracle for the resident API boundary used by host-only owner tests.
-// The CUDA implementation is independently compared with this expression
-// order by test_cht_interface_exchange.py.
+
+
+
  labelList interfaceSolidSizes;
  List<labelList> interfaceDestinations;
  scalarField interfaceAreas;

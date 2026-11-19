@@ -1,4 +1,4 @@
-// Included inside ugkp::gpu::geometry after the bounds operators.
+
 namespace {
 __global__ void resetSurfaceSeams(int count,const SurfaceTopologyEdge* initial,
     SurfaceTopologyEdge* working,unsigned char* removed,SurfaceSeamStatus* status){
@@ -32,7 +32,7 @@ __global__ void matchResidentSurfaceSeams(int count,const int* surfaceFaces,
         }
         __syncthreads();if(status->failure!=SurfaceSeamFailure::None)return;
     }
-    // Compact only a complete valid candidate; consumers use this device count.
+
     if(lane==0){int kept=0;for(int i=0;i<count;++i)if(!removed[i]){
         const auto e=edges[i];output[kept++]={{e.a,e.b,surfaceFaces[e.owner],
             e.neighbour<0?-1:surfaceFaces[e.neighbour],e.neighbourA,e.neighbourB},e.owner};
@@ -61,7 +61,7 @@ ResidentSurfaceSeams::ResidentSurfaceSeams(int points,int meshFaces,const std::v
     auto& d=*data_;d.points=points;d.edges=edges.size();d.install(d.surfaceFaces,surfaceFaces);d.install(d.initial,edges);d.install(d.patches,patches);
     d.working.reserve(d.edges);d.removed.reserve(d.edges);d.output.reserve(d.edges);d.status.reserve(1);d.bounds.reserve((points+workPlan().reductionBlockThreads-1)/workPlan().reductionBlockThreads);
     if(d.edges)checked(cudaMemset(d.output.pointer,0,d.edges*sizeof(SurfaceEdgeMap)));
-    // Construction completes before callers may use a nonblocking stream.
+
     checked(cudaStreamSynchronize(nullptr));
 }
 ResidentSurfaceSeams::~ResidentSurfaceSeams()=default;

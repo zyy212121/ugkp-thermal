@@ -16,8 +16,8 @@ def test_all_shared_advance_and_courant_kernels_gate_fatal_before_work():
         pattern = re.compile(r"__global__\s+(?:__launch_bounds__\([^)]*\)\s+)?void\s+" + kernel + r"\s*\([^)]*\)\s*\{")
         bodies = [text[match.end():] for text in sources for match in pattern.finditer(text)]
         assert len(bodies) == 1, kernel
-        # A null-state check is uniform; no numerical access or per-lane return
-        # may precede the block-wide barrier in blockMayProceed.
+
+
         prefix = bodies[0].split("blockMayProceed", 1)[0]
         assert len(prefix) < 180 and "threadIdx" not in prefix and "blockIdx" not in prefix, kernel
         assert "return" not in re.sub(r"if\s*\(!state\)\s*return\s*;", "", prefix), kernel

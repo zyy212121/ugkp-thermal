@@ -1,7 +1,7 @@
-// Compile as C++ for the host or with nvcc for the actual CUDA operators.
-// The state adapter supplies a six-plane cell; classification and face-walking
-// are included unchanged from production. This is an operator regression, not
-// a substitute for a full application/case run.
+
+
+
+
 #include "BoundaryInjectionSampling.H"
 #include "thermal/ParticleTrackingGeometry.H"
 #include <cassert>
@@ -72,7 +72,7 @@ __global__ void track(Fixture fixture,int mode,Particle* output,int n){
 
 int main(){
     constexpr int n=100000;
-    // The alternating normal displacements reproduce the warped unit inlet.
+
     const Point points[8]={{-.01,0,0},{.01,0,1},{-.01,1,1},{.01,1,0},
         {1,0,0},{1,0,1},{1,1,1},{1,1,0}};
     const int offsets[7]={0,4,8,12,16,20,24};
@@ -95,7 +95,7 @@ int main(){
         projected.triangles,inlet.centre,inlet.area,projected.shift);
     assert(projected.count==2);
     Fixture legacy=projected;
-    // The previous ear-clipping diagonal and physical 3D triangle areas.
+
     double cumulative=0;
     const int oldEars[2][3]={{3,0,1},{3,1,2}};
     for(int k=0;k<2;++k){

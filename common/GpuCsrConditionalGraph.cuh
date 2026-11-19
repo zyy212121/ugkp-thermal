@@ -3,8 +3,8 @@
 #include "GpuCsrConditionalGraph.H"
 #include "GpuParticleExecutionContext.H"
 #include "ParticleResidentInterval.H"
-// One device choice governs the whole reduction path; the other conditional
-// body does not execute. No floating-point operation or RNG draw is added.
+
+
 template<class State>
 __global__ void publishCsrGraphChoice(State* s,cudaGraphConditionalHandle heavy,cudaGraphConditionalHandle light,bool inspectionOnly) {
     if(threadIdx.x||blockIdx.x)return;
@@ -17,8 +17,8 @@ template<class State>
 __global__ void setCsrAutomaticTimeStep(State* s,double dt) {
     if(!threadIdx.x&&!blockIdx.x)s->csrAutomaticRuntime->timeStep=ugkwp::particleResidentStepDt(*s,dt);
 }
-// Add conditional bodies directly to their owning graph. A conditional graph
-// cannot be cloned as a child of a captured whole-particle phase.
+
+
 template<class State,class Submit>
 cudaError_t appendCsrChoiceNodes(State* s,cudaGraph_t root,cudaGraph_t graph,
     const cudaGraphNode_t* dependencies,std::size_t dependencyCount,

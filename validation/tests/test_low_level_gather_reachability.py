@@ -26,7 +26,7 @@ def test_legacy_private_gather_has_no_production_owner(app):
 def test_existing_full_directory_zero_grid_error_precedes_tasks(tmp_path):
     source=(ROOT/'common/GpuParticleDirectoryHost.cuh').read_text()
     body=function(source,'binParticlesByCell')
-    # Only model the launch API, retaining the actual host flow/error guards.
+
     launches=[]
     def replace(m):
         launches.append(m[1]);return 'hostLaunch('+m[2].split(',')[0].strip()+');'
@@ -74,6 +74,6 @@ def test_survivor_fixtures_use_current_consumer():
         assert 'gatherCellLocalParticlePayloadKernel<true>' in text
         assert 'gatherThermalSegmentedParticlesKernel' not in text
     assert not (ROOT/'gpu/thermal/CsrSegmentedGather.cuh').exists()
-    # This header is retained intentionally for the frozen downstream fluid
-    # library. Removing a test-clone include does not authorize breaking it.
+
+
     assert (ROOT/'common/GpuCellLocalGather.cuh').is_file()

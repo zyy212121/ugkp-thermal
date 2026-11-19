@@ -2,9 +2,9 @@
 #define UGKWP_RATE_ARITHMETIC_H
 #include "../gasTransport/MixtureThermo.H"
 namespace ugkwp { namespace gasChemistryDetail {
-// Forward-mode directional arithmetic provides exact concentration/collider/
-// falloff/temperature derivatives, including zero concentrations. Bounded stack
-// storage and ordinary C++14 operators are shared by host and CUDA compilation.
+
+
+
 template<class R,int D> struct RateDual {
  R value; R derivative[D];
  UGKWP_GAS_HD RateDual(R x=R(0)) noexcept:value(x),derivative{} {}
@@ -23,9 +23,9 @@ template<class R> UGKWP_GAS_HD inline R rateExpm1(R a) noexcept {return ::expm1(
 template<class R,int D> UGKWP_GAS_HD RateDual<R,D> rateExpm1(const RateDual<R,D>& a) noexcept {RateDual<R,D> c(::expm1(a.value));R d=::exp(a.value);for(int i=0;i<D;++i)c.derivative[i]=d*a.derivative[i];return c;}
 template<class R> UGKWP_GAS_HD inline R ratePow(R a,R b) noexcept {return ::pow(a,b);}
 template<class R,int D> UGKWP_GAS_HD RateDual<R,D> ratePow(const RateDual<R,D>& a,R b) noexcept {RateDual<R,D> c(::pow(a.value,b));R d=b==R(0)?R(0):(b==R(1)?R(1):b*::pow(a.value,b-R(1)));for(int i=0;i<D;++i)c.derivative[i]=a.derivative[i]==R(0)?R(0):d*a.derivative[i];return c;}
-// Evaluate a*b*exp(exponent) without overflowing an intermediate equilibrium
-// factor. At either exact-zero factor, differentiate the product analytically;
-// this retains finite nonzero collider/zero-product derivatives without floors.
+
+
+
 template<class R> UGKWP_GAS_HD inline R rateProductExp(R a,R b,R exponent) noexcept {
  return a==R(0) || b==R(0)?R(0):R(::exp(::log(a)+::log(b)+exponent));
 }

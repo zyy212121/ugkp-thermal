@@ -1,5 +1,5 @@
 #pragma once
-// Contact-index publication is separate from sampling target preparation.
+
 __device__ void appendSelectedStuckParticleIndex
 (
     DeviceState& s,

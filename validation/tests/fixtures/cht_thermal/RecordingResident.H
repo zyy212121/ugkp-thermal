@@ -1,4 +1,4 @@
-// Test-only resident boundary. All CPU thermal owners remain production code.
+
 #ifndef T14_RECORDING_RESIDENT_H
 #define T14_RECORDING_RESIDENT_H
 #include "fvCFD.H"
@@ -24,8 +24,8 @@ public:
  const word& particleReflectedWallHeatFluxFieldName()const{static word n("particleReflectedWallHeatFlux");return n;}
  void configureGasWallEnergyLedger(const fvMesh& m,const labelList& patches){label n=0;forAll(patches,p)n+=m.boundary()[patches[p]].size();faces.setSize(n);label j=0;forAll(patches,p){const auto& patch=m.boundaryMesh()[patches[p]];forAll(patch,f){faces[j++]=patch.start()+f;gas[patch.start()+f]=zeroAtConfigure?0:50;deposited[patch.start()+f]=zeroAtConfigure?0:20;reflected[patch.start()+f]=zeroAtConfigure?0:-5;}}}
  #include "InterfaceExchangeResident.inc"
- // This fixture deliberately records a host-owned gas ledger. Resident solid
- // graph coverage uses solid_contact_owner and the actual CHT executable.
+
+
  ugkp::diagnostics::DeviceContext* deviceDiagnostics()const{return nullptr;}
  ugkp::gpu::ThermalInterfaceEnergyDeviceView interfaceEnergyDeviceState()const{return {};}
  void prepareInterfaceExchangeDevice(scalar,const ugkp::gpu::RadiationMaterialDeviceView*)const{

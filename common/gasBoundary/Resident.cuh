@@ -41,15 +41,15 @@ public:
         bool ok=copy(next.faces_,next.saved_.faces,stream,error)
             &&copy(next.functions_,next.saved_.functions,stream,error)
             &&copy(next.terms_,next.saved_.terms,stream,error);
-        // Configuration owns its sources and completes once, outside advancement.
+
         const auto code=cudaStreamSynchronize(stream);
         if(code!=cudaSuccess){error=cudaGetErrorString(code);ok=false;}
         if(!ok)return false;
         swap(next);return true;
     }
 };
-// Publish the shared definition to the existing SoA consumer ABI. All clients
-// use this implementation; the callback only supplies their transfer stream.
+
+
 template<class State,class Copy> bool publish(const Definition& d,State& s,Copy copy) {
     using Real=std::remove_pointer_t<decltype(s.gasBoundaryP)>;
     const auto n=d.faces.size();std::vector<int> integers(n);std::vector<Real> values(n);

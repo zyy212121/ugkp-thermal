@@ -1,6 +1,6 @@
 namespace
 {
-// Define the callback in the same internal namespace as its forward declaration.
+
 template<bool Capture> int launchBoundaryLayer(DeviceState* s)
 {
         const bool analytic=s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::ConstantTransport;
@@ -17,7 +17,7 @@ template<bool Capture> int launchBoundaryLayer(DeviceState* s)
         }
         return 0;
 }
-} // namespace
+}
 
 template<class Base> struct ResidentWallGasHostPolicy:Base
 {

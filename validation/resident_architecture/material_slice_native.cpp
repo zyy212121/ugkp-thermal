@@ -22,8 +22,8 @@ void packetEqual(const ExchangePacket& a,const ExchangePacket& b){
     for(int s=0;s<Ns;++s){equal(a.species[s],b.species[s]);equal(a.pore[s],b.pore[s]);equal(a.poreSweep[s],b.poreSweep[s]);}
     for(int c=0;c<Nc;++c)equal(a.condensed[c],b.condensed[c]);values+=11+3*Ns+Nc;
 }
-// Deliberately reproduce the existing host publication, not the new virtual
-// packet accessor. The separately compiled native IntervalCursor is the oracle.
+
+
 GasIntervalRecord record(const materialSliceProbe::Test& t,std::size_t frame){
     GasIntervalRecord out;const auto time=t.intervals[frame];out.localBegin=native(time.begin);out.localEnd=native(time.end);out.actualDt=time.actualDt;
     for(std::size_t f=0;f<t.faces;++f){const auto& r=t.surface[frame*t.faces+f];out.packets.push_back(r.primary);
@@ -69,8 +69,8 @@ int main(){try{
             if(ok){require(packets.size()==g.packets.size()&&radiation.size()==g.radiation.size(),"packet/radiation count differs");
                 for(std::size_t j=0;j<packets.size();++j)packetEqual(packets[j],g.packets[j]);
                 for(std::size_t f=0;f<radiation.size();++f)equal(radiation[f],g.radiation[f]);
-                // Independent original CpuMaterialDriver packet traversal;
-                // deliberately do not call the new recession math helper.
+
+
                 const auto material=materialSliceProbe::recessionInventory(mode);const auto physics=materialSliceProbe::recessionPhysics(mode);
                 std::vector<double> targets(faces,0);std::vector<int> errors(faces,0);
                 for(const auto& packet:packets)if(packet.kind==ExchangeKind::GasSolid){

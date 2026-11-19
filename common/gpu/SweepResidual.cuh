@@ -1,4 +1,4 @@
-// Included by PolyhedralGeometry.cu; uses its allocation and transfer owner.
+
 #include "SweepResidual.H"
 #include "SweepLineSearch.H"
 namespace ugkp { namespace gpu { namespace geometry { namespace {
@@ -9,8 +9,8 @@ struct SweepResidualSummary {
 };
 __device__ SweepResidualSummary joinSweepSummary(SweepResidualSummary a,SweepResidualSummary b){
     if(!a.count)return b;if(!b.count)return a;
-    // The original ordered max replaces a prior NaN with the next finite row.
-    // Preserve that order even for invalid controls while reducing in parallel.
+
+
     a.metric=b.hadNaN?b.metric:(a.metric>b.metric?a.metric:b.metric);
     a.sweep=a.sweep>b.sweep?a.sweep:b.sweep;a.plane=a.plane>b.plane?a.plane:b.plane;
     a.rhs=b.hadRhsNaN?b.rhs:(a.rhs>b.rhs?a.rhs:b.rhs);a.firstBad=a.firstBad<b.firstBad?a.firstBad:b.firstBad;
@@ -53,7 +53,7 @@ __global__ void sweepResidualRows(int faces,int planes,const int* faceIds,const 
 __global__ void finishSweepResidual(int points,int faces,int constrained,int planes,int blocks,const int* faceIds,
     const int* endpointFailure,const int* emptyFailure,const SweepResult* sweeps,
     const SweepResidualSummary* partial,const SweepResidualProblem* input,SweepResidualStatus* output){
-    // Ordered reductions preserve the native first-failure phase and index.
+
     extern __shared__ int badPoint[];int* badEmpty=badPoint+blockDim.x;int* badFace=badEmpty+blockDim.x;
     int p=INT_MAX,e=INT_MAX,f=INT_MAX;
     for(int i=threadIdx.x;i<points;i+=blockDim.x){if(endpointFailure[i]&&i<p)p=i;if(emptyFailure[i]&&i<e)e=i;}

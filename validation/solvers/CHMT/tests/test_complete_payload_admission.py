@@ -19,14 +19,14 @@ def test_downloaded_physical_payload_and_sst_inventory_are_consumed(tmp_path):
  assert(transport::CoupledTrialPolicy::commit(b.get())==0);
  assert(b->trial.gas[0].mass==-2&&std::isinf(b->trial.gas[0].energy)&&b->trial.gas[0].momentum.x==-7);
  assert(b->trial.gas[0].species[0]==-3&&b->trial.sst[0].rhoK==-4&&b->trial.sst[0].rhoOmega==0);
- // Publication consumes the actual conservative state, not an audit total.
+
  assert(transport::CoupledTrialPolicy::commit(b.get())==0);
  const Real volume=b->trial.gasMesh.volumes[0];
  assert(b->trial.gas[0].mass==v.rho[0]*volume&&b->trial.gas[0].momentum.x==v.rhoUx[0]*volume);
  assert(b->trial.gas[0].species[0]==v.gasSpecies.rho[0]*volume);
  assert(b->trial.sst[0].rhoK==v.rhoK[0]*volume&&b->trial.sst[0].rhoOmega==v.rhoOmega[0]*volume);
  HostState output=b->trial;output.gas[0].mass=123;shimFailCopy=1;assert(!b->storage.downloadState(output,f.error));assert(output.gas[0].mass==123);
- // A real physical-state copy failure remains observable and retryable.
+
  const auto before=b->trial;shimFailCopy=1;assert(transport::CoupledTrialPolicy::commit(b.get())!=0);
  assert(b->trial.gas[0].mass==before.gas[0].mass&&b->trial.sst[0].rhoK==before.sst[0].rhoK);
  assert(transport::CoupledTrialPolicy::commit(b.get())==0);

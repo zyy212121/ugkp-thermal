@@ -71,8 +71,8 @@ def uncached_header(tmp_path):
 
 
 def bvp_probe(source_text):
-    # Exercise the nonlinear BVP and its real shared workspace with SST and
-    # chemistry disabled, isolating workspace reuse from extra model physics.
+
+
     source_text = source_text.replace("BoundaryLayerModel::ConstantTransport", "BoundaryLayerModel::ReactingSst")
     source_text = source_text.replace("GasWallClosureContext context;", """
  ugkwp::gaswall::WallWorkspace<Real,Ns> workspace;
@@ -122,8 +122,8 @@ def test_bvp_reuse_preserves_profile_and_converged_residual(tmp_path):
         assert got[:2] == ["1", "1"]
         assert want[0] == "1" and int(want[1]) > 1
         assert got[2:] == want[2:]
-        # A repeated solve must neither refine the result using an old profile
-        # nor produce different active workspace state or residual components.
+
+
         assert cached[index+1].startswith("workspace ")
         assert cached[index+1] == reference[index+1]
 
@@ -133,8 +133,8 @@ def test_changing_composition_dependent_flux_recomputes_closure(tmp_path, reacti
     source_text = SOURCE.replace("in.useAcceptedFlux=true;", "in.useAcceptedFlux=false;")
     source_text = source_text.replace("variant<6", "variant<1")
     source_text = source_text.replace(" MaterialPrimitive material;", """
- // The actual surface-reaction law changes flux with the relaxed composition.
- // Keep swept wall speed and dry-wall velocity fixed to isolate the flux key.
+
+
  in.dt=0;
  p.material.enableSurfaceReactions=true;p.material.nSurfaceReactions=1;
  auto& reaction=p.material.surfaceReactions[0];reaction.A=.00003;

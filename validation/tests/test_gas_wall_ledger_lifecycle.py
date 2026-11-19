@@ -85,7 +85,7 @@ int main(){
   int a[]={1};assert(ugkwpGpuResidentStrictConfigureGasWallEnergyLedger(&host,1,a)==0);auto* energy=host.gasWallEnergy;energy[1]=19;
   int b[]={2,3};counters();frees=0;failCopy=copyFault;failFree=cleanupFault?1:0;
   assert(ugkwpGpuResidentStrictConfigureGasWallEnergyLedger(&host,2,b)!=0);assert(host.gasWallEnergy==energy&&energy[1]==19&&live.count(energy));
-  // A failed publication keeps both potential device owners reachable.
+
   if(copyFault==3){assert(host.retiredFaceIds&&live.size()==5&&live.count(device.enabledFaceIds));}
   else assert(live.size()==size_t(cleanupFault?5:4));
   counters();frees=0;failFree=0;assert(ugkwpGpuResidentStrictConfigureGasWallEnergyLedger(&host,2,b)==0);
@@ -140,7 +140,7 @@ int finaliseGasBoundaryStage(DeviceState*,double,double){return 0;}
 def test_actual_graph_recapture_uses_current_raw_selection(tmp_path):
     h.run_cpp(tmp_path,graph_native()+r'''
 int main(){DeviceState host,device;host.deviceState=&device;host.wallEnergy.deviceState=&device.wallEnergy;char error[2048]{};host.wallEnergy.errorBuffer=error;host.wallEnergy.nFaces=5;host.wallEnergy.nInternalFaces=1;
- // A graph captured before the first nonempty configuration must also refresh.
+
  assert(advancePureGasGraph(&host,.25,0.)==0&&captures==1);
  int a[]={1};assert(ugkwpGpuResidentStrictConfigureGasWallEnergyLedger(&host,1,a)==0);
  for(int i=0;i<5;++i){host.wallEnergy.gasWallEnergy[i]=10+i;host.wallEnergy.gasWallFlux[i]=4*(i+1);}
@@ -149,8 +149,8 @@ int main(){DeviceState host,device;host.deviceState=&device;host.wallEnergy.devi
  int b[]={2,3};assert(ugkwpGpuResidentStrictConfigureGasWallEnergyLedger(&host,2,b)==0);assert(advancePureGasGraph(&host,.25,3.)==0&&captures==3);
  assert(host.wallEnergy.gasWallEnergy[1]==15&&host.wallEnergy.gasWallEnergy[2]==15&&host.wallEnergy.gasWallEnergy[3]==17);
  assert(ugkwpGpuResidentStrictConfigureGasWallEnergyLedger(&host,0,nullptr)==0);assert(advancePureGasGraph(&host,.25,4.)==0&&captures==4&&host.wallEnergy.gasWallEnergy[2]==15);
- // Sequential shim checks captured list consumption only; actual duplicate
- // GPU entries retain the original non-atomic write race and may lose updates.
+
+
  int duplicate[]={2,2};assert(ugkwpGpuResidentStrictConfigureGasWallEnergyLedger(&host,2,duplicate)==0);assert(advancePureGasGraph(&host,.25,5.)==0&&captures==5&&host.wallEnergy.gasWallEnergy[2]==21);
  assert(ugkpInvalidateGasWallEnergyGraph(&host)==0);ugkpReleaseGasWallEnergy64(&host.wallEnergy);assert(live.empty());
 }

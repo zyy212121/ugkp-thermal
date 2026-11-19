@@ -6,18 +6,87 @@
 #include "gpu/MaterialThermalBackend.H"
 #include "ablation/CpuSurfaceInterface.H"
 #include "../../../common/DiagnosticsHost.H"
+#include "../../../common/gpu/ExecutionGraph.H"
+#include <future>
+#include "../../../common/GpuPrecisionTypes.H"
+#include <memory>
+#include "gpu/MaterialLocalAudit.H"
+#include "gpu/MaterialLocalState.H"
 namespace ugkp { namespace gpu { class ImplicitDiffusion;class SparseConjugateGradient; }}
 namespace chmt {
 struct CpuMaterialControls;
 struct ResidentMaterialDriveHistory;
+class CoupledHistoryArchive;
+struct StreamedMaterialProgress;
 struct MaterialBackend;
 MaterialBackend* createMaterialBackend(std::string&);
 void destroyMaterialBackend(MaterialBackend*) noexcept;
 void setMaterialDiagnosticsSink(MaterialBackend&,const ugkp::diagnostics::HostSink&);
-// Accepted material inventories remain resident across windows. A supplied
-// state differing from the last full publication is explicitly re-imported;
-// unchanged window handoffs retain the device inventory and workspaces.
-bool beginMaterialWindow(MaterialBackend&,const HostState&,const PhysicsConfig&,std::string&);
+
+
+
+bool beginMaterialWindow(MaterialBackend&,const HostState&,const PhysicsConfig&,std::string&,bool collectDiagnostics=true);
+
+
+
+
+struct ResidentMaterialState;
+struct MaterialLocalProgress;
+struct MaterialLocalDeviceView {
+    const ResidentMaterialState* state=nullptr;
+    const MaterialLocalProgress* report=nullptr;
+    void* producerStream=nullptr;
+    const StreamedMaterialProgress* storage=nullptr;
+
+
+    const int* windowStage=nullptr;
+    const ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
+    const MaterialWindowCommit* commit=nullptr;
+};
+struct MaterialLocalReport {
+    std::uint64_t acceptedSteps=0;
+    int failurePhase=0,failureCode=0,entity=-1;
+    bool complete=false;Real time=0;MaterialWindowCommit commit{};
+};
+
+
+bool preparePendingResidentMaterialLocalWindow(MaterialBackend&,const HostState&,const PhysicsConfig&,
+    const ResidentMaterialDriveHistory&,const IntervalRadiationDeviceView&,const WallProgram&,
+    const CpuMaterialControls&,std::string&);
+bool serviceResidentMaterialLocalCapacity(MaterialBackend&,std::string&);
+
+
+bool completePendingMaterialHistory(MaterialBackend&,const IntervalHistory&,
+    const std::shared_ptr<CoupledHistoryArchive>&,std::string&);
+bool releaseUnusedMaterialLocalWindow(MaterialBackend&,std::string&);
+bool prepareResidentMaterialLocalWindow(MaterialBackend&,const HostState&,const PhysicsConfig&,
+    const IntervalHistory&,const ResidentMaterialDriveHistory&,const WallProgram&,
+    const CpuMaterialControls&,std::string&);
+bool prepareStreamedMaterialLocalWindow(MaterialBackend&,const HostState&,const PhysicsConfig&,
+    const IntervalHistory&,const std::shared_ptr<CoupledHistoryArchive>&,const WallProgram&,
+    const CpuMaterialControls&,std::string&);
+
+
+bool supplyResidentMaterialHistory(MaterialBackend&,std::size_t frame,std::string&);
+ugkp::gpu::ExecutionGraphNode appendResidentMaterialLocalWindow(MaterialBackend&,
+    ugkp::gpu::ExecutionGraph,ugkp::gpu::ExecutionGraphNode);
+bool enqueueResidentMaterialLocalWindow(MaterialBackend&,std::string&);
+void acceptResidentMaterialLocalCompletion(MaterialBackend&,const std::shared_future<void>&);
+void acceptResidentMaterialLocalExecution(MaterialBackend&,void*);
+MaterialLocalDeviceView residentMaterialLocalDeviceView(const MaterialBackend&);
+bool collectResidentMaterialLocalWindow(MaterialBackend&,MaterialLocalReport&,std::vector<FilmAux>&,std::string&);
+
+
+bool prepareMaterialLocalConduction(MaterialBackend&,ugkp::gpu::ImplicitDiffusion&,
+    ugkp::gpu::SparseConjugateGradient&,const std::vector<int>& externalBoundary,Real dt,
+    const CpuMaterialControls&,Real normalizationSmall,Real singularSmall,std::string&);
+bool collectResidentMaterialInventory(MaterialBackend&,std::vector<SolidQ>&,std::string&);
+bool collectResidentMaterialLocalAudit(MaterialBackend&,std::vector<MaterialLocalAudit>&,std::string&);
+
+
+bool prepareResidentMaterialEndpointSurface(MaterialBackend&,const HostState&,std::string&);
+bool bindResidentMaterialEndpointGasFraction(MaterialBackend&,const GpuReal*,void*,std::string&);
+bool collectResidentMaterialEndpointSurface(MaterialBackend&,CpuSurfaceResult&,bool& published,std::string&);
 
 bool beginResidentMaterialHistory(MaterialBackend&,const ResidentMaterialDriveHistory*,
     const IntervalHistory&,std::string&);
@@ -45,8 +114,8 @@ struct MaterialConductionAudit {
 bool auditResidentMaterialConduction(MaterialBackend&,const Real* temperature,const Real* previous,
     const Real* powerResidual,const Real* boundaryFlux,const std::vector<int>& externalBoundary,Real dt,
     void* producerStream,MaterialConductionAudit&,std::string&);
-// The configured local discretization, physical error budget and nonlinear
-// stopping rule execute as one nested device graph; publication is at its end.
+
+
 bool solveResidentMaterialConduction(MaterialBackend&,ugkp::gpu::ImplicitDiffusion&,ugkp::gpu::SparseConjugateGradient&,
     const std::vector<int>& externalBoundary,Real dt,const CpuMaterialControls&,Real normalizationSmall,Real singularSmall,
     std::string&);
@@ -63,9 +132,9 @@ bool evaluateResidentMaterialSurface(MaterialBackend&,const HostState& geometry,
     const std::vector<Real>* sideVolume=nullptr,
     const std::vector<GasWallClosureContext>* contexts=nullptr,
     bool* terminalWallFailure=nullptr,
-    const std::vector<WallFaceSample>* acceptedRates=nullptr);
-// Independent history samples share the same resident material state. Batching
-// changes only execution scheduling; each face retains its constitutive solve.
+    const std::vector<WallFaceSample>* acceptedRates=nullptr,int localAudit=-1);
+
+
 struct MaterialSurfaceRequest {
     const std::vector<GasPrimitive>* bulk=nullptr;
     const std::vector<GasGradient>* gradients=nullptr;
@@ -75,10 +144,10 @@ struct MaterialSurfaceRequest {
 bool evaluateResidentMaterialSurfaces(MaterialBackend&,const HostState&,
     const std::vector<MaterialSurfaceRequest>&,Real dt,bool useTransportRates,
     bool candidateState,std::vector<CpuSurfaceResult>&,std::string&,bool& numericalFailure,
-    const std::vector<Real>* sideVolume=nullptr,bool* terminalWallFailure=nullptr);
-// The optional observation selects only material cells read by the geometry
-// owner. In that mode hostMirror is packed in observedCells order; the full
-// authoritative inventory stays resident through local source steps.
+    const std::vector<Real>* sideVolume=nullptr,bool* terminalWallFailure=nullptr,int localAudit=-1);
+
+
+
 bool advanceResidentMaterialSources(MaterialBackend&,const HostMesh& endpointMesh,
     const SurfaceMesh&,const std::vector<ExchangePacket>&,
     const std::vector<Real>& radiation,const std::vector<unsigned>& radiationReceiver,

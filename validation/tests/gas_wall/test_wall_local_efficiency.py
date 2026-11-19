@@ -44,7 +44,7 @@ int main(){
    x[j][4]=sst?std::sqrt(m.in.matching.k)*f:0.;
    x[j][5]=sst?f/std::sqrt(m.in.matching.omega):1.;
   }
-  if(scenario==3)x[1][2]=-600.; // current or neighboring endpoint failure
+  if(scenario==3)x[1][2]=-600.;
   if(scenario==4)x[nodes-2][3]=-1.;
   if(scenario==5)m.in.pressure=-1.;
   if(scenario==6)x[nodes-2][5]=std::numeric_limits<double>::quiet_NaN();
@@ -80,5 +80,3 @@ int main(){
     print(json.dumps(counts, sort_keys=True))
     assert counts['mismatches'] == 0 and counts['successes'] > 0
     assert 0 < counts['reference_pointState'] - counts['actual_pointState'] <= counts['expected_saved']
-    # Earlier cache layouts had a different absolute call count; numerical
-    # equality and reduced work are the persistent contract.

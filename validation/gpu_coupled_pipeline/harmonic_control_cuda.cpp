@@ -6,8 +6,8 @@
 #include <iostream>
 #include <limits>
 namespace g=ugkp::gpu::geometry;
-// Scalar Jacobi oracle follows the original Geometry.C point/adjacency order.
-// Explicit caps exercise partial recurrences and the cooperative grid stride.
+
+
 g::HarmonicResult reference(const std::vector<g::Point>& points,const std::vector<int>& offsets,const std::vector<int>& adjacent,
     const std::vector<unsigned char>& fixed,const std::vector<g::Point>& boundary,double tolerance,int cap,bool represented){
     std::vector<g::Point> old(points.size()),next(points.size());for(std::size_t p=0;p<points.size();++p)if(fixed[p])old[p]=boundary[p];

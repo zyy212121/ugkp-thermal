@@ -1,7 +1,7 @@
 #pragma once
 #include "GpuParticleExecutionContext.H"
-// Particle work is bounded by capacity and the kernels it launches.
-// Cell-reduction hierarchy and contact configuration do not select this grid.
+
+
 inline void setParticleWorkGridFromResidency(DeviceState* s, const int residentBlocks)
 {
     const int capacityGrid =
@@ -36,8 +36,8 @@ int queryParticleKernelResidency
     return 0;
 }
 
-// Tracking is a grid-stride kernel. Its occupancy depends on B2 and the
-// compiled tracking kernel, not on the selected cell-reduction hierarchy.
+
+
 inline int configureTrackingWorkGrid(DeviceState* s)
 {
     int residentBlocks = 0;
@@ -69,8 +69,8 @@ inline int configureTrackingWorkGrid(DeviceState* s)
     return 0;
 }
 
-// The host kernel pointer is selected during configuration. No per-particle
-// switch or Sommerfeld comparison exists in the no-deposition specialization.
+
+
 inline cudaError_t launchParticleTracking(DeviceState* s, GPU_OPERATOR_TIME dt)
 {
     void* args[] = {&s->deviceState, &dt};

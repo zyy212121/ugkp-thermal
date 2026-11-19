@@ -14,7 +14,7 @@ void run(std::string name,int length,unsigned threads){
    accumulateCsrSplitLogicalPoolTask<false>(s,0,expectedBegin,expectedEnd,1,sums,scratch);
   }else if(name=="split_injection"){
    s.base[0]=s.base[1]=0;s.offset[0]=0;s.offset[1]=INT_MAX;
-   // Proxy records directory indices; particle stub i=0 is not a valid logical index, so return same index and check unique positions separately.
+
    s.sortedParticleIndex.recordIndex=false;
    accumulateCsrSplitLogicalPoolTask<false>(s,0,expectedBegin,expectedEnd,1,sums,scratch);
   }
@@ -27,7 +27,7 @@ int main(int argc,char**argv){
  std::vector<std::string> names={"moment","pool_direct","pool_indexed","pool_l1","split_l1_base","split_l1_injection","split_base","split_injection"};
  if(argc>1){run(argv[1],2,256);return 0;}
  long long cases=0;for(auto name:names)for(int length:{0,1,2,31,32,255,256,257,511,512,1023,1024,1025})for(unsigned threads:{1,32,64,128,256,512,1024}){run(name,length,threads);++cases;}
- // Exact split injection mapping when the unparenthesized intermediate overflows.
+
  for(unsigned threads:{1,32,256,1024}) {
   DeviceState s;double sums[8]={},scratch[8]={};
   s.base[0]=0;s.base[1]=INT_MAX-2;s.offset[0]=INT_MAX-7;s.offset[1]=INT_MAX-5;

@@ -11,7 +11,7 @@ for row in report['comparisons']:
   x=m.fields.internal(a/name,32);y=m.fields.internal(b/name,32);e=max(abs(i[0]-j[0])/(1+abs(i[0])) for i,j in zip(x,y));assert e<1e-8,(a,b,name,e)
   checks.append({'case':row['name'],'reference_time':row['reference_time'],'binary':row['binary'],'field':name,'max_scaled_error':e})
 (O/'sst-output-check.json').write_text(json.dumps({'pass':True,'comparisons':checks},indent=2)+'\n')
-# Verify the moved source is numerically unchanged after identifier/include adaptation.
+
 import subprocess
 old=subprocess.check_output(['git','show','ad8bc729:applications/gasUGKPSteady/private_backend/SteadyMixtureParticleCoupling.cuh'],cwd=r,text=True)
 new=(r/'common/gasTransport/MixtureParticleCoupling.cuh').read_text()

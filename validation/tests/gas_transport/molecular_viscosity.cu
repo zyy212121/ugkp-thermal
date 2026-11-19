@@ -9,7 +9,7 @@ __global__ void evaluate(ugkwp::MolecularViscosityView<double> view,Sample* samp
  samples[i].mu=ugkwp::molecularViscosity<3>(view,7.25e-6,samples[i].T,samples[i].Y);
  samples[i].constant=ugkwp::molecularViscosity<3>(ugkwp::MolecularViscosityView<double>{},7.25e-6,samples[i].T,samples[i].Y);
 }
-// Actual BVP point and finite-interval constitutive operators on CUDA.
+
 struct WallResult {double mu0,mu1,traction,conduction;int ok;};
 __global__ void wall(ugkwp::MolecularViscosityView<double> view,WallResult* output){
  ugkwp::SpeciesThermoData<double> data[3];double coefficients[9]={1000,0,0,1400,0,0,1800,0,0};
@@ -21,7 +21,7 @@ __global__ void wall(ugkwp::MolecularViscosityView<double> view,WallResult* outp
  ugkwp::gaswall::WallModelConfig<double> cfg;ugkwp::gaswall::detail::LayerContext<double,3> ctx;
  bool ok=ugkwp::gaswall::detail::makeContext(in,cfg,ctx);
  double state0[7]={0,0,0,.2,.3,0,0},state1[7]={10,0,600,.6,.1,0,0};
- // Dependent species is index 2 (the largest matching fraction).
+
  ugkwp::gaswall::detail::LayerPoint<double,3> a,b;
  ok=ugkwp::gaswall::detail::pointState(in,cfg,ctx,state0,a)&&ok;
  ok=ugkwp::gaswall::detail::pointState(in,cfg,ctx,state1,b)&&ok;

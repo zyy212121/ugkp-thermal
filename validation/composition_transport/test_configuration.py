@@ -15,7 +15,7 @@ int main(int argc,char**argv){
  const auto change=[&](const char* old,const char* replacement){auto s=text;auto p=s.find(old);assert(p!=std::string::npos);s.replace(p,std::string(old).size(),replacement);return s;};
  for(auto pair:std::vector<std::pair<const char*,const char*>>{{"17.10e-6","17.11e-6"},{"114 220","114 221"},{".720 .064",".721 .064"},{"273","274"},{"1.81","1.82"},{"pressureExponent -1","pressureExponent -.9"},{"101325","101326"},{"DRef 5.75e-10","DRef 5.76e-10"},{"TRef 1;","TRef 2;"}})assert(parse(change(pair.first,pair.second)).hash!=a.hash);
  for(auto pair:std::vector<std::pair<const char*,const char*>>{{"species CO2;","species missing;"},{".720 .064","1 -5 5"},{"114 220","-1 220"},{"17.10e-6 -4.65e-6 1.20e-6","0"},{"TRef 273","TRef 0"},{"pRef 101325","pRef 0"},{"DRef 5.75e-10","DRef -1"},{"temperatureExponent 1.81","temperatureExponent nan"}}){bool rejected=false;try{parse(change(pair.first,pair.second));}catch(const std::exception&){rejected=true;}assert(rejected);}
- // Each optional model is independent of the viscosity selection.
+
  auto independent=parse(change("viscosityModel massFractionSutherland;","viscosityModel const;"));assert(independent.view().diffusion);assert(independent.view().prandtlSpecies==1);
  assert(ugkwp::molecularViscosity<2>(independent.view(),3.,273.,y)==3.);
  auto copy=a;auto moved=std::move(copy);assert(moved.view().diffusion==moved.diffusion.data());assert(moved.view().diffusion!=a.view().diffusion);

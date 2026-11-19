@@ -1,7 +1,7 @@
 #pragma once
 #include "common/gasTransport/GasGeometryPolicy.H"
 #include "common/operators/publishGasMeshGeometryKernel.cuh"
-// Included inside stageProbe, after the standalone device allocation helpers.
+
 #define PROBE_CELL_FIELDS(M) M(Cx) M(Cy) M(Cz) M(V) M(cellLength) M(sstWallDistance)
 #define PROBE_FACE_FIELDS(M) M(Sfx) M(Sfy) M(Sfz) M(magSf) M(faceCx) M(faceCy) M(faceCz) M(facePeriodicDx) M(facePeriodicDy) M(facePeriodicDz) M(deltaCoeffs) M(faceWeight)
 struct GasPublicationState {
@@ -77,8 +77,8 @@ struct GasPublicationProbe {
         auto writeFace=[&](int field,int f,double value){expected[6*nc+field*nf+f]=value;};
         for(int c=0;c<nc;++c){auto x=cells[c].centre;writeCell(0,c,x.x);writeCell(1,c,x.y);writeCell(2,c,x.z);
             writeCell(3,c,cells[c].volume);writeCell(4,c,std::cbrt(cells[c].volume));writeCell(5,c,distance[c].distance);}
-        // Frozen pre-migration uploadGeometry formula, independently of the
-        // new shared metric helper and its publication kernels.
+
+
         for(int f=0;f<nf;++f){auto a=faces[f].area,x=faces[f].centre;const double area=magnitude(a);
             const int o=owner[f],n=neighbour[f];Point chord=x-cells[o].centre,shift{};
             if(n>=0)chord=cells[n].centre-cells[o].centre;
@@ -90,8 +90,8 @@ struct GasPublicationProbe {
             for(int j=0;j<12;++j)writeFace(j,f,values[j]);
         }
         for(std::size_t i=0;i<actual.size();++i){const double a=actual[i],b=expected[i];
-            // CPU libm and CUDA cbrt need not round identically. All face/cell
-            // fields other than the cube-root length must match exactly.
+
+
             if(i>=std::size_t(4*nc)&&i<std::size_t(5*nc)){
                 if(!(std::abs(a-b)<=3e-15*std::abs(b)))throw std::runtime_error("resident cell length differs");
             }else if(a!=b)throw std::runtime_error("resident gas geometry metric differs");

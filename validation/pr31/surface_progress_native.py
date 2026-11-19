@@ -11,8 +11,8 @@ def main():
  for moving in (False,True):
   case=out/('outflow-moving'+str(int(moving)));prepare(case,2,moving)
   p=case/'constant/chmtProperties';p.write_text(p.read_text()+'\nboundaries {left {kind Interface;} right {kind Outlet;} sides {kind Slip;}}\n')
-  # Resolve the tiny physical recession rather than accepting the default
-  # geometry snap tolerance; the production tolerance policy is unchanged.
+
+
   if moving:p.write_text(p.read_text()+'\ntolerances {absoluteGeometry 1e-16;relativeGeometry 1e-16;}\n')
   p=case/'0/U';p.write_text(p.read_text().replace('internalField uniform (0 0 0);','internalField uniform (100 0 0);'))
   seconds=m.run([args.solver,'-case',case],case/'run.log')

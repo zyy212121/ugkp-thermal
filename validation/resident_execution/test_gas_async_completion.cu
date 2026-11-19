@@ -1,6 +1,6 @@
-// Compile this translation unit with the production backend's normal includes.
-// Including production code exercises real kernels/callbacks, including private
-// projection views and the public API; it does not duplicate their algorithms.
+
+
+
 #include "../../applications/gasUGKP/private_backend/GpuResidentStrict.cu"
 #include <cassert>
 #include <iostream>
@@ -35,7 +35,7 @@ void checkSelection(cudaStream_t stream) {
         checked(cudaMemcpyAsync(&actual,context,sizeof(actual),cudaMemcpyDeviceToHost,stream));
         checked(cudaStreamSynchronize(stream));
     };
-    check();assert(!actual.fatalClaim); // Only unavailable storage is escalated.
+    check();assert(!actual.fatalClaim);
     hc[301]=hc[257]=hf[3]=int(ugkwp::GasTransportCode::InvalidStorage);
     check();assert(actual.fatalClaim&&actual.firstFatal.entityKind==EntityKind::Cell);
     assert(actual.firstFatal.entityIndex==257&&actual.firstFatal.sourceSiteId==2509);
@@ -72,8 +72,8 @@ void checkProductionPipeline(cudaStream_t stream) {
     state.gasBoundaryLayerModel.conservative.projectedState=projected;
     state.gasBoundaryLayerModel.acceptedHistory=memory.make<double>(48);
     state.gasFluxPositivityScale=memory.make<double>(state.nCells);
-    // All numerical arrays are deliberately null. Only diagnostic/status,
-    // projected-view metadata, reduction input and a history sentinel are valid.
+
+
     std::vector<int> cells(state.nCells,0),faces(state.nFaces,0);cells[193]=1;
     std::vector<double> history(48,42),courant(state.nCells,19);
     checked(cudaMemcpy(state.gasSpecies.cellStatus,cells.data(),cells.size()*sizeof(int),cudaMemcpyHostToDevice));
@@ -83,8 +83,8 @@ void checkProductionPipeline(cudaStream_t stream) {
     checked(cudaMemset(projected,0xa5,sizeof(*projected)));
     checked(cudaMemcpy(state.deviceState,&state,sizeof(state),cudaMemcpyHostToDevice));
 
-    // Capturing the actual requested-interval protocol proves that stage
-    // validation no longer blocks the host. Device checks gate the real kernels.
+
+
     cudaGraph_t graph{};cudaGraphExec_t executable{};
     checked(cudaStreamBeginCapture(stream,cudaStreamCaptureModeGlobal));
     assert(SharedGasTrialPolicy::validate(&state)==0);
@@ -103,8 +103,8 @@ void checkProductionPipeline(cudaStream_t stream) {
     std::vector<double> observed(48);checked(cudaMemcpy(observed.data(),state.gasBoundaryLayerModel.acceptedHistory,observed.size()*sizeof(double),cudaMemcpyDeviceToHost));
     assert(observed==history);
 
-    // The real public API drains the same pipeline and rejects the interval;
-    // the Courant API must not publish a stale reduction as a usable candidate.
+
+
     assert(ugkwpGpuResidentStrictAdvanceGasOnly(&state,1e-6,0.)==1);
     double candidate=-123.;assert(ugkwpGpuResidentStrictComputeGasCourant(&state,1e-6,0.,&candidate)==1);
     assert(candidate==-123.);

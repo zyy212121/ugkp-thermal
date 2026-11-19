@@ -349,7 +349,7 @@ int main(){
  law.enthalpyCalls=0;state={300,0};
  auto ordinary=ugkwp::publishParticleThermalHeat
    (state,law.law.enthalpyIncrement(300,10),200.,4000.,law);
- assert(ordinary.valid&&law.enthalpyCalls==4); // Ordinary limiter still consumes both bounds.
+ assert(ordinary.valid&&law.enthalpyCalls==4);
 }
 '''
 

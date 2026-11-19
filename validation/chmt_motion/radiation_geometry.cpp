@@ -45,7 +45,7 @@ int main(int argc,char** argv){
    g.reflectionOffsets.push_back(g.reflectionDonors.size());
   }g.transportDiagonal.push_back(diagonal);
  }}
- // Add real upwind dependencies; a periodic ring exercises SCC iteration.
+
  if(topology!="isolated"){
   if(cells<3)throw std::runtime_error("connected topology requires at least three cells");
   const bool cyclic=topology=="cycle";

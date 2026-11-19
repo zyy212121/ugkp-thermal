@@ -20,8 +20,8 @@ void wall(State& s){
  initialiseSstConservativeStateKernel(&s);}
  s.riemannBoundaryKind[1]=2;s.riemannBoundaryTFix[1]=1;s.riemannBoundaryT[1]=500;
  s.riemannBoundaryUFix[1]=1;s.riemannBoundaryUy[1]=2;s.Uy[0]=12;
- s.gasCp=7;s.Rgas=700; // deliberate scalar bootstrap contamination
- // Constant-Pr P/y+ came from initialiseSstConservativeStateKernel.
+ s.gasCp=7;s.Rgas=700;
+
 }
 void near(Real a,Real b,const char* message){ck(std::abs(a-b)<Real(3e-5)*std::max(Real(1),std::abs(b)),message);}
 '''
@@ -31,7 +31,7 @@ void near(Real a,Real b,const char* message){ck(std::abs(a-b)<Real(3e-5)*std::ma
 @pytest.mark.parametrize('kinetic',[0.,1e-12,.1])
 def test_wall_thermo_flux_and_diffusion_use_same_mixture_properties(tmp_path,direct_conductivity,kinetic):
     compile_probe(tmp_path,wall_fixture()+f'\nint main(){{State s;wall(s);s.k[0]=Real({kinetic});s.gasThermalConductivity=Real({.31 if direct_conductivity else -1});'+r'''
- if(ugkwp::gasHasDirectConductivity(s)){s.sstJayatillekeP=123;s.sstThermalYPlus=456;} // direct-conductivity must not reuse constant-Pr cache
+ if(ugkwp::gasHasDirectConductivity(s)){s.sstJayatillekeP=123;s.sstThermalYPlus=456;}
  const Real cp=Real(.9)*1100+Real(.1)*1600;
  const Real R=ugkwp::universalGasConstant<Real>()*(Real(.9)/Real(.028)+Real(.1)/Real(.04));
  const Real rho=s.p[0]/(R*500);
@@ -46,7 +46,7 @@ def test_wall_thermo_flux_and_diffusion_use_same_mixture_properties(tmp_path,dir
  const Real baseline=ugkwp::gasHasDirectConductivity(s)?s.gasThermalConductivity:s.gasMu*s.gasSpecies.heatCapacity[0]/s.gasPrClamped;
  near(baseline+conductivity,expected.conductivity,"flux/stability conductivity inconsistent with wall closure");
  s.cellPlaneCount[0]=1;s.cellPlaneStart[0]=1;
- // Direct physical wall flux carries heat and work once; species/mass remain zero.
+
  Real mass,mx,my,mz,energy;
  ck(computeRiemannGasFaceFluxDevice<true>(s,1,mass,mx,my,mz,energy),"mixture wall flux rejected");
  ck(s.gasSpecies.faceStatus[1]==0,"wall face status rejected");

@@ -35,7 +35,7 @@ for(int cells:{1,5,31,32,33,73,257})for(int grid:{1,3,48})for(int block:{32,64,1
   assert(*s->csrHeavyTaskCount==total);
  }
  int tasks=0,multi=0;
- // Reverse reservation order catches erroneous use of offset[c+1].
+
  for(int c=cells-1;c>=0;--c)if(s->csrCellTaskCount[c]>0){s->csrCellTaskOffset[c]=tasks;if(s->csrCellTaskCount[c]>1)s->csrMultiTaskCellList[multi++]=c;for(int begin=s->cellParticleOffset[c];begin<s->cellParticleOffset[c+1];begin+=64)s->csrReductionTasks[tasks++]={c,begin,std::min(begin+64,s->cellParticleOffset[c+1]),0};}
  *s->csrHeavyTaskCount=tasks;*s->csrHeavyCellCount=multi;DeviceState host=*s;
  for(bool poisson:{true,false,true}){
@@ -44,7 +44,7 @@ for(int cells:{1,5,31,32,33,73,257})for(int grid:{1,3,48})for(int block:{32,64,1
   *s->csrHeavyTaskCursor=123456;
   assert(launchCsrSegmentedPoolReduction(&host,0.01,poisson,block)==0);
   assert(cudaDeviceSynchronize()==cudaSuccess);
-  // Empty cells must not add claims to a work queue containing real heavy tasks.
+
   *s->csrHeavyTaskCursor=0;
   accumulateCsrSegmentedMomentTasksPersistentKernel<<<grid,block,8*((block+31)/32)*sizeof(double)>>>(s);
   assert(cudaDeviceSynchronize()==cudaSuccess);

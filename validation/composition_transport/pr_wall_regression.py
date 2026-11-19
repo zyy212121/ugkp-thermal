@@ -28,8 +28,8 @@ def source(native):
     return prefix + '\n' + body
 
 def expected(case, kinetic):
-    # Independent scalar reference: known LinearCp mixture, stationary wall.
-    # Old constant transport intentionally uses owner composition.
+
+
     y = .9 if case in (0, 1, 5) else .1
     cp = 1100 + 500*y
     R = 8.31446261815324*((1-y)/.028+y/.04)

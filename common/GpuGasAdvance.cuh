@@ -5,12 +5,12 @@
 #include "gasTransport/GasBoundaryLayerHost.H"
 #include "operators/advanceGasChemistryKernel.cuh"
 
-// Shared Euler/RK, boundary-finalisation and graph-capture host protocol.
-// Requires a gas host state, GasHostPolicy, all gas kernels and error helpers.
-// The host state owns launch/graph resources and a deviceState pointer. That
-// pointer may name a gas-only view; no particle storage is required here.
-// GasHostPolicy owns only time/weight types and the optional wall-energy ledger;
-// launches, streams, error checks and their ordering are owned here.
+
+
+
+
+
+
 
 template<class GasHostState>
 int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time ledgerDt, const GasHostPolicy::Time requestedTime, const bool nativeRefinement=false, const bool primitivesReady=false)
@@ -24,8 +24,8 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     cudaError_t err = cudaSuccess;
     const bool preparedBoundaryLayer=ugkwp::gasBoundaryLayerPreparationReusable(*s,dt,stageTime);
 
-    // Flux-stage callers already recovered this unchanged conservative state.
-    // Direct substage callers (including steady residual evaluation) still recover.
+
+
     if (!primitivesReady)
     {
         recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
@@ -94,19 +94,24 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
             return 1;
         }
     }
-    computeGasGradientLimiterKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasGradientLimiterKernel launch", err);
+    if (s->hostTurbulenceModel==0) {
+        using CellState=std::remove_pointer_t<decltype(s->deviceState)>;
+        computeGasGradientLimiterKernel<CellState,true><<<cellGrid,cellBlock,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
+    } else {
+        computeGasGradientLimiterKernel<<<cellGrid,cellBlock,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
+    }
+    err=cudaGetLastError();
+    if (err!=cudaSuccess) {
+        setLastError("computeGasGradientLimiterKernel launch",err);
         return 1;
     }
-    computeGasEddyViscosityKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
-    err = cudaGetLastError();
-    if (err != cudaSuccess)
-    {
-        setLastError("computeGasEddyViscosityKernel launch", err);
-        return 1;
+    if (s->hostTurbulenceModel!=0) {
+        computeGasEddyViscosityKernel<<<cellGrid,cellBlock,0,s->gasCaptureStream>>>(s->deviceState);
+        err=cudaGetLastError();
+        if (err!=cudaSuccess) {
+            setLastError("computeGasEddyViscosityKernel launch",err);
+            return 1;
+        }
     }
     if (faceGrid <= 0)
     {
@@ -144,8 +149,8 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
             return 1;
         }
     }
-    // Coupled applications may replace complete 5+Ns boundary fluxes here.
-    // Positivity and accepted RK-weighted ledgers still belong to this pipeline.
+
+
     if (GasHostPolicy::applyFaceSources(s, dt, stageTime) != 0) return 1;
     computeGasFluxPositivityScaleKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState, dt);
     err = cudaGetLastError();
@@ -295,7 +300,7 @@ int blendGasRungeKuttaStage
 }
 
 template<class GasHostState>
-int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time requestedTime, const bool nativeRefinement=false)
+int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const GasHostPolicy::Time requestedTime, const bool nativeRefinement=false, const bool primitivesReady=false)
 {
     const GasHostPolicy::Time simulationTime = ugkwp::gasStageTime(*s, requestedTime);
 
@@ -305,18 +310,21 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
         (s->nCells + preparationCellBlock - 1)/preparationCellBlock;
     const int preparationFaceGrid =
         (s->nFaces - s->nInternalFaces + preparationFaceBlock - 1)/preparationFaceBlock;
-    recoverGasPrimitivesKernel<<<preparationCellGrid, preparationCellBlock, 0, s->gasCaptureStream>>>
-    (
-        s->deviceState,nativeRefinement);
-    cudaError_t preparationError = cudaGetLastError();
-    if (preparationError != cudaSuccess)
-    {
-        setLastError
+    cudaError_t preparationError=cudaSuccess;
+    if(!primitivesReady){
+        recoverGasPrimitivesKernel<<<preparationCellGrid, preparationCellBlock, 0, s->gasCaptureStream>>>
         (
-            "recoverGasPrimitivesKernel before gas advance",
-            preparationError
-        );
-        return 1;
+            s->deviceState,nativeRefinement);
+        preparationError = cudaGetLastError();
+        if (preparationError != cudaSuccess)
+        {
+            setLastError
+            (
+                "recoverGasPrimitivesKernel before gas advance",
+                preparationError
+            );
+            return 1;
+        }
     }
     if (preparationFaceGrid > 0
         && !ugkwp::gasBoundaryLayerPreparationReusable(*s,dt,simulationTime))
@@ -491,8 +499,8 @@ int advanceResidentGasGraph(GasHostState* s,const GasHostPolicy::Time dt,
         if(error==cudaSuccess&&s->gasGraph){error=cudaGraphDestroy(s->gasGraph);s->gasGraph=nullptr;}
         if(error!=cudaSuccess){setLastError("release resident gas graph",error);return 1;}
         s->gasGraphIntervalNode=nullptr;s->gasGraphIntervalSubmitted=false;
-        // The clock has its own owner: particle capacity/geometry updates may
-        // republish the device state header between otherwise identical steps.
+
+
         if(!s->gasGraphClock){
             error=cudaMalloc(reinterpret_cast<void**>(&s->gasGraphClock),sizeof(ugkwp::GasResidentInterval));
             if(error!=cudaSuccess){setLastError("allocate resident gas clock",error);return 1;}
@@ -503,8 +511,8 @@ int advanceResidentGasGraph(GasHostState* s,const GasHostPolicy::Time dt,
         error=cudaStreamBeginCapture(capture,cudaStreamCaptureModeThreadLocal);
         if(error!=cudaSuccess){cudaStreamDestroy(capture);setLastError("capture resident gas step",error);return 1;}
         s->gasCaptureStream=capture;
-        // Capture relative stage times and RK weights once. The first node
-        // supplies the physical FP64 interval on every replay.
+
+
         if constexpr(ugkwp::GasBoundaryLayerCapability<GasHostState>::value)
             if(prepared){s->gasBoundaryLayer.preparedInterval=1;
                 s->gasBoundaryLayer.preparedTime=ugkwp::gasStageTime(*s,0.0);}
@@ -542,8 +550,8 @@ int advanceResidentGasGraph(GasHostState* s,const GasHostPolicy::Time dt,
         if(error!=cudaSuccess){setLastError("instantiate resident gas graph",error);return 1;}
         s->gasGraphIncludesBoundary=finalBoundary;s->gasGraphPreparedBoundary=prepared;
         s->gasGraphFrozenBoundary=interval.frozen;s->gasGraphDt=dt;
-        // Stream capture already supplied this exact interval to the first
-        // kernel. Keep the same node data while the requested interval is equal.
+
+
         s->gasGraphLastInterval=interval;s->gasGraphIntervalSubmitted=true;
         s->gasGraphAdvancesInterval=false;
     }
@@ -583,7 +591,7 @@ template<class State>struct HasResidentGasGraph<State,std::void_t<decltype(std::
     decltype(std::declval<State>().gasGraphClock)>>:std::true_type{};
 template<class GasHostState>
 int advanceGasFluxScheduled(GasHostState* s,const GasHostPolicy::Time dt,
-    const GasHostPolicy::Time time,const bool nativeRefinement=false)
+    const GasHostPolicy::Time time,const bool nativeRefinement=false,const bool primitivesReady=false)
 {
 #ifndef UGKP_DEVELOPMENT_PROBES
     if constexpr(HasResidentGasGraph<GasHostState>::value){
@@ -592,7 +600,7 @@ int advanceGasFluxScheduled(GasHostState* s,const GasHostPolicy::Time dt,
         if(s->gasGraphMode&&!nativeRefinement)return advanceResidentGasGraph(s,dt,time,false);
     }
 #endif
-    return advanceGasFluxStage(s,dt,time,nativeRefinement);
+    return advanceGasFluxStage(s,dt,time,nativeRefinement,primitivesReady);
 }
 
 template<class Policy,class State>
@@ -612,11 +620,11 @@ int applyGasTrialSources(State* s,Time dt,bool,long)
 {return Policy::applySources(s,dt);}
 
 
-// Shared source composition: chemistry always uses explicit stage volumes.
+
 template<class TrialPolicy,class GasHostState>
 int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
     const GasHostPolicy::Time requestedTime=GasHostPolicy::Time(0),
-    const bool nativeRefinement=false)
+    const bool nativeRefinement=false,bool primitivesReady=false)
 {
     const GasHostPolicy::Time simulationTime = ugkwp::gasStageTime(*s, requestedTime);
     if constexpr (ugkwp::GasStateTraits<GasHostState>::speciesCount > 0)
@@ -631,14 +639,16 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
                 const auto error=cudaGetLastError();
                 if(error!=cudaSuccess){setLastError("pre-transport gas chemistry",error);return 1;}
             }
-            recoverGasPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
-            const auto recoveryError=cudaGetLastError();
-            if(recoveryError!=cudaSuccess){setLastError("pre-transport mixture recovery",recoveryError);return 1;}
+            if(!primitivesReady||chemistry){
+                recoverGasPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
+                const auto recoveryError=cudaGetLastError();
+                if(recoveryError!=cudaSuccess){setLastError("pre-transport mixture recovery",recoveryError);return 1;}
+            }
             if(ugkwp::gasBoundaryLayerEnabled(*s))
             {
-                // The first chemistry half-step has completed. Refresh only the
-                // selected family's current boundary input and prepare once;
-                // the first Euler stage consumes this exact state/phase cache.
+
+
+
                 if(s->hostTurbulenceModel==3)
                 {
                     recoverSstPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
@@ -673,6 +683,14 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
         }
     }
     return 0;
+}
+
+template<class TrialPolicy,class State>
+int advancePreparedGasTransport(State* state,GasHostPolicy::Time dt,GasHostPolicy::Time time,
+    bool nativeRefinement=false,bool primitivesReady=false){
+    if(prepareGasTrialTransport<TrialPolicy>(state,dt,time,nativeRefinement,primitivesReady))return 1;
+    const bool retained=ugkwp::GasStateTraits<State>::speciesCount>0&&!ugkwp::gasBoundaryLayerEnabled(*state);
+    return advanceGasFluxScheduled(state,dt,time,nativeRefinement,retained);
 }
 
 template<class TrialPolicy,class GasHostState>
@@ -716,8 +734,7 @@ int advanceGasTrial
     ugkwp::invalidateGasBoundaryLayerPreparation(*s);
     if (TrialPolicy::begin(s) != 0)
     { ugkwp::invalidateGasBoundaryLayerPreparation(*s); return 1; }
-    if (prepareGasTrialTransport<TrialPolicy>(s,dt,simulationTime,nativeRefinement) != 0
-        || advanceGasFluxScheduled(s, dt, simulationTime,nativeRefinement) != 0
+    if (advancePreparedGasTransport<TrialPolicy>(s,dt,simulationTime,nativeRefinement) != 0
         || (!nativeRefinement && validateGasTrialState<TrialPolicy>(s,nativeRefinement,0) != 0)
         || applyGasTrialSources<TrialPolicy>(s,dt,nativeRefinement,0) != 0
         || finaliseGasTrialSources<TrialPolicy>(s,dt,nativeRefinement) != 0
@@ -731,7 +748,7 @@ int advanceGasTrial
 template<class Time>
 struct GasRequestedIntervalControls
 {
-    // Compatibility token: the requested interval has no retry budget.
+
 };
 
 

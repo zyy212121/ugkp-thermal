@@ -1,4 +1,4 @@
-// Included after the gas reference adapter. CPU-only serial launch/atomic adapters.
+
 #include "GpuParticleBoundaryModel.H"
 #include "BoundaryInjectionApi.H"
 #include <vector>
@@ -17,7 +17,7 @@ struct ParticleState : DeviceState {
  unsigned long long rngSeed=12345;
  double *px=nullptr,*py=nullptr,*pz=nullptr,*pux=nullptr,*puy=nullptr,*puz=nullptr,*puxOld=nullptr,*puyOld=nullptr,*puzOld=nullptr,*pT=nullptr,*pTheta=nullptr,*pd=nullptr,*pm=nullptr;
  unsigned long long *pRng=nullptr,*pOrigId=nullptr;
- // Particle transport sees the full unit-area box; gas base retains its axial FV graph.
+
  int *cellPlaneStart=nullptr,*cellPlaneCount=nullptr,*cellFaceId=nullptr;
  int *pStatus=nullptr,*pCellId=nullptr,*cellParticleCount=nullptr,*cellFaceKind=nullptr,*cellFaceNeighbor=nullptr;
  double *planeNx=nullptr,*planeNy=nullptr,*planeNz=nullptr,*planeD=nullptr,*cellFaceRestitution=nullptr;
@@ -29,7 +29,7 @@ struct ParticleState : DeviceState {
  double* volumeFractionScheduleTimes=nullptr;double* volumeFractionScheduleValues=nullptr;int nVolumeFractionScheduleRows=0;
  int sourceFace[1]={},sourceCell[1]={};
  double sourceUx[1]={10},sourceUy[1]={},sourceUz[1]={},sourceTheta[1]={},sourceT[1]={300},sourceD[1]={.001},sourceMassRate[1]={.01},sourcePx[1]={1e-10},sourcePy[1]={},sourcePz[1]={},sourceResidualMass[1]={};
- // Diagnostic residence age is not a physical state input to production operators.
+
  double *referenceAge=nullptr; unsigned long long injected=0,outflow=0;
  double injectedMass=0,injectedMomentumX=0,injectedMechanicalEnergy=0,injectedMaterialHeat=0;
  double outflowMass=0,outflowMomentumX=0,outflowMechanicalEnergy=0,outflowMaterialHeat=0;
@@ -49,12 +49,12 @@ template<class T> T atomicAdd(T*ptr,T value){T old=*ptr;*ptr+=value;return old;}
 template<class T> T atomicSub(T*ptr,T value){T old=*ptr;*ptr-=value;return old;}
 double sqr3(double x,double y,double z){return x*x+y*y+z*z;}
 bool gasDragModelActive(int model){return model!=2;}
-// Required only by uninstantiated thermal-moment templates (gas path is nonthermal).
+
 double particleSpecificEnthalpyDevice(double t){return 1000*t;}
 #include "gasNumerics/GpuParticlePhysicsAlgebra.cuh"
 #include "gpu/GpuCouplingMath.H"
 #include "GpuDragModels.cuh"
-/* PRODUCTION_HEAT_FACTOR */
+
 #include "operators/solidEpsFromMomentDevice.cuh"
 #include "operators/snapshotParticleGasCouplingStateKernel.cuh"
 #include "operators/uniform01Device.cuh"
@@ -78,7 +78,7 @@ template<class DragModel> void referenceEulerianDrag(ParticleState*sp,double dt)
 #include "GpuCellDragUpdate.inl"
 }
 #include "operators/applyEulerianParticleMaterialHeatKernel.cuh"
-/* PRODUCTION_RELAXATION */
+
 #include "common/gasTransport/MixtureParticleCoupling.cuh"
 #include "operators/clearPoissonThermalPoolKernel.cuh"
 #include "GpuCollisionPoolAtomic.cuh"
@@ -112,9 +112,9 @@ void initialiseParticles(ParticleState&s,int capacity){
  s.cellPlaneStart=new int[s.nCells]{};s.cellPlaneCount=new int[s.nCells]{};s.cellFaceId=new int[6*s.nCells]{};
  s.planeNx=new double[6*s.nCells]{};s.planeNy=new double[6*s.nCells]{};s.planeNz=new double[6*s.nCells]{};s.planeD=new double[6*s.nCells]{};
  s.cellFaceKind=new int[6*s.nCells]{};s.cellFaceNeighbor=new int[6*s.nCells]{};s.cellFaceRestitution=new double[6*s.nCells]{};
- // Match GpuResidentStrict.H: escape=4, periodic=5. Pressure-gradient
- // boundary selection consumes these same kinds, not only particle tracking.
- // Unit-area box: axial open boundaries, empty side patches use geometric reflection.
+
+
+
  const DeviceState& gas=s;
  for(int c=0;c<s.nCells;++c){
   s.cellPlaneStart[c]=6*c;s.cellPlaneCount[c]=6;
@@ -131,8 +131,8 @@ void particleMoments(ParticleState&s){
  threadIdx.x=0;accumulateParticleMomentsAtomicKernel(&s);
  for(int c=0;c<s.nCells;++c){threadIdx.x=c;normalizeParticleMomentsAtomicKernel(&s);solidRecoveryFromParticleMomentsCell(s,c);s.epsG[c]=1-s.epsS[c];}
 }
-// Called AFTER the production gas flux step; production atomic collision path.
-// Collisional-pressure kicks and mobile-packing projection are configured off.
+
+
 void particleStep(ParticleState&s,double dt,double frozenBoundaryTime){
  const bool mixture=ugkwp::mixtureGasActive(s);
  for(int c=0;c<s.nCells;++c){threadIdx.x=c;applyGasVolumeFractionSourceKernel(&s,dt);recoverGasPrimitivesKernel(&s);}

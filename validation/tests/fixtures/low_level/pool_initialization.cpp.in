@@ -1,6 +1,6 @@
 
-// Execute the actual kernels as scalar CPU calls. This checks publication order,
-// bounds and exact field values; it does not emulate CUDA scheduling.
+
+
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -40,8 +40,8 @@ struct DeviceState {
  }}
 };
 Real poissonCollisionProbabilityForCell(DeviceState& s,int c,double dt){
- // Publication must precede pool clearing. The real probability algebra is
- // unchanged and is covered by actual-consumer CUDA regressions separately.
+
+
  assert(s.poolThermalCount[c]==c+2 && s.poissonPoolMass[c]==Real(10+c));
  ++s.publications[c];return Real(dt+s.poissonPoolMass[c]);
 }

@@ -55,7 +55,7 @@ ck(std::abs(s.gasSpecies.rho[0]*newV[0]+s.gasSpecies.rho[1]*newV[1]-initialA)<=e
 def test_opposite_finite_faces_publish_their_actual_cancellation(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
 int main(){State s;initialise(s);s.gasSpecies.flux[0]=Real(.01);s.gasSpecies.flux[1]=Real(-.01);
-// Both faces have zero total mass flux, but their species defects cancel at cell0.
+
 const Real before[]={s.rho[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2],s.rhoE[0]};
 threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,Real(.01));
 ck(s.gasSpecies.cellStatus[0]==0,"finite per-face defects blocked actual cancelling transport");
@@ -95,7 +95,7 @@ for(int c=0;c<2;++c){
  const long double eps=64.L*std::numeric_limits<Real>::epsilon();
  ck(std::abs(m1-m0-sign*dt*s.gasPhiRho[0])<=eps*std::max(std::abs(m0),std::abs(m1)),"actual published total mass budget");
  ck(std::abs(e1-e0-sign*dt*s.gasPhiRhoE[0])<=eps*std::max(std::abs(e0),std::abs(e1)),"actual published physical energy budget");
- // Two independent element counts, not a closed-reactor zero-change check.
+
  const long double element[2][2]={{2/.028L,0},{1/.028L,3/.028L}};
  for(int e=0;e<2;++e){long double before=0,after=0,transfer=0;
   for(int k=0;k<2;++k){before+=element[e][k]*species0[k];after+=element[e][k]*(long double)s.gasSpecies.rho[k*2+c]*newV[c];transfer+=element[e][k]*sign*dt*s.gasSpecies.flux[k*3];}
@@ -121,8 +121,8 @@ s.gasPhiRho[0]=phi;flux[0]=phiA;flux[3]=phiB;
 Real dt=0,rawA=0,rawB=0;
 for(int i=1;i<=10000;++i){const Real step=Real(i)*Real(.0001);
  const Real bulk=s.rho[0]-step*phi,a=partial[0]-step*phiA,b=partial[2]-step*phiB;
- // A genuinely fresh rounding residual: the populated first two components
- // exceed the independently rounded bulk. The tiny last cannot absorb it.
+
+
  if(a+b>bulk){dt=step;rawA=a;rawB=b;break;}}
 ck(dt>0,"no deterministic fresh-roundoff witness found");
 const Real tiny=partial[4];threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,dt);

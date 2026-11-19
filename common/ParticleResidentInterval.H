@@ -7,7 +7,7 @@
 #define UGKP_PARTICLE_INTERVAL_HD
 #endif
 namespace ugkwp {
-// Particle end time is the caller's committed time, not the gas RK clock.
+
 struct ParticleResidentInterval {
     double dt=0,end=0;
     bool active=false,positionSequenceEnabled=false;

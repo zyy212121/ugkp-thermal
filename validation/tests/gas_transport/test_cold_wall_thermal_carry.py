@@ -154,8 +154,8 @@ void full_1d_wrapper(double dt,bool wide=false) {
  const GpuReal volume=(finiteContactPi/GPU_R(6))*actual.pd[0]*actual.pd[0]*actual.pd[0];
  const GpuReal oldPhysicalMass=liquidAluminaProperties(actual.pT[0]).densityKgM3*volume;
  const GpuReal oldMultiplicity=actual.pm[0]/oldPhysicalMass;
- // Numeric reference uses exactly the production publisher, then exactly the
- // production cold group, with material mass frozen before the publication.
+
+
  actualPublishPairedParticleGasHeat(reference,0,dt);
  const double published=reference.heatBudget[0];
  const GpuReal effusivity=std::sqrt(reference.particleWallDensityKgM3*reference.particleWallSpecificHeatJkgK*reference.particleWallConductivityWmK);
@@ -223,8 +223,8 @@ void mixed_cell(double dt,bool nearFloor=false,bool counterflow=false,int coldes
  if(nearFloor)require(s.heatCoefficient[0]<1.e-3,"current gas floor limits old-cache hot proposals");
  actualPublishPairedParticleGasHeat(s,0,dt);const double ordinaryBudget=s.heatBudget[0];
  require(counterflow?ordinaryBudget<0.:ordinaryBudget>0.,"ordinary particle accepted signed gas heat");
- // Generic publication deliberately skips both cold routes here: 1D publishes
- // inside its wrapper; the actual generic 2D publisher must be an identity.
+
+
  const double twoBefore=particleEffectiveSpecificEnthalpyDevice(s,2);
  actualPublishPairedParticleGasHeat(s,2,dt);near(s.heatBudget[0],ordinaryBudget,0.,"2D generic callback is identity");
  near(particleEffectiveSpecificEnthalpyDevice(s,2),twoBefore,0.,"2D generic callback preserves physical profile authority");
@@ -452,7 +452,6 @@ int main(int argc,char** argv) {
 @pytest.fixture(scope="module")
 def cold_carry_binary(tmp_path_factory):
     build=tmp_path_factory.mktemp(f"cold_carry_64")
-    (build/'cuda_runtime.h').write_text('#pragma once\n#define __host__\n')
     fixture=((VALIDATION_ROOT / 'tests/fixtures/cold_wall_contact_routes.cpp')).read_text()
     prefix=fixture[:fixture.index('#include "GpuThermalParticleRelaxation.cuh"')]
     prefix=prefix.replace('#include <thread>','#include <thread>\n#include <string>\n#include "GpuColdWall2DSolidification.H"\n#define GPU_PAIRED_PARTICLE_HEAT 1')
@@ -464,8 +463,8 @@ def cold_carry_binary(tmp_path_factory):
 
     prefix=prefix.replace('T atomicAdd(T* target,T value) {', 'T atomicAdd(T* target,T value) {if(!target)throw DeviceTrap{};')
     prefix=prefix.replace('struct DeviceState {', 'struct DeviceState {\n GpuReal epsGPrev[1]{GPU_R(.9)},V[1]{GPU_R(1)},rho[1]{GPU_R(1)},rhoUx[1]{},rhoUy[1]{},rhoUz[1]{};\n GpuReal Tgas[1]{GPU_R(4200)},p[1]{},Ux[1]{},Uy[1]{},Uz[1]{};\n GpuReal Rgas=GPU_R(287),gammaGas=GPU_R(1.4);\n double rhoE[1]{3.e6},rhoENext[1]{};\n unsigned char* compactPStuck=pStuck;int* compactPStuckFaceId=pStuckFaceId;GpuReal* compactPT=pT;\n double* compactPColdNodeSpecificEnthalpy=coldH;float* compactPCold2DNodeSpecificEnthalpy=cold2DH;\n double* compactPThermalEnthalpyResidual=pThermalEnthalpyResidual;\n')
-    # All three particle kinds share one cell; face and parcel arrays have
-    # independent slots. Default single-particle cases still use slot zero.
+
+
     prefix=prefix.replace('laneValues[threadIdx.x]','laneValues[threadIdx.x&7]').replace('laneValues[target]','laneValues[target&7]')
     prefix=prefix.replace('threadIdx.x >= offset ? threadIdx.x-offset : threadIdx.x','(threadIdx.x&7) >= offset ? (threadIdx.x&7)-offset : (threadIdx.x&7)')
     prefix=prefix.replace('threadIdx.x+offset < 8 ? threadIdx.x+offset : threadIdx.x','(threadIdx.x&7)+offset < 8 ? (threadIdx.x&7)+offset : (threadIdx.x&7)')
@@ -478,19 +477,19 @@ def cold_carry_binary(tmp_path_factory):
     body=recovery.index('{',start);depth=1;end=body+1
     while depth:
         depth+=(recovery[end]=='{')-(recovery[end]=='}');end+=1
-    (build/'actual_gas_recovery.cuh').write_text('#include \"gasTransport/GasCapabilities.H\"\n#include \"gasTransport/MixtureThermo.H\"\n#include \"gasTransport/GasGeometryValidation.H\"\n'+'#include "operators/gasStencilDiagnostics.cuh"\n'+recovery[recovery.index('template<class GasState,class Scalar>'):recovery.index('template<class GasState>\n__device__ void sstInternalRhoDiffusivities')]+recovery[start:end])
+    (build/'actual_gas_recovery.cuh').write_text('#include \"gasTransport/GasCapabilities.H\"\n#include \"gasTransport/MixtureThermo.H\"\n#include \"gasTransport/GasGeometryValidation.H\"\n'+'#include "operators/gasStencilDiagnostics.cuh"\n#include "operators/recoverStationaryGasPrimitive.cuh"\n'+recovery[recovery.index('template<class GasState,class Scalar>'):recovery.index('template<class GasState>\n__device__ void sstInternalRhoDiffusivities')]+recovery[start:end])
     prefix=prefix.replace('void clearColdWall2DParticleState(DeviceState&,int) {}','void clearColdWall2DParticleState(DeviceState&,int);')
     two=(ROOT/'legacy/common/wall/GpuColdWall2DDevice.cuh').read_text()
 
     two=two.replace('        ColdWallThermalReal power[', '        if(radialNode==0)observedStepTimes.push_back(stepTime);\n        ColdWallThermalReal power[')
     prefix += '\n#include "GpuFrozenParticleRelease.cuh"\n#include <vector>\nstd::vector<double> observedStepTimes;\n'
-    # Compile the complete production 2D wrapper as well as its group.
+
     (build/'actual_2d_group.cuh').write_text(two)
     helpers=fixture[fixture.index('void require('):fixture.index('double meanH(')]
     (build/'test.cpp').write_text(prefix+'namespace ugkwp {\ninline float coldWallStoredEnthalpyFloor(double target) {\n if(target>double(FLT_MAX))return FLT_MAX;if(target<-double(FLT_MAX))return -FLT_MAX;\n float stored=static_cast<float>(target);if(double(stored)>target)stored=::nextafterf(stored,-INFINITY);return stored;\n}\n}\n'+'\n#include "actual_2d_group.cuh"\n#include "GpuParticleThermalConsumerDevice.cuh"\n'+helpers+HARNESS)
     (build/'route_conductivity.cuh').write_text('#include "gasTransport/GasMolecularConductivity.cuh"\n')
     binary=build/'test'
-    run=subprocess.run(['g++','-std=c++20','-O2','-pthread','-DROUTE_FSH=0','-I',str((VALIDATION_ROOT / 'tests/fixtures')),'-I',str(build),'-I',str(ROOT/'common'),'-I',str(ROOT/'common/wall'),'-I',str((VALIDATION_ROOT / 'tests/gas_transport')),str(build/'test.cpp'),'-o',str(binary)],capture_output=True,text=True,timeout=90)
+    run=subprocess.run(['g++','-std=c++20','-O2','-pthread','-DROUTE_FSH=0','-I',str(VALIDATION_ROOT/'tests/fixtures/contact_host'),'-I',str((VALIDATION_ROOT / 'tests/fixtures')),'-I',str(build),'-I',str(ROOT/'common'),'-I',str(ROOT/'common/wall'),'-I',str((VALIDATION_ROOT / 'tests/gas_transport')),str(build/'test.cpp'),'-o',str(binary)],capture_output=True,text=True,timeout=90)
     assert run.returncode==0,run.stdout+run.stderr
     return binary
 

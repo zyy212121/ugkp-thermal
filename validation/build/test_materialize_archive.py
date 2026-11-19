@@ -52,8 +52,8 @@ def repository(root, commit=True):
     git(root, "config", "user.name", "Materializer Test")
     git(root, "config", "user.email", "materializer-test@example.invalid")
     git(root, "add", ".")
-    # The real checkout already tracks these source directories despite its
-    # historical core-dump ignore pattern matching the name "core".
+
+
     git(root, "add", "-f", "applications/CHMT/core", "precision/fp32/applications/CHMT/core")
     if commit:
         git(root, "commit", "-qm", "fixture")

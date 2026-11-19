@@ -6,8 +6,8 @@
 #include <utility>
 #include <vector>
 namespace ugkp {
-// Large published diagnostic arrays share immutable storage between state
-// snapshots. A mutable access detaches; clearing a shared snapshot copies no data.
+
+
 template<class T> class SharedSnapshotVector {
     std::shared_ptr<std::vector<T>> storage_;
 public:
@@ -21,9 +21,9 @@ public:
         else if(!storage_.unique())storage_=std::make_shared<std::vector<T>>(*storage_);
         return *storage_;
     }
-    // Share only bit-identical payloads. No tolerances, rounding, or numerical
-    // interpolation: distinct signed zeros and NaN payloads remain distinct.
-    // Padding may prevent sharing, but can never erase a physical difference.
+
+
+
     void shareIdentical(const SharedSnapshotVector& other){
         static_assert(std::is_trivially_copyable<T>::value,"bit sharing requires a plain value type");
         if(storage_==other.storage_||size()!=other.size())return;
@@ -44,7 +44,7 @@ public:
     void push_back(const T& x){edit().push_back(x);}
     void push_back(T&& x){edit().push_back(std::move(x));}
 };
-// Preserve the existing vector checkpoint wire format and numeric test visitors.
+
 template<class Archive,class T> void visit(Archive& a,const SharedSnapshotVector<T>& x){a(x.values());}
 template<class Archive,class T> void visit(Archive& a,SharedSnapshotVector<T>& x){a(x.edit());}
 }

@@ -26,8 +26,8 @@ template<class R> void check(){
  R rho=R(-23);
  assert(ugkwp::mixtureDensityFromPressureTemperature(R(101325),R(300),y,view,rho)==ugkwp::ThermoStatus::Success);
  assert(std::abs(rho-R(101325)/(expected*R(300)))<R(1e-5));
- // The public initialization EOS has no range/composition admission policy.
- // Keep each original input case and check its finite ideal-mixture result.
+
+
  auto acceptedEos=[&](R pressure,R temperature,const R* composition){
   const long double a=composition[0],b=composition[1];
   const long double referenceR=8.31446261815324L*(a/species[0].molarMass+b/species[1].molarMass)/(a+b);

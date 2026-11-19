@@ -34,7 +34,7 @@ int main(){
  WallWorkspace<double,2,24> off,on;WallOutput<double,2> a,b;WallStatus sa,sb;
  double data[24*9];for(double& x:data)x=-12345;
  assert(ugkwp::evaluateGasBoundaryLayerWorkspace<false>(m.in,c,off,a,sa,data));
- for(double x:data)assert(x==-12345); // default specialization performs no capture
+ for(double x:data)assert(x==-12345);
  assert(ugkwp::evaluateGasBoundaryLayerWorkspace<true>(m.in,c,on,b,sb,data));
  assert(std::memcmp(&a,&b,sizeof(a))==0);
  assert(std::memcmp(off.state,on.state,sizeof(off.state))==0);

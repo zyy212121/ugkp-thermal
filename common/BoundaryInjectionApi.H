@@ -11,8 +11,8 @@ struct BoundaryInjectionStorage {
     BoundaryInjectionTriangle* triangles=nullptr;
 };
 }
-// Source-local polygon offsets and point identities, independent of the
-// particle source inventory. Uploading geometry never resets residual mass.
+
+
 extern "C" int ugkwpGpuResidentStrictUploadBoundarySourceGeometry
 (void* handle, int nVertices, const int* offsets, const int* vertices,
  int nPoints, const ugkp::gpu::geometry::Point* points);

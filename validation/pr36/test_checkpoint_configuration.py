@@ -18,7 +18,7 @@ int main(int argc,char**argv){assert(argc==2);ModelConfig m;m.physics.enablePart
  subprocess.run([exe,tmp_path/'new'],check=True)
 
 def test_schema11_without_rr_shape_decodes_without_shifting_contact_fields(tmp_path):
- # Reproduce the old field sequence explicitly: schema11 had no dn slot.
+
  source=(APP/'restart/Checkpoint.C').read_text()
  source=source.replace('header.integer(checkpointSchema,8);','header.integer(11,8);')
  old_schema=re.search(r'const char\* const FieldSchema="([^"]+)"',source)[1].replace('phase(dn) contact','phase contact')

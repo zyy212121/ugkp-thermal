@@ -29,8 +29,8 @@ g::HarmonicSweepResult harmonicSweepDeviceProbe(g::HarmonicSweepCorrection& owne
         check(cudaGraphDebugDotPrint(graph,path,cudaGraphDebugDotFlagsVerbose));
     check(cudaGraphInstantiateWithFlags(&executable,graph,0));
     for(int replay=0;replay<2;++replay)check(cudaGraphLaunch(executable,stream));
-    // Also exercise the standalone resident entry point with the same borrowed
-    // problem, without host observations or numerical decisions between runs.
+
+
     owner.solveDevice(problem.p,stream);check(cudaStreamSynchronize(stream));
     const auto view=owner.view();g::HarmonicSweepResult out;
     check(cudaMemcpy(&out.status,view.status,sizeof(out.status),cudaMemcpyDeviceToHost));

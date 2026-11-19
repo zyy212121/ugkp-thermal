@@ -1,8 +1,8 @@
-// Frozen numerical reference from 93a7a35cc18b8b695e1e29a9332a158b9847d16c.
-// Deliberately independent of the prepared-invariant implementation under test.
+
+
 #pragma once
-// Scalar algebra shared by the CUDA limiter and executable host regressions.
-// The caller supplies one face delta divided by its positive convex weight.
+
+
 #include <cmath>
 #include <cfloat>
 
@@ -36,8 +36,8 @@ template<class Real> PRESSURE_CONVEX_HD Real maxComponent(Real x,Real y,Real z) 
     return maximum(absolute(x),maximum(absolute(y),absolute(z)));
 }
 
-// Scale before squaring: a normal nonzero component must not disappear when
-// its square underflows, and a representable norm must not overflow early.
+
+
 template<class Real> PRESSURE_CONVEX_HD Real norm3(Real x,Real y,Real z) {
     if(!finite(x)||!finite(y)||!finite(z)) return root(Real(-1));
     const Real m=maxComponent(x,y,z);
@@ -46,8 +46,8 @@ template<class Real> PRESSURE_CONVEX_HD Real norm3(Real x,Real y,Real z) {
     return m*root(fused(x,x,fused(y,y,z*z)));
 }
 
-// sqrt(2*mass*energy), without forming the possibly overflowing/underflowing
-// product. Mantissas stay in [0.5,4); only the final result is rescaled.
+
+
 template<class Real> PRESSURE_CONVEX_HD Real momentumClosureScale(Real mass,Real energy) {
     if(!finite(mass)||!finite(energy)||mass<Real(0)||energy<Real(0)) return root(Real(-1));
     if(mass==Real(0)||energy==Real(0)) return Real(0);
@@ -59,8 +59,8 @@ template<class Real> PRESSURE_CONVEX_HD Real momentumClosureScale(Real mass,Real
     return power(root(product),e/2);
 }
 
-// Squaring the raw momentum or multiplying rho by energy may overflow even
-// when the final kinetic energy is finite. Keep their binary exponents apart.
+
+
 template<class Real> PRESSURE_CONVEX_HD Real kinetic(Real rho,Real px,Real py,Real pz) {
     const Real m=maxComponent(px,py,pz);
     if(m==Real(0)) return Real(0);
@@ -80,11 +80,11 @@ template<class Real> PRESSURE_CONVEX_HD InitialState<Real> initialState
     const Real internal=energy-k;
     if(!finite(k) || !finite(internal) || internal<Real(0))
         return {Real(0),Real(0),false};
-    // A valid cold state stays valid without adding energy to meet thetaMin.
+
     return {internal,minimum(configuredFloor,internal),true};
 }
 
-// min(1,a*b/c), with positive finite arguments, without intermediate overflow.
+
 template<class Real> PRESSURE_CONVEX_HD Real boundedProductRatio(Real a,Real b,Real c) {
     if(a==Real(0) || b==Real(0)) return Real(0);
     int ae=0,be=0,ce=0;
@@ -94,7 +94,7 @@ template<class Real> PRESSURE_CONVEX_HD Real boundedProductRatio(Real a,Real b,R
     return minimum(Real(1),power(am*bm/cm,e));
 }
 
-// Signed p/sqrt(rho*h), avoiding formation of either rho*h or its reciprocal.
+
 template<class Real> PRESSURE_CONVEX_HD Real normalizedMomentum(Real p,Real rho,Real h) {
     if(p==Real(0)) return Real(0);
     int pe=0,re=0,he=0;
@@ -105,9 +105,9 @@ template<class Real> PRESSURE_CONVEX_HD Real normalizedMomentum(Real p,Real rho,
     return power(pm/root(product),pe-e/2);
 }
 
-// A feasible endpoint has |delta P| <= (sqrt(2)+2)*sqrt(rho*h),
-// h=max(E,|delta E|). Four is a loose upper bound, not a new physical limit.
-// This cap makes the subsequent quadratic coefficients safely representable.
+
+
+
 template<class Real> PRESSURE_CONVEX_HD Real momentumRangeCap(Real rho,Real h,Real m) {
     if(m==Real(0)) return Real(1);
     int re=0,he=0,me=0;
@@ -180,32 +180,32 @@ template<class Real> PRESSURE_CONVEX_HD LimitResult<Real> limitFace
             t=b<Real(0)?c/(-b):Real(0);
         } else {
             const Real disc=root(fused(b,b,Real(4)*a*c));
-            // The negative-b branch avoids subtracting nearly equal numbers.
+
             t=b>=Real(0)?(b+disc)/(Real(2)*a):(Real(2)*c)/(disc-b);
         }
         t=minimum(Real(1),maximum(Real(0),t));
     }
     Real beta=cap*t;
-    // Never erode a fully admissible identity endpoint. For limited endpoints,
-    // reserve a few ulps for the shared-face and final-cell arithmetic.
+
+
     if(beta<Real(1) && beta>Real(0))
-        // A relative margin alone can round to the same subnormal value.
+
         beta=inward(beta*(Real(1)-Real(64)*epsilon<Real>()));
     if(!finite(beta)) return {Real(0),false};
     if(admissibleIncrement(rho,px,py,pz,energy,start.floor,maxDeltaU,
                            beta*dpx,beta*dpy,beta*dpz,beta*dEnergy))
         return {beta,true};
-    // No per-face iterative solve. An uncertifiable rounded endpoint fails
-    // closed; the unchanged, previously validated initial state is feasible.
+
+
     return {Real(0),true};
 }
-} // namespace pressure_convex_baseline
+}
 #undef PRESSURE_CONVEX_HD
 
-// Each face is one fixed-weight convex substate (weight=1/faceCount).
-// A neighbouring cell may only shorten that substate's safe segment.
-// Invalid local inputs retain the original zero-kick fallback; the existing
-// projection and closure still run their finite-value and nonnegative clamps.
+
+
+
+
 __device__ inline PressureReal baselinePressureLocalConvexScale(DeviceState& s,int c,PressureTime dt)
 {
     const PressureReal rho=s.momRhoP[c],px=s.momRhoUPx[c],py=s.momRhoUPy[c],pz=s.momRhoUPz[c],e=s.momRhoEP[c];

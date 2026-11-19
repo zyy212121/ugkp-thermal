@@ -1,5 +1,6 @@
-#include "../gpu/WorkPlan.H"
 #pragma once
+#include "../gpu/WorkPlan.H"
+#include "../gpu/FrozenReadback.cuh"
 #include "ParticleStateApi.H"
 namespace {
 using ParticleSnapshot=ugkp::thermal::ParticleState<>;
@@ -29,8 +30,8 @@ __global__ void downloadParticleSnapshotKernel(DeviceState* sp,int begin,int cou
 #undef UGKP_PARTICLE_ARRAY
         q.thermal.initialized=true;
         q.energy=q.thermal.status?q.mass*particleEffectiveSpecificEnthalpyDevice(s,i):0;
-        // Saved velocities are lab-frame delayed rebound velocities in the
-        // existing contact model. These two fields are derived diagnostics.
+
+
         if(q.state && q.face>=0 && q.face<s.nFaces) {
             q.contactRelativeVelocity={q.thermal.savedVelocity[0]-ugkwp::particleWallVelocityX(s,q.face),
                 q.thermal.savedVelocity[1]-ugkwp::particleWallVelocityY(s,q.face),
@@ -48,6 +49,30 @@ struct ParticleSnapshotBuffer {
 constexpr int particleSnapshotChunk=65536;
 }
 namespace ugkp { namespace thermal {
+ParticleSnapshotShape particleSnapshotShape(void* owner,void* rawStream) {
+    DeviceState* s=asState(owner);
+    if (validateState(s,"accepted particle snapshot shape")) gpu::snapshotDataFailure(lastError);
+    const auto stream=static_cast<cudaStream_t>(rawStream);
+    int count=0;
+    if(!s->particleCountDevice)gpu::snapshotDataFailure("missing accepted particle count");
+    gpu::checkSnapshotCopy(cudaMemcpyAsync(&count,s->particleCountDevice,sizeof(count),cudaMemcpyDeviceToHost,stream),
+        "download accepted particle count");
+    gpu::checkSnapshotCopy(cudaStreamSynchronize(stream),"collect accepted particle count");
+    if(count<0 || count>s->particleCapacity || s->nBoundarySources<0)
+        gpu::snapshotDataFailure("invalid accepted particle or source count");
+    return {count,s->nBoundarySources,s->sourceFace,s->sourceResidualMass};
+}
+void packParticleSnapshot(void* owner,int count,ParticleState<>* output,void* rawStream) {
+    DeviceState* s=asState(owner);
+    if(validateState(s,"freeze accepted particle snapshot"))gpu::snapshotDataFailure(lastError);
+    if(count<0 || count>s->particleCapacity || (count && !output))
+        gpu::snapshotDataFailure("missing accepted particle snapshot storage");
+    if(!count)return;
+    const auto width=ugkp::gpu::workPlan().particleBlockThreads;
+    downloadParticleSnapshotKernel<<<(count+width-1)/width,width,0,static_cast<cudaStream_t>(rawStream)>>>(
+        s->deviceState,0,count,output);
+    gpu::checkSnapshotCopy(cudaGetLastError(),"freeze accepted particle history");
+}
 int uploadParticleState(void* owner,int count,const ParticleState<>* particles) {
     DeviceState* s=asState(owner);
     if(validateState(s,"complete particle state upload"))return 1;

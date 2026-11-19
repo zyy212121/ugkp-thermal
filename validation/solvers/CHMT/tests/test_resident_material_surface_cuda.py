@@ -33,7 +33,7 @@ def test_resident_material_surface_matches_cpu(tmp_path):
     assert "PASS cooperative material surface unavailable-domain" in run.stdout
     assert run.stdout.count("PASS cooperative ordered root mode=") == 4
 
-    # Keep both resident launch plans under the same production-function oracle.
+
     for depth in (2, 3):
         run = subprocess.run([str(binary), "--variant", "5", "--probe-depth", str(depth)],
             capture_output=True, text=True, timeout=900)

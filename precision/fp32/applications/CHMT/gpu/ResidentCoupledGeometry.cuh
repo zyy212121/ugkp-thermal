@@ -107,7 +107,15 @@ public:
             error=fault_.message.empty()?storage.error():fault_.message;return false;}
         dirty_=false;return true;
     }
-    bool prepare(double interval,const ResidentWallKnotTime* times,int knots,const ResidentWallClock* clock,
+
+
+    void bind(SharedGasDeviceStorage& storage){
+        auto& g=storage.hostView().gasGeometry;g.enabled=true;g.oldVolume=gas.view().oldVolume;
+        g.newVolume=gas.view().newVolume;g.faceSweptVolume=gas.view().sweptVolume;
+        g.absoluteGeometryTolerance=absoluteTolerance_;g.relativeGeometryTolerance=relativeTolerance_;
+    }
+    template<class Interval>
+    bool prepare(Interval interval,const ResidentWallKnotTime* times,int knots,const ResidentWallClock* clock,
         const int* gasFaces,CoupledSurfaceInput* input,SharedGasDeviceStorage& storage,cudaStream_t stream,std::string& error){
         using namespace coupled_geometry_detail;
         auto* diagnostics=storage.hostView().diagnostics;
@@ -122,9 +130,8 @@ public:
         const int count=surface_->view().faces;
         if(count)publishSurfaceInput<<<(count+ugkp::gpu::workPlan().faceBlockThreads-1)/ugkp::gpu::workPlan().faceBlockThreads,ugkp::gpu::workPlan().faceBlockThreads,0,stream>>>(count,gasFaces,acceptedSurface_.data(),surface_->view().face,
             support_.data(),gas.view().sweptVolume,input,diagnostics);
-        auto& g=storage.hostView().gasGeometry;g.enabled=true;g.oldVolume=gas.view().oldVolume;
-        g.newVolume=gas.view().newVolume;g.faceSweptVolume=gas.view().sweptVolume;g.interval=interval;
-        g.absoluteGeometryTolerance=absoluteTolerance_;g.relativeGeometryTolerance=relativeTolerance_;
+        bind(storage);
+        if constexpr(std::is_arithmetic<Interval>::value)storage.hostView().gasGeometry.interval=interval;
         ugkwp::bindGasStageGeometryKernel<<<1,1,0,stream>>>(storage.deviceView(),gas.view(),gas.controls());
         if(!fault_.check(cudaGetLastError(),"prepare resident coupled geometry")){error=fault_.message;return false;}return true;
     }

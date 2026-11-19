@@ -1,4 +1,4 @@
-// Runs unchanged production device functions serially on a host. Not CUDA execution.
+
 #include <cmath>
 using std::isfinite;
 #include <cstdio>
@@ -25,7 +25,7 @@ using Time=double;
 #define __global__
 #define __device__
 #define __forceinline__ inline
-// PTX traps are represented by process failure in this serial host emulator.
+
 #define asm(...) std::abort()
 struct ThreadIndex { int x=0; } blockIdx, threadIdx, blockDim;
 constexpr Real OfSmall=GPU_R(2.22044604925031308085e-16);
@@ -36,7 +36,7 @@ struct GasPrimDevice { Real rho,ux,uy,uz,p,T; };
 #ifdef LEGACY_REFERENCE
 using DeviceState=LegacyGasFixture;
 #else
-// No application DeviceState definition: the actual operators must be generic.
+
 #include "gasTransport/GasStateView.H"
 #endif
 #include "operators/clampMin.cuh"

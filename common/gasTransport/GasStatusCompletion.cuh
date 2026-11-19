@@ -6,8 +6,8 @@
 
 namespace ugkwp {
 namespace gasStatusCompletion {
-// Status consumption only: no thermodynamic/transport computation or mutation.
-// Encoding cells before faces preserves the existing host scan's selection.
+
+
 using Index=unsigned long long;
 constexpr Index unavailableIndex=~Index(0);
 static __global__ void findUnavailable(const int* cells,int cellCount,
@@ -21,10 +21,8 @@ static __global__ void findUnavailable(const int* cells,int cellCount,
         if(code==int(GasTransportCode::InvalidStorage))atomicMin(first,i);
     }
 }
-static __global__ void publishUnavailable(const Index* first,int cellCount,
+static __device__ void reportUnavailable(Index selected,int cellCount,
     ugkp::diagnostics::DeviceContext* diagnostics,unsigned site,unsigned operation) {
-    if(blockIdx.x||threadIdx.x||ugkp::diagnostics::hasFatal(diagnostics))return;
-    const Index selected=*first;
     if(selected==unavailableIndex)return;
     const bool face=selected>=Index(cellCount);
     const auto location=static_cast<std::int64_t>(face?selected-Index(cellCount):selected);
@@ -33,20 +31,45 @@ static __global__ void publishUnavailable(const Index* first,int cellCount,
         face?ugkp::diagnostics::EntityKind::Face:ugkp::diagnostics::EntityKind::Cell,
         location,-1,int(GasTransportCode::InvalidStorage)));
 }
+static __global__ void publishUnavailable(const Index* first,int cellCount,
+    ugkp::diagnostics::DeviceContext* diagnostics,unsigned site,unsigned operation) {
+    if(!blockIdx.x&&!threadIdx.x&&!ugkp::diagnostics::hasFatal(diagnostics))
+        reportUnavailable(*first,cellCount,diagnostics,site,operation);
+}
+static __global__ void checkSingleBlock(const int* cells,int cellCount,const int* faces,int faceCount,
+    ugkp::diagnostics::DeviceContext* diagnostics,Index* first,unsigned site,unsigned operation){
+    __shared__ unsigned selected;
+    if(!threadIdx.x)selected=~0u;
+    __syncthreads();
+    const unsigned i=threadIdx.x;
+    if(i<unsigned(cellCount+faceCount)&&!ugkp::diagnostics::hasFatal(diagnostics)){
+        const int code=i<unsigned(cellCount)?cells[i]:faces[i-cellCount];
+        if(code==int(GasTransportCode::InvalidStorage))atomicMin(&selected,i);
+    }
+    __syncthreads();
+    if(!threadIdx.x){
+        *first=selected==~0u?unavailableIndex:Index(selected);
+        if(!ugkp::diagnostics::hasFatal(diagnostics))reportUnavailable(*first,cellCount,diagnostics,site,operation);
+    }
+}
 }
 
-// The caller owns one scalar of scratch storage and the completion boundary.
-// All three operations use its stream; no allocation, host readback or wait.
+
+
 inline cudaError_t enqueueGasStatusCheck(const int* cells,int cellCount,
     const int* faces,int faceCount,ugkp::diagnostics::DeviceContext* diagnostics,
     unsigned long long* first,unsigned site,unsigned operation,cudaStream_t stream) {
     if(cellCount<0||faceCount<0||!diagnostics||!first
         ||(cellCount&&!cells)||(faceCount&&!faces))return cudaErrorInvalidValue;
+    const auto count=static_cast<unsigned long long>(cellCount)+faceCount;
+    const int block=ugkp::gpu::workPlan().reductionBlockThreads;
+    if(count<=static_cast<unsigned>(block)){
+        gasStatusCompletion::checkSingleBlock<<<1,block,0,stream>>>(cells,cellCount,faces,faceCount,diagnostics,first,site,operation);
+        return cudaGetLastError();
+    }
     auto error=cudaMemsetAsync(first,0xff,sizeof(*first),stream);
     if(error!=cudaSuccess)return error;
-    const auto count=static_cast<unsigned long long>(cellCount)+faceCount;
-    if(count) {
-        const int block=ugkp::gpu::workPlan().reductionBlockThreads;
+    {
         const auto needed=(count+block-1)/block;
         const int blocks=static_cast<int>(needed<65535?needed:65535);
         gasStatusCompletion::findUnavailable<<<blocks,block,0,stream>>>

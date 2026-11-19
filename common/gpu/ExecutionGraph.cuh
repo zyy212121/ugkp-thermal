@@ -21,6 +21,12 @@ inline std::vector<cudaGraphNode_t> capturedDependencies(cudaGraphNode_t node){
 #endif
     return result;
 }
+inline cudaGraphNode_t joinGraphTails(cudaGraph_t graph,const std::vector<cudaGraphNode_t>& tails){
+    if(tails.size()==1)return tails.front();
+    cudaGraphNode_t node=nullptr;
+    checked(cudaGraphAddEmptyNode(&node,graph,tails.data(),tails.size()));
+    return node;
+}
 inline cudaGraphNode_t appendCapturedGraph(cudaGraph_t graph,const std::vector<cudaGraphNode_t>& dependencies,cudaGraph_t captured){
     size_t count=0;checked(cudaGraphGetNodes(captured,nullptr,&count));
     std::vector<cudaGraphNode_t> nodes(count);checked(cudaGraphGetNodes(captured,nodes.data(),&count));
@@ -56,14 +62,39 @@ inline cudaGraphNode_t appendCapturedGraph(cudaGraph_t graph,const std::vector<c
     };
     for(auto node:nodes)append(node);
     std::vector<cudaGraphNode_t> tails;for(auto node:terminals)tails.push_back(copied[node]);
-    if(tails.size()==1)return tails[0];if(nodes.empty())tails=dependencies;
-    cudaGraphNode_t joined=nullptr;checked(cudaGraphAddEmptyNode(&joined,graph,tails.data(),tails.size()));return joined;
+    return joinGraphTails(graph,nodes.empty()?dependencies:tails);
 }
 template<class Capture> inline cudaGraphNode_t appendCaptured(cudaGraph_t graph,
     const std::vector<cudaGraphNode_t>& dependencies,cudaStream_t stream,Capture capture){
     cudaGraph_t captured=nullptr;checked(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));
     try{capture();checked(cudaStreamEndCapture(stream,&captured));const auto node=appendCapturedGraph(graph,dependencies,captured);checked(cudaGraphDestroy(captured));return node;}
     catch(...){cudaStreamCaptureStatus state;if(cudaStreamIsCapturing(stream,&state)==cudaSuccess&&state!=cudaStreamCaptureStatusNone)cudaStreamEndCapture(stream,&captured);if(captured)cudaGraphDestroy(captured);throw;}
+}
+
+
+
+template<class Capture> inline cudaGraphNode_t appendRecorded(cudaGraph_t graph,
+    const std::vector<cudaGraphNode_t>& dependencies,cudaStream_t stream,Capture capture){
+    checked(cudaStreamBeginCaptureToGraph(stream,graph,dependencies.data(),nullptr,
+        dependencies.size(),cudaStreamCaptureModeThreadLocal));
+    try{
+        capture();cudaStreamCaptureStatus status;cudaGraph_t target=nullptr;unsigned long long id=0;
+        const cudaGraphNode_t* tail=nullptr;std::size_t count=0;
+#if CUDART_VERSION >= 13000
+        checked(cudaStreamGetCaptureInfo(stream,&status,&id,&target,&tail,nullptr,&count));
+#else
+        checked(cudaStreamGetCaptureInfo_v2(stream,&status,&id,&target,&tail,&count));
+#endif
+        std::vector<cudaGraphNode_t> tails;
+        if(count)tails.assign(tail,tail+count);else tails=dependencies;
+        checked(cudaStreamEndCapture(stream,&target));
+        return joinGraphTails(graph,tails);
+    }catch(...){
+        cudaStreamCaptureStatus status;cudaGraph_t target=nullptr;
+        if(cudaStreamIsCapturing(stream,&status)==cudaSuccess&&status!=cudaStreamCaptureStatusNone)
+            cudaStreamEndCapture(stream,&target);
+        throw;
+    }
 }
 inline cudaGraphNode_t addConditional(cudaGraph_t graph,cudaGraphConditionalHandle handle,
     const std::vector<cudaGraphNode_t>& dependencies,cudaGraph_t& body,cudaGraphConditionalNodeType type){

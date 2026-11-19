@@ -1,4 +1,4 @@
-// Immutable fa71f477 reference for old/new regression, never production.
+
 template<int NumComponents>
 __device__ void blockReduceComponentSums
 (

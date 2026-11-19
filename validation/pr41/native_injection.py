@@ -28,7 +28,7 @@ def scheme_entry(case, section, key, value):
 def prepare(case,solver):
  if solver.startswith('gas'):
   g.copy_inputs(ROOT/'validation/shared_boundary/fixtures'/('steady-table' if solver.endswith('Steady') else 'gas-table'),case)
-  # Uniform face strips simplify an independent area-uniform population check.
+
   p=case/'system/blockMeshDict';p.write_text(p.read_text().replace('simpleGrading (1 8.0 1)','simpleGrading (1 1 1)'))
   m.run(['blockMesh','-case',case],case/'mesh.log')
   patch(case/'0/epsilonS','inlet','type fixedValue; value uniform .001;')
@@ -97,8 +97,8 @@ def inspect(case,solver,expected,out):
   values=(last/'gpuResidentStrictSourceResidual.dat').read_text().split();residual=sum(map(float,values[3::2]))
  assert len(xyz)>1000,len(xyz)
  assert abs(mass+residual-expected['expected_mass'])<expected['expected_mass']*1e-8,(mass,residual,expected)
- # No lateral injection velocity and tiny duration. Transverse position is the
- # sampled initial face coordinate; x allows the existing owner-cell inset.
+
+
  assert np.max(np.abs(xyz[:,0]-expected['x']))<2e-6
  normalized=xyz[:,1:]/np.array([expected['y'],expected['z']])
  assert np.min(normalized)>=-1e-10 and np.max(normalized)<=1+1e-10

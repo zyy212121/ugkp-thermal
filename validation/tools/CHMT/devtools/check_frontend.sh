@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Actual OpenFOAM frontend execution, limited to early coupling input rejection.
+
 set -euo pipefail
 source_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 root="$source_root"
@@ -25,8 +25,8 @@ if "$binary" -case "$work/case" -check-input > "$work/result" 2>&1; then
   echo 'FAIL: native CHMT frontend accepted missing coupled participants' >&2; exit 1
 fi
 grep -q 'requires a material region and mapped surface' "$work/result"
-# Positive case: real gas and solid meshes with nonzero thermal contrast and
-# a conformal interface. This validates input ownership, not time evolution.
+
+
 python3 "$cases_root/test/tools/CHMT/coupled_input/make_case.py" "$work/coupled"
 blockMesh -case "$work/coupled" > "$work/gasMesh.log"
 blockMesh -case "$work/coupled" -region solid -dict "$work/coupled/system/blockMeshSolidDict" > "$work/solidMesh.log"
@@ -36,7 +36,7 @@ if "$binary" -case "$work/coupled" > "$work/runtime.log" 2>&1; then
   echo 'FAIL: unfinished shared backend claimed native coupled evolution' >&2; exit 1
 fi
 grep -q 'input-only build has no CUDA backend' "$work/runtime.log"
-# Same compiled Ns binary, explicitly selected single-component transport.
+
 python3 "$cases_root/test/tools/CHMT/coupled_input/make_case.py" "$work/single" --single
 blockMesh -case "$work/single" > "$work/singleGasMesh.log"
 blockMesh -case "$work/single" -region solid -dict "$work/single/system/blockMeshSolidDict" > "$work/singleSolidMesh.log"

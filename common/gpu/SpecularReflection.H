@@ -6,8 +6,8 @@
 #include <stdexcept>
 namespace ugkp { namespace gpu {
 struct ReflectionEntry {int donor;double weight;};
-// Conservative angular remap. Transfer the quadrature flux measure, not
-// unweighted intensity; closest reflected directions receive capacity first.
+
+
 inline std::vector<std::vector<ReflectionEntry>> specularReflection(
  const std::vector<std::array<double,3>>& directions,const std::vector<double>& weights,
  const std::array<double,3>& normal){
@@ -30,8 +30,8 @@ inline std::vector<std::vector<ReflectionEntry>> specularReflection(
  }
  if(!(incoming>0)||!(outgoing>0)||std::abs(incoming-outgoing)>1e-12*std::max(incoming,outgoing))
   throw std::invalid_argument("reflection quadrature hemisphere measures differ");
- // Antipodal quadrature balances both hemispheres analytically. Normalize only
- // the summation roundoff so both row and column capacity loops terminate.
+
+
  for(auto& x:supply)x*=incoming/outgoing;
  const auto originalDemand=demand;
  struct Edge {double cost;int receiver,donor;};std::vector<Edge> edges;

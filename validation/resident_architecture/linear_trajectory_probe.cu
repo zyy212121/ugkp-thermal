@@ -18,8 +18,8 @@ std::vector<Report> evaluate(const Topology& topology,const std::vector<Point>& 
     check(cudaGraphGetNodes(graph,nodes.data(),&nodeCount));
     for(auto node:nodes){cudaGraphNodeType type;check(cudaGraphNodeGetType(node,&type));if(type!=cudaGraphNodeTypeKernel)throw std::runtime_error("non-kernel trajectory graph node");}
     check(cudaGraphInstantiateWithFlags(&executable,graph,0));
-    // Repeated execution must clear previous failure and warning state, including
-    // when a moving invalid trajectory becomes globally stationary.
+
+
     for(int replay=0;replay<3;++replay){
         const auto& target=replay==1?old:end;
         if(!target.empty())check(cudaMemcpyAsync(endpoint,target.data(),target.size()*sizeof(Point),cudaMemcpyHostToDevice,stream));

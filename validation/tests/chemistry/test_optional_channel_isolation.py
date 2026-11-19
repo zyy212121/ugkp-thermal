@@ -114,7 +114,7 @@ int main() {
             assert(!ugkp::diagnostics::hasFatal(&diagnostics));
         }
     }
-    // Zero T remains an error when the actual EOS denominator consumes it.
+
     Model model;
     ugkp::diagnostics::DeviceContext diagnostics{};
     model.t.diagnostics=&diagnostics;
@@ -144,12 +144,12 @@ int main(){State<double,3> state;double rho=1,zero=0,energy=0,partial[3];
  energy=mixtureEnergy(partial,700.,g.thermo);bool available=false;
  const auto status=advanceGasChemistryCell(state,0,1e-6,1.,false,&available);
  assert(status && available && !ugkp::diagnostics::hasFatal(&diagnostics));
- for (double value: partial) assert(value==1); // Authorized finite-Y clipping.
+ for (double value: partial) assert(value==1);
 
  std::printf("code=%d thermo=%d available=%d energy=%.17g densities=%.17g,%.17g,%.17g\n",int(status.code),int(status.thermoCode),int(available),energy,partial[0],partial[1],partial[2]);
  std::printf("fatal=%d code=%u source=%u observed=%.17g\n",int(ugkp::diagnostics::hasFatal(&diagnostics)),unsigned(diagnostics.firstFatal.code),unsigned(diagnostics.firstFatal.sourceSiteId),diagnostics.firstFatal.observed);
 
- // An actually nonfinite input remains unavailable and fatal.
+
  diagnostics=ugkp::diagnostics::DeviceContext{};
  partial[0]=std::numeric_limits<double>::quiet_NaN();
  available=true;

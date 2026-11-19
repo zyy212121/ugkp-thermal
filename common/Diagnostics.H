@@ -18,17 +18,19 @@ enum class Severity : std::uint32_t { Fatal = 1, Warning = 2 };
 enum class Code : std::uint32_t {
     NegativeTemperature = 1, NonFinite = 2, InvalidIndex = 3,
     MissingOperator = 4, ZeroDenominator = 5, CudaRuntime = 6, InvalidPhysicalState = 7,
-    ConservationResidual = 101, AccuracyResidual = 102, FiniteYClip = 103
+    InputData = 8, OutputData = 9,
+    ConservationResidual = 101, AccuracyResidual = 102, FiniteYClip = 103,
+    RestartMetadata = 104, MethodFallback = 105
 };
 namespace Quantity {
 constexpr std::uint32_t Unspecified=0, Temperature=1, MassFraction=2,
     Density=3, Pressure=4, Velocity=5, InternalEnergy=6, Index=7,
     Denominator=8, CudaStatus=9, Conservation=10, Accuracy=11, LinearSystem=12,
-    HeatCapacity=13;
+    HeatCapacity=13, RadiationIntensity=14;
 }
 enum class EntityKind : std::uint32_t { None = 0, Cell = 1, Face = 2, Particle = 3, Species = 4 };
 
-// Fixed-width fields only. Wire encoding is explicit, never a memcpy of this POD.
+
 struct Record {
     Severity severity;
     Code code;
@@ -46,7 +48,7 @@ struct WarningSlot {
     std::uint32_t sampleClaim, count, overflow;
     Record sample;
 };
-constexpr std::uint32_t warningCategoryCount = 3;
+constexpr std::uint32_t warningCategoryCount = 5;
 struct DeviceContext {
     std::uint32_t fatalClaim;
     Record firstFatal;
@@ -59,7 +61,8 @@ static_assert(std::is_trivial<DeviceContext>::value && std::is_standard_layout<D
               "diagnostic storage must remain transferable POD");
 
 UGKP_DIAGNOSTIC_HD inline bool isWarning(Code code) {
-    return code == Code::ConservationResidual || code == Code::AccuracyResidual || code == Code::FiniteYClip;
+    return code == Code::ConservationResidual || code == Code::AccuracyResidual
+        || code == Code::FiniteYClip || code == Code::RestartMetadata || code == Code::MethodFallback;
 }
 UGKP_DIAGNOSTIC_HD inline Record makeRecord(
     Code code, std::uint32_t sourceSiteId = 0, std::uint32_t operatorId = 0,
@@ -74,8 +77,8 @@ UGKP_DIAGNOSTIC_HD inline Record makeRecord(
     record.reference = reference; record.corrected = corrected; record.quantityId = quantityId;
     return record;
 }
-// Use per-launch state/arguments to stamp provenance without concurrent writes
-// to shared context metadata. The first-fatal publisher preserves this stamp.
+
+
 constexpr std::uint32_t explicitOperationMetadata = 0x80000000u;
 constexpr std::uint32_t detailCodeMask = 0x7fffffffu;
 UGKP_DIAGNOSTIC_HD inline Record withOperation(Record record, std::uint64_t sequence,
@@ -111,16 +114,16 @@ UGKP_DIAGNOSTIC_HD inline void saturatingIncrement(WarningSlot& slot) {
 }
 }
 
-// The owner calls reset only after all prior producers/consumers have completed.
-// A fatal operation must not be reset to resume partially computed physics state.
+
+
 inline void reset(DeviceContext& context, std::uint64_t operationSequence, std::uint64_t instanceId,
     std::int64_t step = -1, double simulationTime = 0) {
     context = DeviceContext{};
     context.operationSequence = operationSequence; context.instanceId = instanceId;
     context.step = step; context.simulationTime = simulationTime;
 }
-// Metadata advance is ordered with producers by the owner. It never clears
-// unread warnings or the first fatal, including when reporting is deferred.
+
+
 UGKP_DIAGNOSTIC_HD inline void beginOperation(DeviceContext& context,
     std::uint64_t operationSequence, std::int64_t step, double simulationTime) {
     context.operationSequence = operationSequence;
@@ -147,8 +150,8 @@ UGKP_DIAGNOSTIC_HD inline void recordWarning(DeviceContext* context, const Recor
     }
 }
 UGKP_DIAGNOSTIC_HD inline void recordFatal(DeviceContext* context, const Record& input) {
-    // A residual or finite-Y correction must never latch a fatal, even if a
-    // caller accidentally submits it through this entry point.
+
+
     if (isWarning(input.code)) { recordWarning(context, input); return; }
     if (!context) {
 #ifdef __CUDA_ARCH__
@@ -169,16 +172,16 @@ UGKP_DIAGNOSTIC_HD inline void recordFatal(DeviceContext* context, const Record&
     }
 }
 #ifdef __CUDACC__
-// One ordered setup launch per logical operation; no copy or synchronization.
-// Launch outside a captured graph before replay, or update captured arguments
-// explicitly, so step/time are never frozen to the graph's capture operation.
+
+
+
 static __global__ void beginOperationKernel(DeviceContext* context, std::uint64_t sequence,
     std::int64_t step, double simulationTime) {
     if (blockIdx.x==0 && threadIdx.x==0 && context)
         beginOperation(*context,sequence,step,simulationTime);
 }
-// All threads in an ordinary block must call at the same program point. This
-// entry guard is unsuitable for kernels with grid-wide/cooperative barriers.
+
+
 __device__ inline bool blockMayProceed(const DeviceContext* context) {
     __shared__ unsigned int stopped;
     if (threadIdx.x == 0 && threadIdx.y == 0 && threadIdx.z == 0) stopped = hasFatal(context) ? 1u : 0u;
@@ -189,6 +192,6 @@ __device__ inline bool blockMayProceed(const DeviceContext* context) {
 inline bool blockMayProceed(const DeviceContext* context) { return !hasFatal(context); }
 #endif
 
-}} // namespace ugkp::diagnostics
+}}
 #undef UGKP_DIAGNOSTIC_HD
 #endif

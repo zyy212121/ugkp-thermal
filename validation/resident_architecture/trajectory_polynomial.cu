@@ -12,7 +12,7 @@ using namespace ugkp::gpu::geometry;
 struct Control{double value[4];};
 struct Bounds{double minimum,maximum;};
 void check(cudaError_t e){if(e!=cudaSuccess){std::fprintf(stderr,"%s\n",cudaGetErrorString(e));std::abort();}}
-// Frozen native formula from CHMT Geometry.C at dafe4abb's parent source.
+
 Bounds nativeBounds(const double* control){
     Bounds out;double& minimum=out.minimum;double& maximum=out.maximum;
     const auto minValue=[](double a,double b){return a<b?a:b;};

@@ -6,9 +6,9 @@
 
 namespace ugkwp
 {
-// Publish physical-wall exchange, not matching flux or auxiliary chemistry.
-// normalSweepRate is grid velocity dot MATERIAL->GAS normal, in m/s.
-// All stored fluxes are outward integrated rates, matching common gas kernels.
+
+
+
 template<class State,class Real,int Ns,class Output>
 UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
 (
@@ -57,8 +57,8 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
         if(!gasFinite(speed2))return failure(2505,speed2,0);
         if(!gasFinite(viscousWork))return failure(10059,viscousWork,1);
     }
-    // Project before taking a max-scaled norm: normal pressure/roundoff must
-    // not produce turbulent shear, and squaring tiny/large traction is unsafe.
+
+
     Real shear=0;
     if(tractionScale>0)
     {
@@ -113,8 +113,8 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
     closure={};closure.wallShearStress=shear;closure.ownerOmega=output.ownerOmega;
     closure.volume=input.quadrature.volume;closure.ownerDistance=input.ownerDistance;
     if(input.volumeSstClosure && !wall.useMacroSstInventory){
-        // At exactly zero profile k the moment ratio is undefined; retain
-        // the existing point-omega decay of any nonzero macro inventory.
+
+
         closure.kDestructionRate=output.ownerKContent>0
             ?output.ownerKDestruction/output.ownerKContent
             :input.model.sstCoefficients.betaStar*output.ownerOmega;
@@ -123,9 +123,9 @@ UGKWP_GAS_HD inline bool publishGasBoundaryLayerOutput
         for(int species=0;species<Ns;++species)closure.normalMassFlux+=input.massFlux[species];
         closure.kFluxCount=output.kFluxCount;closure.kFluxHeight=output.kFluxHeight;closure.kTransportFlux=output.kTransportFlux;closure.omegaDiffusiveFlux=output.omegaDiffusiveFlux;
     }
-    // With macro inventories, these profile quantities remain in WallOutput
-    // for diagnostics. A zero count publishes no replacement internal flux
-    // or volume source. Physical-wall exchange above still comes from the BVP.
+
+
+
     candidate.ready=true;
     wall.exchange[slot]=candidate;
     wall.status[slot]=0;

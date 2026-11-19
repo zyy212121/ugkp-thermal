@@ -10,13 +10,13 @@ int main(){
     const auto inventories=base.solid;
     long double physicalTotal[2]={},actualTotal[2]={};bool nonzero=false;
     for(int step=0;step<240;++step){
-        // Signed physical transfers alternate removal/deposition without ever
-        // replacing them by a geometry-derived mass or changing the inventory.
+
+
         const Real sign=(step/40)%2?-1:1;
         const std::vector<Real> physical={-sign*.043e-8*1e-9,-sign*.043e-8*1e-9};
         const auto original=physical;auto aux=base.filmAux;
-        // Model the measured one-sided waveform/adoption residual: each guess
-        // over-recedes by an individually admissible four-epsilon volume.
+
+
         for(int f=0;f<2;++f)aux[f].solidFront+=(physical[f]-4*std::numeric_limits<Real>::epsilon()*base.solidMesh.volumes[f])
             /mag(base.solidMesh.areaVectors[base.surface.solidFace[f]]);
         HostMesh gas,solid,measured;SurfaceMesh surface;SweepConstraintReport report;std::vector<Real> sweeps;

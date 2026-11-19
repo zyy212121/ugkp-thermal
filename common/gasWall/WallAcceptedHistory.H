@@ -1,7 +1,7 @@
 #pragma once
 #include "WallReferenceSolver.H"
 namespace ugkwp { namespace gaswall {
-// Metadata belongs to a physical wall, never to a pooled Newton worker.
+
 template<int N> struct WallHistoryFrame {
  bool valid=false,adiabatic=false;int nodes=0;double distance=0,stretch=0,temperature=0;
  double normal[3]{},tangent[2][3]{},wallU[2]{};int independent[N-1]{},dependent=0;
@@ -26,8 +26,8 @@ template<int N> UGKWP_GAS_HD inline bool compatibleHistory(const WallHistoryFram
      &&old.turbulentPrandtl==now.turbulentPrandtl&&old.turbulentSchmidt==now.turbulentSchmidt
      &&old.equilibriumKappa==now.equilibriumKappa&&old.equilibriumAPlus==now.equilibriumAPlus&&old.adiabatic==now.adiabatic&&old.nodes==now.nodes&&old.distance==now.distance&&old.stretch==now.stretch&&old.speciesOrder==now.speciesOrder;
 }
-// Preserve physical T, tangential velocity and composition when the algebraic
-// coordinates change. This is not an endpoint lift or a Picard iteration.
+
+
 template<class R,int N> UGKWP_GAS_HD inline void transformHistoryRow(
  const R*src,R*dst,const WallHistoryFrame<N>&old,const WallHistoryFrame<N>&now){
  for(int j=0;j<N+4;++j)dst[j]=src[j];

@@ -35,13 +35,13 @@ def test_pinned_complete_import():
     assert m["reactions"][21]["lowRate"] == pytest.approx([2.3e6, -.9, -1700*4.184])
     assert m["reactions"][21]["type"] == "Troe"
     assert m["reactions"][21]["troe"] == [0.7346, 94.0, 1756.0, 5182.0, True]
-    # Specific colliders are retained on both sides, so order is not reduced.
+
     assert m["reactions"][6]["reactants"] == [[1, 1.0], [3, 2.0]]
     assert m["reactions"][6]["products"] == [[3, 1.0], [6, 1.0]]
     assert m["reactions"][6]["highRate"][0] == pytest.approx(2.08e7)
     assert all(len(s["coefficients"]) == 14 for s in m["thermo"])
     assert m["thermo"][5]["molarMass"] == pytest.approx(0.018015)
-    # Every basis column conserves elemental molar counts exactly.
+
     for e in range(4):
         for j in range(6):
             assert sum(m["thermo"][s]["atoms"][e]*m["stoichiometricBasis"][s*6+j] for s in range(10)) == 0
@@ -230,7 +230,7 @@ def test_cpp_derivatives_finite_at_zero_radicals_and_match_one_sided_limits(rate
         cp[j] += h
         cpp[j] += 2*h
         states += [(1000, cp), (1000, cpp)]
-    # At exactly the NASA midpoint, use a one-sided low-range T derivative.
+
     dt = 1e-3
     states += [(1000-dt, c), (1000-2*dt, c)]
     perturbed = rate_runner(states)

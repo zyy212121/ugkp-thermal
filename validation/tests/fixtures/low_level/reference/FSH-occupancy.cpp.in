@@ -1,4 +1,4 @@
-// Immutable fa71f477 host reference.
+
 int configureLaunchOccupancy(DeviceState* s)
 {
     const int block = s->reductionBlockThreads;

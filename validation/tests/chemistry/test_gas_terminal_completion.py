@@ -42,7 +42,7 @@ int main(int argc,char** argv){
    gasChemistryDetail::ReactorContext<double,2> context(base,a.t,a.m,controls,false);assert(context.prepare());gasChemistryDetail::sdirkStep(context,.1,result,700.);
   }else{
    const double dt=mode=="interval"?.1:(mode=="negative_interval"?-.1:(mode=="nan_interval"?std::numeric_limits<double>::quiet_NaN():std::numeric_limits<double>::infinity()));st=advanceClosedReactor(base,dt,a.t,a.m,controls,result);
-   assert(st.attemptedSteps==1); // Nonfinite-input propagation, not a finite physical solution.
+   assert(st.attemptedSteps==1);
   }
   assert(result.speciesMass[0]!=-771&&result.speciesMass[1]!=-772&&result.temperature!=-773);assert(!std::isfinite(result.speciesMass[0])&&!std::isfinite(result.speciesMass[1]));
  }else if(mode=="wider_underflow" || mode=="wider_overflow"){

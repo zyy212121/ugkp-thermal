@@ -1,4 +1,4 @@
-// Exercise the actual common segmented moment kernel with mixed empty/full cells.
+
 #include <cuda_runtime.h>
 #include <cassert>
 #include <cmath>

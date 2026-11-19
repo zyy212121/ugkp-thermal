@@ -18,7 +18,7 @@ int main() {
             assert(std::isfinite(d)&&d>=lo&&d<=hi);
             const long double q=std::pow((long double)d/scale,n)-a;
             const long double cdf=-std::expm1(-q)/(-std::expm1(-span));
-            // Extremely far-tail double diameters may have a resolved CDF step.
+
             const double tolerance=1e-9+std::min(1.,double(a*n)*1e-14);
             assert(std::abs(cdf-u)<tolerance);
             ++samples;
@@ -27,7 +27,7 @@ int main() {
         assert(rosinRammlerDiameter(scale,n,lo,hi,1.)==hi);
     }
     assert(rosinRammlerDiameter(1e-4,2.,1e-4,1e-4,.5)==1e-4);
-    // Conditional tail normalization and tiny-q limiting distribution.
+
     for(double n:{1.,2.,8.})for(double scale:{1e-20,1e20}) {
         const double d=rosinRammlerDiameter(scale,n,1e-4,2e-4,.5);
         assert(std::isfinite(d)&&d>=1e-4&&d<=2e-4);

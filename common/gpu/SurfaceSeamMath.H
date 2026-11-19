@@ -21,9 +21,9 @@ UGKP_SURFACE_SEAM_HD inline bool surfaceSeamPairMatches(const SurfaceTopologyEdg
     const double db=::sqrt(second.x*second.x+second.y*second.y+second.z*second.z);
     return db<=tolerance;
 }
-// Preserve the native ordered search and both endpoint distance checks. The
-// removed mask is updated by the caller after each accepted pair, so a later
-// edge cannot reuse an edge consumed by an earlier one.
+
+
+
 template<class P>
 UGKP_SURFACE_SEAM_HD inline SurfaceSeamMatch matchSurfaceSeam(int index,int count,
     const SurfaceTopologyEdge* edges,const unsigned char* removed,const P* points,

@@ -31,7 +31,7 @@ for(bool sst:{false,true})for(int nodes:{2,3}) {Model m;m.in.integrateOwnerKSour
  assert(out.traceTemperature==m.in.temperature);
  detail::LayerContext<double,2> ctx;detail::makeContext(m.in,c,ctx);
  assert(detail::publishLayer(m.in,c,ctx,w,out.iterations,out.residual,expected));sameOutput(out,expected);
- // Supplied out-of-capacity node metadata is caller risk; never run an OOB probe.
+
  m.in.model.thermo.coefficients=nullptr;assert(!evaluateWallModel(m.in,c,w,out,s));
 }
 ''',
@@ -116,8 +116,8 @@ def seed_fixture(header):
         w.delta[i][variable]=-R(.5)*(variable==N+2?w.state[i][variable]*w.state[i][variable]:w.seed[i][7]);
     return true;'''
     header=header[:start]+body+header[end:]
-    # The shared velocity solve replaces the variable-zero scalar call.
-    # Count that same Picard pass without changing the signed turbulence probe.
+
+
     marker='template<class R,int N,int M> UGKWP_GAS_HD inline bool seedVelocityPair('
     if marker in header:
         start=header.index(marker);end=header.index('\n}\n',start)
@@ -136,7 +136,7 @@ w.state[i][3]=.3;w.state[i][4]=.5;w.state[i][5]=double(i)/3/std::sqrt(200.);}
 double oldK=w.state[2][4];detail::LayerPoint<double,2> wall;assert(detail::pointState(m.in,c,ctx,w.state[0],wall));
 double slope=std::sqrt(wall.rho*m.in.model.sstCoefficients.beta1/(6*m.in.model.viscosity));
 double oldOmega=1/(slope*slope*w.y[2]*w.y[2])+200;
-assert(!detail::seedSstLayer(m.in,c,ctx,w)); // Original negative trial rejection.
+assert(!detail::seedSstLayer(m.in,c,ctx,w));
 assert(seedPass==1);assert(w.state[2][4]==oldK);
 assert(w.state[2][5]==1/std::sqrt(oldOmega));
 }

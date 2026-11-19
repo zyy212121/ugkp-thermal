@@ -1,4 +1,4 @@
-// Non-owning physical fields used by the common particle phase. No gas RK scratch.
+
 UGKP_PARTICLE_GAS_FIELD(double, V)
 UGKP_PARTICLE_GAS_FIELD(double, Cx)
 UGKP_PARTICLE_GAS_FIELD(double, Cy)

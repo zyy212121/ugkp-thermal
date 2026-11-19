@@ -12,7 +12,7 @@ def main():
  out=parser.parse_args().output.resolve();out.mkdir(parents=True,exist_ok=False)
  meta=json.loads((ROOT/'validation/molecular_transport/fixtures.json').read_text())['cht-contact']
  report=[]
- # Inlet outward normal is -x. Gas and particle boundary velocities are independent.
+
  scenarios=[('explicit',0,1),('default',1,None),('zero',1,0),('opposed_in',-1,1),('opposed_out',1,-1)]
  for name,gas,override,scheduled in [(n,g,v,s) for s in (False,True) for n,g,v in scenarios]:
   if scheduled:name='scheduled_'+name

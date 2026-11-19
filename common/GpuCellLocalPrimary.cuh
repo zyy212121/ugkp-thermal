@@ -10,7 +10,7 @@ struct ParticleFieldExtension
     static __host__ __device__ __forceinline__ void swap(State&) {}
 };
 #endif
-// Shared primary fields with optional compile-time thermal extension.
+
 __device__ __forceinline__ void copyCellLocalParticle
 (DeviceState& s, const int i, const int c, const int dst)
 {

@@ -3,8 +3,8 @@
 #include "core/Types.H"
 #include "../../../common/gasNumerics/OpenFoamViscousFlux.cuh"
 namespace chmt {
-// Coupling supplies its normal gradient and maps vector storage only. The
-// Newtonian stress formula is owned by the shared gas transport operator.
+
+
 CHMT_HD inline Vec3 viscousTraction(const GasGradient& gradient,Vec3 area,
     Real viscosity,Real turbulentPressure) {
     using V=ugkptransport::Vector3;

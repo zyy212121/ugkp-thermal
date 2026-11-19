@@ -9,7 +9,7 @@
 extern thread_local bool failNextAllocation;
 extern std::atomic<bool> failNextThread;
 using ugkp::gpu::GraphContinuationTask;
-// Constructed before sharedServiceFor static storage, destroyed after it.
+
 static GraphContinuationTask earlyStaticTask;
 static void checked(cudaError_t e){if(e!=cudaSuccess)throw std::runtime_error(cudaGetErrorString(e));}
 static void require(bool value,const char* message){if(!value)throw std::runtime_error(message);}
@@ -42,8 +42,8 @@ static void normal(){
     auto shortFuture=shortTask.result();
     require(shortFuture.wait_for(std::chrono::seconds(5))==std::future_status::ready,"short stream completion stalled");
     shortFuture.get();require(finishShort==1,"short completion duplicated or missing");
-    // A callback can progress on the short stream while the other stream's
-    // independent blocking observer is waiting for its event.
+
+
     require(longTask.result().wait_for(std::chrono::seconds(0))!=std::future_status::ready,"long/short overlap not exercised");
     longTask.result().get();require(finishLong==1,"long completion duplicated or missing");
     require(*longStream.count==1&&*shortStream.count==1,"initial launch count");
@@ -83,8 +83,8 @@ static void awaitObservers(std::size_t expected){
 static void lifecycle(){
     auto& executor=ugkp::gpu::graphContinuationDetail::serviceFor(0);
     awaitObservers(0);
-    // Null is a real default stream; registration identity, not the raw handle,
-    // separates a later owner from an unregistered generation still retiring.
+
+
     auto first=executor.registerStream(nullptr);auto shared=executor.registerStream(nullptr);
     require(first==shared,"same-stream users did not share observer");
     executor.unregisterStream(first);require(shared->users==1,"first user retired shared observer");
@@ -97,7 +97,7 @@ static void lifecycle(){
     for(int i=0;i<32;++i){
         Fixture fixture;GraphContinuationTask task;
         task.start(fixture.stream,fixture.executable,[]{return false;},[]{});
-        task.reset(); // No explicit stream sync before releasing the final user.
+        task.reset();
         awaitObservers(0);
     }
     {
@@ -125,8 +125,8 @@ static void workerLastOwner(){
     auto executor=registry->get(0);auto observer=executor->registerStream(fixture.stream);
     auto work=std::make_shared<Work>();work->stream=fixture.stream;work->graph=fixture.executable;work->observer=observer;
     work->service=[]{return false;};
-    // Work retains the only non-registry service owner. Destroy the registry
-    // while work is in flight: it must drain retirement before dropping ownership.
+
+
     work->finished=[executor,observer]{executor->unregisterStream(observer);};
     auto done=work->completion.get_future();auto submitted=work->submitted.get_future();
     executor->submit(work);submitted.get();executor.reset();observer.reset();work.reset();registry.reset();done.get();

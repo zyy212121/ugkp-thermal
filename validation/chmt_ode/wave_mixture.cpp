@@ -1,6 +1,6 @@
-// Serial execution of actual shared kernels, checked against the independently
-// rearranged implicit wave-pressure equation. Full CUDA coverage is the CHMT run.
-// Runs unchanged production device functions serially on a host. Not CUDA execution.
+
+
+
 #include <cmath>
 using std::isfinite;
 #include <cstdio>
@@ -27,7 +27,7 @@ using Time=double;
 #define __global__
 #define __device__
 #define __forceinline__ inline
-// PTX traps are represented by process failure in this serial host emulator.
+
 #define asm(...) std::abort()
 struct ThreadIndex { int x=0; } blockIdx, threadIdx, blockDim;
 constexpr Real OfSmall=GPU_R(2.22044604925031308085e-16);
@@ -86,8 +86,8 @@ int main(){
   ++count;
  }
 
- // The same primitive wall-projection operator used in the native stage must
- // retain macro SST at a quiescent ODE wall, even with nonzero initial k.
+
+
  s.gasSpecies.mode=ugkwp::GasMode::SingleLegacy;s.sstConfigured=1;s.sstWallTreatment=2;
  s.sstOmegaMin=1e-6;s.sstKMin=1e-12;s.gasMu=9.29152148664344e-5;
  s.sstCoefficients=ugkwp::defaultSstCoefficients();s.sstWallCmu=.09;s.sstWallKappa=.41;s.sstWallE=9.8;

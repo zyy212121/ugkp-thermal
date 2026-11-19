@@ -5,8 +5,8 @@
 #include <cmath>
 #include <limits>
 namespace chmt {
-// Audit values only: never substitute these sentinels into physical inventories.
-// Construct a diagnostic infinity/NaN without executing overflowing arithmetic.
+
+
 inline long double hostAuditAdd(long double a,long double b){
     const long double infinity=std::numeric_limits<long double>::infinity();
     if(std::isnan(a)||std::isnan(b))return std::numeric_limits<long double>::quiet_NaN();
@@ -40,9 +40,9 @@ inline long double scale(long double fraction,int exponent){
     return std::ldexp(fraction,static_cast<int>(power));
 }
 }
-// OF10 WM_DP reduces scalar with MPI_DOUBLE, not MPI_LONG_DOUBLE. Carry a
-// common binary exponent and reduce only bounded Real mantissas. This also
-// avoids overflowing a Real intermediate before opposite signed ranks cancel.
+
+
+
 inline long double hostAuditGlobalSum(long double local,Foam::label comm=Foam::UPstream::worldComm){
     if(Foam::UPstream::nProcs(comm)==1)return local;
     unsigned flags=std::isnan(local)?1u:(std::isinf(local)?(std::signbit(local)?4u:2u):0u);
@@ -55,7 +55,7 @@ inline long double hostAuditGlobalSum(long double local,Foam::label comm=Foam::U
     Foam::reduce(exponent,Foam::maxOp<int>(),Foam::Pstream::msgType(),comm);
     if(exponent==std::numeric_limits<int>::min())return 0;
     Real scaled=local==0?Real(0):hostAuditNarrow(std::ldexp(local,-exponent));
-    // Each summand has magnitude <= 1; the communicator count fits label.
+
     Foam::reduce(scaled,Foam::sumOp<Real>(),Foam::Pstream::msgType(),comm);
     return hostAuditDetail::scale(static_cast<long double>(scaled),exponent);
 }

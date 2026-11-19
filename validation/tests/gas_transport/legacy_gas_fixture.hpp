@@ -1,5 +1,5 @@
 namespace ugkp { namespace diagnostics { struct DeviceContext; } }
-// Independent fixture for pre-refactor gas-only field contract. No solver formulas.
+
 struct LegacyGasFixture
 {
     ugkp::diagnostics::DeviceContext* diagnostics{};

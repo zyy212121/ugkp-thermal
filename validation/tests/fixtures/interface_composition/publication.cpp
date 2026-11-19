@@ -1,6 +1,6 @@
-// A selected, certified state must not repeat the same physical evaluation.
-// Instrument real function entry, not a mocked residual. External verification
-// below is excluded from counting and checks the actual original equations.
+
+
+
 #include "ablation/InterfaceMath.H"
 #include <cstdio>
 #include <cstdlib>
@@ -34,8 +34,8 @@ int main(){
   require(publishedEvaluations==0,"already certified solution evaluated again at publication");
   std::printf("full diffusion preparations=%u\n",fullDiffusionPreparations);
   require(fullDiffusionPreparations<=Ns,"normal call repeated full diffusion preparation across candidates");
-  // Zero-flux initial-state certification needs one EOS division and Ns
-  // coefficient/distance divisions. It performs no scalar/Newton root work.
+
+
   if(mode==2)require(divisionCalls==Ns+1,"repeated EOS divisions inside species loop");
  }
 }

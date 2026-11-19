@@ -12,8 +12,8 @@ def chemistry_fixture():
     fixture=module.SOURCE.split('int main(){',1)[0].replace('TEST_REAL','double')
     source=(ROOT/'common/operators/advanceGasChemistryKernel.cuh').read_text()
     start=source.index('template<class GasState, class Time>\n__global__ void advanceGasChemistryKernel')
-    # Only expose the CUDA-conditional production launch body to the serial
-    # emulator; the body itself and real closed-reactor adapter are unchanged.
+
+
     kernel=source[start:source.rfind('#endif')]
     return fixture+r'''
 #define __global__
@@ -39,7 +39,7 @@ int main(){Fixture actual,expected,direct;LocalState s,d;static_cast<State&>(s)=
 double localDt[2]={.01,.04},volumes[2]={.5,2};s.gasPseudoDt=d.gasPseudoDt=localDt;blockDim.x=1;
 for(int c=0;c<2;++c){threadIdx.x=c;advanceGasChemistryKernel(&s,.5,volumes);advanceGasChemistryCellWithVolumes(expected.state,c,.5*localDt[c]/2,volumes);
 assert(actual.partial[c]==expected.partial[c]&&actual.partial[2+c]==expected.partial[2+c]);assert(actual.chemistryStatus[c]&&actual.cellStatus[c]==0);
-// Direct adapter receives an actual interval and must not apply localDt again.
+
 advanceGasChemistryCellWithVolumes(d,c,.5*localDt[c]/2,volumes);assert(direct.partial[c]==expected.partial[c]&&direct.partial[2+c]==expected.partial[2+c]);}
 assert(actual.partial[0]!=1.5&&actual.partial[1]!=3);assert(actual.energy[0]==expected.energy[0]&&actual.energy[1]==expected.energy[1]);}
 ''')
@@ -79,8 +79,8 @@ g.mechanism.reactions=reaction;g.mechanism.reactionCount=1;g.mechanism.reactants
 double oldE[2];
 for(int c=0;c<2;++c){Real rhoY[2]={1.5,.5};s.Tgas[c]=700;s.rhoE[c]=ugkwp::mixtureEnergy(rhoY,Real(700),g.thermo);oldE[c]=s.rhoE[c];threadIdx.x=c;steadyGasSpatialResidualKernel(&s);
 near(residual[10+c],3,"uniform reacting source omitted");near(residual[12+c],3,"uniform product source omitted");near(residual[8+c],0,"formation-inclusive chemistry added heat RHS");}
-// Boundary influx of reactant and outflux of product cancels the volumetric
-// reaction source in both unequal-volume cells, before absolute-value reduction.
+
+
 flux[1]=-3*s.V[0];flux[4]=3*s.V[0];flux[2]=-3*s.V[1];flux[5]=3*s.V[1];
 for(int c=0;c<2;++c){threadIdx.x=c;steadyGasSpatialResidualKernel(&s);near(residual[10+c],0,"transport/reaction A cancellation");near(residual[12+c],0,"transport/reaction B cancellation");ck(s.rhoE[c]==oldE[c]&&s.rhoE[c]<0,"raw chemistry changed formation energy");}
 }

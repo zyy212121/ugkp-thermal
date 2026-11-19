@@ -29,8 +29,8 @@ struct Fixture {
     ~Fixture(){if(stream)cudaStreamSynchronize(stream);if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);
         if(seed)cudaFree(seed);if(selected)cudaFree(selected);if(matrix)cudaFree(matrix);if(rhs)cudaFree(rhs);if(stream)cudaStreamDestroy(stream);}
     gpu::MinimumNormResult run(int nr,int nc,const std::vector<double>& a,const std::vector<double>& b,double tolerance){
-        // Only test-fixture initialization and final observation use host data.
-        // The same captured graph consumes device-selected dimensions/inputs.
+
+
         if(!a.empty())check(cudaMemcpy(matrix,a.data(),a.size()*sizeof(double),cudaMemcpyHostToDevice));
         if(!b.empty())check(cudaMemcpy(rhs,b.data(),b.size()*sizeof(double),cudaMemcpyHostToDevice));
         const gpu::MinimumNormDeviceProblem problem{nr,nc,tolerance,matrix,rhs};

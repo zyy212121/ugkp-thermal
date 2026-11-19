@@ -105,8 +105,8 @@ try
     }
     rc|=copyToDevice(model.input,inputs.data(),inputs.size(),"upload wall input descriptors");
     if(rc){discardBoundaryLayerCandidate(s,candidate);return 1;}
-    // Retain the converged profile's volume diagnostics, but do not identify
-    // that steady inventory with the independently advanced macro SST state.
+
+
     model.volumeSstClosure=a.model==1;
     w.useMacroSstInventory=true;
     model.config.model=static_cast<ugkwp::gaswall::BoundaryLayerModel>(a.model);
@@ -116,7 +116,7 @@ try
     model.config.relativeTolerance=a.relativeTolerance;model.config.absoluteTolerance=a.absoluteTolerance;
     model.config.stretch=a.stretch;model.config.turbulentPrandtl=a.turbulentPrandtl;
     model.config.turbulentSchmidt=a.turbulentSchmidt;
-    // equilibriumOde closes eddy viscosity directly; macro SST remains active.
+
     model.config.enableSst=s->hostTurbulenceModel==3;
     ugkwp::configureEquilibriumOdeMacroSst(w,model);
 
@@ -170,7 +170,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
         r[20]=o.ownerKContent;r[21]=o.ownerKDestruction;
         r[22]=i.quadrature.volume;r[23]=o.ownerKBalanceResidual;r[24]=i.volumeSstClosure?1:0;
         if(s->gasBoundaryLayerModel.config.model==ugkwp::gaswall::BoundaryLayerModel::EquilibriumOde){
-            // These are absent local-model diagnostics, not physical zero k/omega.
+
             const double unavailable=std::numeric_limits<double>::quiet_NaN();
             r[8]=r[9]=r[10]=r[20]=r[21]=r[23]=unavailable;
         }

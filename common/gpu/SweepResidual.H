@@ -4,6 +4,8 @@
 #include "SweepResidualMath.H"
 #include "SweepPlanarity.H"
 #include "SweepTrial.H"
+#include "ResidentStageGeometry.H"
+#include "../Diagnostics.H"
 namespace ugkp { namespace gpu { namespace geometry {
 enum class SweepResidualFailure:int {None,Endpoint,EmptyNormal,EmptyTangential,Sweep,FaceResidual,PlanarResidual,Metric,Layout};
 struct SweepResidualStatus {
@@ -11,12 +13,23 @@ struct SweepResidualStatus {
     SweepResidualFailure failure=SweepResidualFailure::None;
     int index=-1,rows=0;
 };
+class HarmonicSweepCorrection;
+class LocalFrameStageGeometry;
+class InterfaceGasStage;
+struct SweepNewtonReport {
+    SweepResidualStatus retained{};
+    diagnostics::Record fatal{};
+    int iterations=0,modeSolves=0,lineSearchTrials=0,rank=0,correctionError=0,index=-1,wetFace=-1,rankRow=-1;
+    unsigned long long modeWarnings=0,rankWarnings=0;
+    double modeResidual=0,rankResidual=0,rankTolerance=0;
+    bool certificateCurrent=false;
+};
 struct SweepResidualProblem {
     const Point* old=nullptr;const Point* endpoint=nullptr;
     const double *targets=nullptr,*scales=nullptr,*faceCeiling=nullptr,*planeTolerance=nullptr;
     const PlanarConstraint* planar=nullptr;
     double absoluteTolerance=0,relativeTolerance=0,rankTolerance=0;
-    int planarCount=-1; // initialized capacity or an actual device-selected prefix
+    int planarCount=-1;
 };
 struct SweepResidualView {
     const SweepResult* sweptFaces=nullptr;
@@ -24,8 +37,8 @@ struct SweepResidualView {
     const double* rhs=nullptr;
     const SweepResidualStatus* status=nullptr;
 };
-// Topology/Empty pairing are validated once by the mesh owner. Coordinates,
-// targets, scales and controls are borrowed from their resident producers.
+
+
 class ResidentSweepResidual {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:
@@ -53,8 +66,8 @@ struct SweepLineSearchStatus {
     int nextBacktrack=0,trials=0;
     bool candidate=false,evaluated=false,exhausted=false;
 };
-// Compatibility publication for the remaining host line search. Residual/RHS
-// and endpoint also stay available to the next resident Newton operator.
+
+
 class SweepResidualEvaluation {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:
@@ -66,6 +79,10 @@ public:
     SweepPlanarityView planarity()const;
     int planeCapacity()const;
     SweepResidualStatus evaluate(const std::vector<Point>&);
+
+
+    SweepNewtonReport refine(HarmonicSweepCorrection&,LocalFrameStageGeometry&,InterfaceGasStage*,
+        StageGeometryControls,double rankTolerance,double harmonicTolerance,int maximumIterations,int maximumTrials);
     void beginLineSearch();
     SweepLineSearchStatus lineSearch(const Point* correction,int maximumTrials,bool restart);
     std::vector<Point> publishEndpoint();

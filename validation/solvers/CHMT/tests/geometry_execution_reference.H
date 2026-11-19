@@ -1,7 +1,7 @@
-// Frozen serial geometry oracle from PR25 63158141dd82c88d60e848463271a1eeea64da08.
-// Only the two function names and internal geometry calls are renamed. Include
-// after Geometry.C to reuse its unchanged geometry primitives. Keeping this
-// test-only oracle avoids requiring Git history or a particular compiler's hashes.
+
+
+
+
 namespace chmt {
 namespace {
         bool referenceGeometryInPlace(HostMesh& m, std::string& error,empty_detail::Extrusion* extrusion=nullptr,bool* numericalFailure=nullptr,ugkp::diagnostics::DeviceContext* diagnostics=nullptr) {
@@ -215,14 +215,14 @@ namespace {
         if ((candidate.topologyHash != old.topologyHash))return errorAt(error, "topology change unsupported", -1);
         {
         if (!certifyLinearTrajectory(old, endpoint, error,tol.diagnostics))return false;
-        // Reject a crossed/inverted path even if endpoint orientation recovered.
+
         HostMesh mid = old;
         for (std::size_t p = 0; p<endpoint.size(); ++p)mid.points[p] = extrusion.axis<0?
             (old.points[p]+endpoint[p])*.5:old.points[p]+(endpoint[p]-old.points[p])*.5;
         if (!referenceGeometryInPlace(mid, error,nullptr,numericalFailure,tol.diagnostics))return false;
-        // Cell volume is a cubic polynomial along linear vertex trajectories.
-        // Check its interior extrema as well as endpoints, so two inversions
-        // between sampling times cannot escape an endpoint/midpoint-only test.
+
+
+
         HostMesh oneThird = old, twoThird = old;
         for (std::size_t p = 0; p<endpoint.size(); ++p) {
             oneThird.points[p] = extrusion.axis<0?old.points[p]*(2.0/3)+endpoint[p]/3:

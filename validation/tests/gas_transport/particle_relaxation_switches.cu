@@ -1,4 +1,4 @@
-// Actual shared relaxation on CPU or CUDA; inactive wall routes trap if entered.
+
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -78,7 +78,7 @@ __device__ void evaluate(int index,double* row){
  s.gasViscosity={ugkwp::MolecularViscosityModel::SutherlandWilke,1,&species,nullptr,nullptr};
  s.gasMu=1.8e-5;s.gasCp=1000.;s.gasPrClamped=.72;s.gasPrOneThird=::cbrt(.72);
  s.dragModelId=mode&1;s.particleGasHeatTransferModelId=(mode>>1)&1;
- // Disabled models must not dereference the absent temperature snapshot.
+
  s.couplingTgasOld=mode?&temperature:nullptr;
  s.pStuck[0]=stuck?Foam::gpuThermal::particleWallDeposited:Foam::gpuThermal::particleWallMobile;
  row[0]=mode;row[1]=stuck;row[2]=temperature;row[3]=particleSpecificHeatDevice(s.pT[0]);

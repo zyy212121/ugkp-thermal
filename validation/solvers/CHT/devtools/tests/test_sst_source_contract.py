@@ -33,23 +33,22 @@ def test_ugkpcht_runtime_identifies_the_new_solver() -> None:
 
 
 def test_openfoam_ras_sst_configuration_is_supported() -> None:
-    configuration = read("readGpuGasConfiguration.H")
+    assert '#include "FoamGasTurbulenceControls.H"' in read("readGpuGasConfiguration.H")
+    configuration = (SOURCE_ROOT/'common/FoamGasTurbulenceControls.H').read_text()
     for token in (
         'simulationType == "RAS"',
         'gasTurbulenceModelName == "kOmegaSST"',
         "gasTurbulenceModel = 3",
         'subDict("RAS")',
         'subOrEmptyDict("kOmegaSSTCoeffs")',
-        'lookupOrDefault<scalar>("alphaK1", scalar(0.85))',
-        'lookupOrDefault<scalar>("alphaOmega2", scalar(0.856))',
-        'lookupOrDefault<scalar>("betaStar", scalar(0.09))',
-        'lookupOrDefault<scalar>("gamma1", scalar(5.0/9.0))',
-        'lookupOrDefault<scalar>("a1", scalar(0.31))',
-        'lookupOrDefault<scalar>("kMin", scalar(1.0e-12))',
-        'lookupOrDefault<scalar>("omegaMin", scalar(1.0e-6))',
+        'ugkp::solverControls::readSstCoefficients(modelCoeffs,sstCoefficients)',
     ):
         assert token in configuration
 
+    coefficients = (SOURCE_ROOT/'common/FoamMomentumTransportInput.H').read_text()
+    for key, member in [('alphaK1','sigmaK1'), ('alphaOmega2','sigmaOmega2'), ('betaStar','betaStar'),
+                        ('gamma1','gamma1'), ('a1','a1'), ('kMin','minimumK'), ('omegaMin','minimumOmega')]:
+        assert f'read("{key}",sst.{member})' in coefficients
     assert 'simulationType == "RANS"' not in configuration
 
 
@@ -132,7 +131,8 @@ def test_restart_acceptance_driver_checks_k_omega_and_nut() -> None:
 
 
 def test_sst_wall_function_configuration_and_resident_path() -> None:
-    configuration = read("readGpuGasConfiguration.H")
+    assert '#include "FoamGasTurbulenceControls.H"' in read("readGpuGasConfiguration.H")
+    configuration = (SOURCE_ROOT/'common/FoamGasTurbulenceControls.H').read_text()
     main = read("diluteUgkwpFoam.C")
     cuda = read("gpu/GpuResidentStrict.cu")
     header = read("gpu/GpuResidentStrict.H")

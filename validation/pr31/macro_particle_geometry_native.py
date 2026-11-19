@@ -13,8 +13,8 @@ def main():
  boundary=(case/'constant/polyMesh/boundary').read_text()
  patch=re.search(r'\bleft\s*\{([^}]+)',boundary)[1]
  face=int(re.search(r'startFace\s+(\d+)',patch)[1])
- # Tight geometry accuracy makes the material owner retain its actual
- # reaction-based endpoint instead of snapping to the predictor trajectory.
+
+
  d=case/'constant/chmtProperties';d.write_text(d.read_text()+'''\ntolerances {absoluteGeometry 1e-16;relativeGeometry 1e-16;}
 enableParticles true;
 particle {capacity 8;rhoSolid 2500;dragModel none;heatTransferModel none;contactModel reboundContact;

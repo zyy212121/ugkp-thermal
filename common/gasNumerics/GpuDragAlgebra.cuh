@@ -58,7 +58,7 @@ UGKWP_DRAG_HD GpuReal gasUgkpSchillerNaumannCoefficient
     return GPU_R(0.44);
 }
 
-// Original gas inputs: retain caller-selected additive denominator protection.
+
 struct RegularizedDragInputs
 {
     static constexpr bool bounded = false;
@@ -72,7 +72,7 @@ struct RegularizedDragInputs
     { return squared ? rhoS*d*d + regularization : rhoS*d + regularization; }
 };
 
-// Thermal inputs: preserve positivity bounds and the zero-slip return.
+
 struct BoundedDragInputs
 {
     static constexpr bool bounded = true;
@@ -81,7 +81,7 @@ struct BoundedDragInputs
     UGKWP_DRAG_HD static GpuReal diameter(GpuReal x) { return fmax(x,GPU_R(1.0e-30)); }
     UGKWP_DRAG_HD static GpuReal coefficient(GpuReal re)
     {
-        // Keep multiply-before-divide rounding, unlike the regularized policy.
+
         return re < GPU_R(1000.0)
           ? GPU_R(24.0)*schillerNaumannCorrection(re)/re : GPU_R(0.44);
     }

@@ -8,9 +8,9 @@
 #endif
 namespace ugkp { namespace gpu { namespace geometry {
 constexpr double stageGeometryEpsilon=std::numeric_limits<double>::epsilon();
-// Preserve the original three interpolation expressions, including the
-// represented Empty-coordinate arithmetic. Algebraic simplification changes
-// whether a stationary sample has exactly the accepted coordinates.
+
+
+
 template<class Vec>
 UGKP_STAGE_GEOMETRY_HD inline Vec stageSample(Vec old,Vec endpoint,int sample,int emptyAxis){
     if(sample==0)return emptyAxis<0?(old+endpoint)*.5:old+(endpoint-old)*.5;

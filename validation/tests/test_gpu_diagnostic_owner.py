@@ -47,7 +47,7 @@ void operator delete(void* p,std::size_t) noexcept {std::free(p);}
  quiet.observeCompletedWork();Snapshot empty;quiet.finish(empty);
  const unsigned before=allocations;
  for(int i=0;i<20;++i){quiet.observeCompletedWork();quiet.finish(empty);assert(empty.sources.empty());}
- assert(allocations-before<=40); // No rebuilding/copying hundreds of unused descriptors.
+ assert(allocations-before<=40);
  hostReads=0;
  GpuOwner a,b;''')
             code=code.replace(' a.observeCompletedWork();a.finish(snapshot);assert(snapshot.warnings.empty());',''' a.observeCompletedWork();a.finish(snapshot);assert(snapshot.warnings.empty());

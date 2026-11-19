@@ -86,8 +86,8 @@ int main(){
    assert(states==stateCalls-2*saved);
    assert(sources==sstCalls-saved);
    if(sst&&!diagnostic){assert(states<stateCalls);assert(sources<sstCalls);}
-   // Invalid profiles still reject without publishing any output, even when
-   // the unused neighboring-state checks are skipped in the optimized path.
+
+
    current=w;reference=w;current.state[c.nodes/2][2]=reference.state[c.nodes/2][2]=
     std::numeric_limits<WallReal>::quiet_NaN();
    const auto keep=actual;const auto keepReference=expected;

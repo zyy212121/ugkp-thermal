@@ -1,4 +1,4 @@
-// Compile this file against the frozen pre-migration common include root.
+
 #include "common/gasWall/WallGeometryBuilder.H"
 #include "wall_polygon_probe.H"
 #include <iostream>

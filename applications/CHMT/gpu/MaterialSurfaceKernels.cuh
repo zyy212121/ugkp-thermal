@@ -11,9 +11,9 @@ struct MaterialSurfaceStatus {
     DeviceStatus device{};
     ugkwp::gaswall::WallStatus wall{};
 };
-// Borrowed device views. Context chemistry and quadrature in inputs must refer
-// to device-owned storage. Each worker gets a separate aligned wall workspace;
-// its strided faces are serial, while statuses and outputs remain face-sized.
+
+
+
 struct MaterialSurfaceView {
     int count=0;
     const SurfacePhysicsInput* inputs=nullptr;
@@ -21,7 +21,7 @@ struct MaterialSurfaceView {
     const SolidQ* solid=nullptr;
     const Real* volumes=nullptr;
     const SolidQ* materialRate=nullptr;
-    const unsigned char* active=nullptr; // null means every face is active
+    const unsigned char* active=nullptr;
     SurfacePhysicsResult* physicsOut=nullptr;
     WallFaceSample* wallOut=nullptr;
     MaterialSurfaceStatus* status=nullptr;
@@ -60,11 +60,11 @@ __global__ void evaluateMaterialSurfaceKernel(View binding,const PhysicsConfig* 
         view.physicsOut[face]=result;view.wallOut[face]=dryWallFaceSample(input,result,*physics);status.success=true;
     }
 }
-// A face retains its scalar reaction/root traversal. All team members follow
-// that same traversal; independent wall nodes/Jacobian blocks use the common
-// cooperative ODE implementation and the owner alone publishes face state.
-// A worker owns either one warp or a block of independent probe warps.
-// Each probe has a disjoint workspace; one worker still publishes each face.
+
+
+
+
+
 template<class View,class Team=ugkwp::gaswall::detail::CudaWallTeam>
 __global__ __launch_bounds__(Team::width)
 void evaluateMaterialSurfaceTeamKernel(View binding,const PhysicsConfig* physics) {

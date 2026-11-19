@@ -13,7 +13,7 @@ def particles(path):
 for name,t0,t1,wall in [('above',4500,4500,4500),('below',500,500,500),('heterogeneous',1300,2700,4000)]:
  case=out/name;m.prepare(ROOT/'validation/molecular_transport/fixtures/cht-contact',case,meta)
  m.entry(case/'constant/scheme','precision',a.precision)
- # Isolate radiation from gas conduction; all particle drag/heat sources are off.
+
  transport=case/'constant/gasTransportProperties';transport.write_text(re.sub(r'muRef\s+[^;]+;', 'muRef 1e-30;',transport.read_text()))
  eps=case/'0/epsilonS';eps.write_text(eps.read_text().replace('internalField uniform 0;', 'internalField nonuniform List<scalar> 8('+str(1/(2800*.125))+' 0 0 0 0 0 0 0);'))
  schedule=case/'constant/schedulingProperties';m.entry(schedule,'gpuResidentPureGasOnly','false');m.entry(schedule,'gpuResidentParticleCapacity',16);m.entry(schedule,'gpuCsrLevel','auto' if a.csr_auto else 'L1')

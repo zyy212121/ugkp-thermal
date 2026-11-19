@@ -19,8 +19,8 @@ def test_clear_computes_probability_only_for_consuming_heavy_cells(tmp_path):
     source=(ROOT/'applications/gasUGKP/private_backend/GpuResidentStrict.cu').read_text()
     helper=(ROOT/'common/GpuCollisionProbability.cuh').read_text() if (ROOT/'common/GpuCollisionProbability.cuh').exists() else function(source,'poissonCollisionProbabilityForCell')
     clear='#define GPU_POOL_INITIALIZATION_WITH_PROBABILITY 1\n'+(ROOT/'common/operators/clearPoissonThermalPoolKernel.cuh').read_text()
-    # Compile the actual production body, with an observable tau accessor.
-    # A return to all-cell preparation makes the explicit call-count checks fail.
+
+
     if 'CacheHindrance' in clear: clear='template<bool CacheHindrance=false>\n'+clear
     text=r"""
 #include <algorithm>
@@ -57,7 +57,7 @@ int main(){
   if(c==2||c==4)assert(std::abs(s.poissonCellCollisionProbability[c]-(1-std::exp(-0.1)))<1e-15);
   else assert(s.poissonCellCollisionProbability[c]==-99);
  }
- // A reused directory must not reuse a previous time/state's probability.
+
  s.tau=4;
  for(int c=0;c<7;++c){blockIdx.x=c;clearPoissonThermalPoolKernel(&s,0.8);}
  assert(std::abs(s.poissonCellCollisionProbability[2]-(1-std::exp(-0.2)))<1e-15);

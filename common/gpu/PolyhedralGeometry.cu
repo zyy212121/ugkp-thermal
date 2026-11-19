@@ -71,9 +71,9 @@ __global__ void boundaryMotionKernel(int count,Input input,
     r.displacement=recession+support;r.direction=normalized(r.direction);out[p]=r;
 }
 constexpr double maximumDistance=std::numeric_limits<double>::max();
-// One current-coordinate box per wall-list entry, shared by every query cell.
-// Rebuilt on the same stream after every point upload; no geometry tolerance or
-// persistent coordinate identity is needed to invalidate this scratch storage.
+
+
+
 struct WallBox {Point lo,hi;bool safe=false;};
 __global__ void wallBoxesKernel(int count,TopologyView t,const Point* points,const int* walls,WallBox* boxes){
     const int i=blockIdx.x*blockDim.x+threadIdx.x;if(i>=count)return;
@@ -88,8 +88,8 @@ __global__ void wallBoxesKernel(int count,TopologyView t,const Point* points,con
     }
     box.safe=true;boxes[i]=box;
 }
-// Round the coordinate-wise lower bound towards zero. Extreme/nonfinite input
-// still visits the original extended triangle calculation and its diagnostic.
+
+
 __device__ double wallBoxLowerBound(Point p,const WallBox& box){
     const double safe=maximumDistance/8;
     if(!box.safe||!finite(p)||fabs(p.x)>safe||fabs(p.y)>safe||fabs(p.z)>safe)return -1;
@@ -102,8 +102,8 @@ __global__ void wallDistanceKernel(int count,TopologyView t,const Point* points,
     int wallCount,const int* walls,const WallBox* boxes,WallDistanceResult* output){
     const int cell=blockIdx.x;if(cell>=count)return;
     extern __shared__ double distance[];int* invalid=reinterpret_cast<int*>(distance+blockDim.x);
-    // Pick a seed by bounding-box distance, not a mesh- or hardware-tuned
-    // cutoff. The seed's actual triangle distance is a valid upper bound.
+
+
     double lower=maximumDistance;int seed=INT_MAX;
     for(int i=threadIdx.x;i<wallCount;i+=blockDim.x){const double bound=wallBoxLowerBound(centres[cell],boxes[i]);
         if(bound>=0&&bound<lower){lower=bound;seed=i;}}
@@ -152,8 +152,8 @@ __global__ void initializeMotion(int count,Boundary inputBoundary,const unsigned
     if(!p){*control={};control->tolerance=deviceTolerance?*deviceTolerance:tolerance;control->maximumIterations=maximumIterations;control->active=count>0&&maximumIterations>0;}
     if(p<count){displacement[p]=fixed[p]?boundary[p]:Point{};errors[p]=preErrors[p];}
 }
-// A cooperative grid owns the complete recurrence. Every iteration retains
-// the Jacobi barrier and original ordered neighbour sum, without host polling.
+
+
 template<class Penalties>
 __global__ void solveMotion(int count,const int* offsets,const int* neighbours,const double* weights,const double* total,
     const unsigned char* fixed,Penalties inputPenalties,Point* displacement,Point* next,double* partial,int* errors,MotionControl* control){
@@ -193,8 +193,8 @@ __global__ void publishMotion(int count,Points inputPoints,const Point* displace
     const unsigned char* fixed,bool represented,Point* result,const MotionControl* control){
     const Point* points=inputPoints;const Point* boundary=inputBoundary;
     const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p>=count||control->errorPoint!=INT_MAX)return;
-    // Borrowed inputs may refer to the previous result buffer. Capture this
-    // point before publication so represented displacement remains unchanged.
+
+
     const Point original=points[p];const Point prescribed=represented&&fixed[p]?boundary[p]:Point{};
     result[p]=original+displacement[p];
     if(represented){result[p]=result[p]-original;if(fixed[p])result[p]=prescribed;}
@@ -227,9 +227,9 @@ void ResidentPolyhedralGeometry::configure(const Topology& topology,const std::v
     d.faces=topology.faceOffsets.empty()?0:int(topology.faceOffsets.size()-1);
     d.cells=topology.cellOffsets.empty()?0:int(topology.cellOffsets.size()-1);
     d.wallCount=int(walls.size());
-    // Construction completes initialization before any borrowed stream uses
-    // the view. Only the legacy publication adapter may reconfigure it, on
-    // its own transfer queue between completed calls; arrays retain capacity.
+
+
+
     const auto upload=[&](auto& target,const auto& values){
         if(transfer){target.upload(values,*transfer);return;}
         target.reserve(values.size());
@@ -243,8 +243,8 @@ void ResidentPolyhedralGeometry::configure(const Topology& topology,const std::v
     if(d.cachedWalls!=walls){upload(d.walls,walls);d.cachedWalls=walls;}
     d.face.reserve(d.faces);d.area.reserve(d.faces);d.sweptFaces.reserve(d.faces);
     d.cell.reserve(d.cells);d.centre.reserve(d.cells);d.distance.reserve(d.cells);d.boxes.reserve(d.wallCount);
-    // Pageable default-stream uploads may return before DMA completion. The
-    // initialized view is immediately borrowable by nonblocking streams.
+
+
     if(!transfer)checked(cudaStreamSynchronize(nullptr));
 }
 ResidentPolyhedralGeometry::~ResidentPolyhedralGeometry()=default;
@@ -304,8 +304,8 @@ __global__ void certifyTrajectory(int cells,TopologyView topology,const Point* o
 }
 __global__ void finishTrajectory(int cells,TrajectoryStatus* status,const TrajectoryFailure* failures,TrajectoryCellDiagnostic* diagnostics){
     const int c=blockIdx.x*blockDim.x+threadIdx.x;
-    // The sentinel remains equal to cells during this kernel; only thread zero
-    // publishes the category. No other thread reads a concurrently changed key.
+
+
     if(c<cells&&c>status->firstFailure)diagnostics[c]={};
     if(!c)status->failure=status->firstFailure<cells?failures[status->firstFailure]:TrajectoryFailure::None;
 }
@@ -328,7 +328,7 @@ ResidentLinearTrajectory::ResidentLinearTrajectory(const Topology& topology,int 
     FIELD(faceOffsets);FIELD(facePoints);FIELD(cellOffsets);FIELD(cellFaces);FIELD(cellSigns);FIELD(vertexOffsets);FIELD(vertices);
 #undef FIELD
     d.status.reserve(1);d.failure.reserve(d.cells);d.diagnostics.reserve(d.cells);
-    checked(cudaStreamSynchronize(nullptr)); // Complete initialization before a borrowed stream consumes topology.
+    checked(cudaStreamSynchronize(nullptr));
 }
 ResidentLinearTrajectory::~ResidentLinearTrajectory()=default;
 TrajectoryDeviceView ResidentLinearTrajectory::view()const{
@@ -355,9 +355,9 @@ struct PolyhedralGeometry::Implementation {
     struct RebuildCache {
         Topology topology;std::vector<Point> points;std::vector<int> walls;RebuildResult result;std::size_t bytes=0;std::uint64_t hash=0;
     };
-    // Exact memoization of immutable geometry queries. The bounded host mirror
-    // reuses values computed on the GPU; a miss always executes the GPU kernels.
-    // No solver options, case identity, tolerance or physical regime form keys.
+
+
+
     using CacheList=std::list<RebuildCache>;
     CacheList rebuildCache;std::unordered_multimap<std::uint64_t,CacheList::iterator> cacheIndex;std::size_t cacheBytes=0;
     static constexpr std::size_t cacheBudget=64u*1024u*1024u;
@@ -406,7 +406,7 @@ struct PolyhedralGeometry::Implementation {
     void topology(const Topology& t){
 #define FIELD(name) if(cached.name!=t.name){name.upload(t.name,transfer);cached.name=t.name;}
         FIELD(faceOffsets) FIELD(facePoints)
-        // Face-only operations do not invalidate unrelated cached cell CSR.
+
         if(!t.cellOffsets.empty()){FIELD(cellOffsets) FIELD(cellFaces) FIELD(cellSigns) FIELD(vertexOffsets) FIELD(vertices)}
 #undef FIELD
     }
@@ -440,8 +440,8 @@ MotionIncidence motionIncidence(const Topology& t,int count,const std::vector<in
     const std::vector<unsigned char>& sideFaces){
     if(count<0||t.faceOffsets.size()!=sideFaces.size()+1)
         throw std::invalid_argument("boundary motion topology shape mismatch");
-    // CSR preserves original surface-face order for every vertex. No atomics
-    // change the area-weighted accumulation or Gram-Schmidt projection order.
+
+
     std::vector<int> offsets(count+1,0),sideOffsets(count+1,0);
     for(int f:faces)for(int k=t.faceOffsets[f];k<t.faceOffsets[f+1];++k)++offsets[t.facePoints[k]+1];
     for(std::size_t f=0;f<sideFaces.size();++f)if(sideFaces[f])for(int k=t.faceOffsets[f];k<t.faceOffsets[f+1];++k)++sideOffsets[t.facePoints[k]+1];
@@ -643,9 +643,9 @@ __global__ void solveQr(Rows rows,Columns columns,Tolerance rankTolerance,double
     auto grid=cooperative_groups::this_grid();const int index=blockIdx.x*blockDim.x+threadIdx.x,stride=blockDim.x*gridDim.x;
     __shared__ double projection;
     for(;;){
-        // Snapshot collectively before the pivot thread can change active.
-        // Reading it directly in a while condition races the next pivot with
-        // late-arriving threads and can leave them outside the grid barrier.
+
+
+
         const bool active=c->active;grid.sync();if(!active)break;
         if(!index){const int rank=c->rank;int pivot=rank;
             for(int i=rank+1;i<nr;++i)if(norm[i]>norm[pivot])pivot=i;
@@ -888,3 +888,4 @@ std::vector<Point> SweepLinearization::correction(){auto& d=*data_;PinnedTransfe
 #include "SweepPlanarity.cuh"
 
 #include "LocalFrameStageGeometry.cuh"
+#include "CertifiedSweepNewton.cuh"

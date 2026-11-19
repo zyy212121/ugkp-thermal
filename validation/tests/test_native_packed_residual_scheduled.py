@@ -47,7 +47,7 @@ template<class T>void release(T*& p){cudaFree(p);p=nullptr;}
 template<class T>int copyToDevice(T* d,const T* s,size_t n,const char*){if(!n)return 0;if(!d||!s)return 1;return cudaMemcpy(d,s,n*sizeof(T),1);}
 template<class T>int copyToHost(T* d,const T* s,size_t n,const char*){if(!n)return 0;if(!d||!s)return 1;return cudaMemcpy(d,s,n*sizeof(T),2);}
 void clearMobileParticleRadiationSumsKernel(DeviceState*s){++sumClears;for(int i=0;i<2;++i)s->radiationMobileMass[i]=s->radiationMobileTemperatureMass[i]=s->radiationMobileDiameterMass[i]=0;}
-// These are recording kernel boundaries, not substitute physics evidence.
+
 void accumulatePackedMobileParticleRadiationSumsKernel(DeviceState*s){++packedSums;s->radiationMobileMass[0]=2;s->radiationMobileTemperatureMass[0]=600;s->radiationMobileDiameterMass[0]=.004;s->radiationMobileMass[1]=s->radiationMobileTemperatureMass[1]=s->radiationMobileDiameterMass[1]=0;}
 void accumulateMobileParticleRadiationSumsAtomicKernel(DeviceState*s){++atomicSums;s->radiationMobileMass[0]+=2;s->radiationMobileTemperatureMass[0]+=600;s->radiationMobileDiameterMass[0]+=.004;}
 void refreshPackedParticleEnthalpyKernel(DeviceState*s){++packedRefresh;s->enthalpy[0]=13;s->enthalpy[1]=17;}
@@ -105,8 +105,8 @@ int main(){DeviceState s,published;s.deviceState=&published;published.nPressureS
  assert(published.nScheduledInletFaces==3&&published.nPressureScheduleRows==3&&published.nVolumeFractionScheduleRows==2&&published.scheduledInletTemperature==-7&&published.particlesMayBePresent);
  assert(published.scheduledInletFaceMask==s.scheduledInletFaceMask&&published.pressureScheduleTimes==s.pressureScheduleTimes&&published.pressureScheduleValues==s.pressureScheduleValues&&published.volumeFractionScheduleTimes==s.volumeFractionScheduleTimes&&published.volumeFractionScheduleValues==s.volumeFractionScheduleValues);
  assert(allocations==5&&h2d==5&&d2h==0&&launches==1&&syncs==1);
- // An old successful reconfiguration with no future particles cannot clear the
- // monotonic fact that particles may already exist.
+
+
  double goodTime[]={0,1},goodPressure[]={100000,120000},zeroVolume[]={0,0};int goodFaces[]={1,3};reset();
  assert(ugkwpGpuResidentStrictConfigureScheduledInlet(&s,2,goodFaces,300,2,goodTime,goodPressure,2,goodTime,zeroVolume)==0);
  assert(s.particlesMayBePresent&&published.particlesMayBePresent&&published.nPressureScheduleRows==2&&published.scheduledInletTemperature==300&&s.scheduledInletFaceMask[1]==1&&s.scheduledInletFaceMask[3]==1);releaseSchedule(s);

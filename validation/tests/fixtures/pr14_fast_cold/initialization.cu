@@ -1,5 +1,5 @@
-// Real CUDA regression: include the complete production owner and device paths.
-// No CUDA API shim, extracted numerical substitute, or frozen buggy oracle.
+
+
 #include "GpuResidentStrict.cu"
 #include <cstdio>
 #include <cstdlib>
@@ -86,8 +86,8 @@ void effusivityLifecycle(bool uploadFirst)
     nativeCheck(configureCold(s, mixed));
     check(s->particleWallEffusivityByFace == owner, "reconfigure retains owner");
     checkEffusivity(s, expected);
-    // Supplied patch values are copied unchanged, including zero and signed
-    // values. The fix supplies absent material data; it adds no value gate.
+
+
     const double replacement[] = {-0.0, -2.0};
     nativeCheck(ugkwpGpuResidentStrictUploadParticleWallEffusivityPatch
                 (s, 1, 2, replacement));
@@ -138,8 +138,8 @@ __global__ void initializeProfiles(DeviceState* state, ProfileResult* results)
     const auto* nodes = two ? s.pCold2DNodeSpecificEnthalpy : s.pColdNodeSpecificEnthalpy;
     r.stored = double(nodes[i*count]);
     r.uniform = 1;
-    // Offset averaging is exact for this uniform initialization witness and
-    // does not add an unrelated repeated-summation error to the FSH oracle.
+
+
     r.physical = r.stored;
     for (int n = 0; n < count; ++n)
     {

@@ -149,7 +149,7 @@ void check_nasa() {
         data[s].midTemperature=R(1000); data[s].maxTemperature=R(3500); data[s].referencePressure=R(101325); }
     SpeciesThermoView<R,2> view; view.species=data; view.coefficients=coefficients; view.coefficientCount=28;
     assert(validateSpeciesThermoView(view)==ThermoStatus::Success);
-    // Independent high-precision NASA7 evaluation, in J/mol (not J/kmol).
+
     assert(near(speciesCp(0,R(300),view)*data[0].molarMass,R(29.38807113248397)));
     assert(near(speciesH(0,R(300),view)*data[0].molarMass,R(54.35877860915948),R(2e-5),R(.002)));
     assert(near(speciesEntropyStandard(0,R(300),view)*data[0].molarMass,R(205.3300549002818)));
@@ -167,7 +167,7 @@ void check_nasa() {
         R recovered=R(100); assert(invertMixtureEnergy(masses,mixtureEnergy(masses,T,view),view,controls,recovered)==ThermoStatus::Success);
         assert(near(recovered,T,R(5e-6),R(.005)));
     }
-    // cp/R = 1 + ((T-500)/100)^2 - .1: positive endpoints, negative cv inside.
+
     coefficients[0]=R(25.9); coefficients[1]=R(-.1); coefficients[2]=R(.0001); coefficients[3]=coefficients[4]=R(0);
     assert(validateSpeciesThermoView(view)==ThermoStatus::Success);
 }

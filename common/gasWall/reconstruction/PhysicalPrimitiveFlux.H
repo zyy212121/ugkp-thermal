@@ -21,8 +21,8 @@ template <class R, int N> struct Source
     R species[N]{}, k = 0, omega = 0, nut = 0, f1 = 0, f2 = 0, pressure = 0,
                     divergence = 0;
 };
-// Continuum physical constitutive evaluation on an arbitrary non-equilibrium
-// reconstruction. No constant-pressure BVP assumptions and no flux-derived source.
+
+
 template <class R, int N, class T>
 UGKWP_GAS_HD inline bool
 evaluatePrimitive(const ugkwp::gaswall::WallInput<R, N, T> &in,
@@ -124,7 +124,7 @@ evaluatePrimitive(const ugkwp::gaswall::WallInput<R, N, T> &in,
         src.species[j] = rp.source[j];
     return true;
 }
-} // namespace physical
+}
 
-} // namespace gaswall
-} // namespace ugkwp
+}
+}

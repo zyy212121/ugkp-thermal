@@ -104,7 +104,7 @@ __global__ void delayedGasPublication(DeviceState*sp,double energy) {
 ''')
     s=s.replace('releaseState(s);',r'''
  releaseState(s);
- // A successful phase must not transfer ownership of the external gas arrays.
+
  CUDA_OK(cudaMemset(external.rhoE,0,sizeof(double)));
  CHECK(readOne(external.rhoE)==0);
 #define UGKP_PARTICLE_GAS_FIELD(Type,Name) CUDA_OK(cudaFree(external.Name));
@@ -133,8 +133,8 @@ def main():
             o=json.loads(run.stdout)
             for stage in ("before","after"):o[stage]=dict(zip(FIELDS,o[stage]))
             before,after=o["before"],o["after"]
-            # The independent gas inventory retains negative formation energy;
-            # compute the particle inventory from its stored T plus caloric carry.
+
+
             delta=caloric_inventory(after,o["caloric"])-caloric_inventory(before,o["caloric"])
             delta+=Decimal.from_float(after["mass"])*Decimal.from_float(o["carry_after"])-Decimal.from_float(before["mass"])*Decimal.from_float(o["carry_before"])
             assert abs(delta)<Decimal("3e-8"),delta

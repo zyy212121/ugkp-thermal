@@ -29,10 +29,10 @@ struct InterfaceGasPointMotionView {
     const InterfaceGasMotionStatus* status=nullptr;
 };
 struct InterfaceGasPointMotionResult {std::vector<Point> points;InterfaceGasMotionStatus status;};
-// Ordered conformal displacement, unchanged-offset decision, prescribed/Empty
-// checks and relative-height harmonic motion form one resident graph. The same
-// fixed mask is shared by validation and the harmonic operator. Stage geometry
-// certification and physical acceptance remain with the consuming mesh owner.
+
+
+
+
 class InterfaceGasPointMotion {
     friend class InterfaceGasStage;
     struct Implementation;std::unique_ptr<Implementation> data_;

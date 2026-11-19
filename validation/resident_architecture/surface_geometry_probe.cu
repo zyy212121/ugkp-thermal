@@ -11,8 +11,8 @@ Result evaluate(const Mesh& solid,const Mesh& gas,const std::vector<SurfaceFaceM
     ResidentStageGeometry gasStage(gas.topology,gas.old.size(),gas.walls,gas.partner,gas.axis,gas.mate);
     ResidentSurfaceGeometry surface(faces,edges.size(),solid.old.size(),solid.axis>=0);
     Device<Point> oldSolid(solid.old),endSolid(solid.end),oldGas(gas.old),endGas(gas.end);Device<SurfaceEdgeMap> edge(edges);
-    // Keep region geometry valid when testing the surface operator's separate
-    // invalid-interval contract; this is fixture setup, not a solver recovery.
+
+
     Device<StageGeometryControls> controls(std::vector<StageGeometryControls>{{1e-3,1e-12,1e-10}});
     Device<double> dt(std::vector<double>{interval});Device<ugkp::diagnostics::DeviceContext> diagnostic(std::vector<ugkp::diagnostics::DeviceContext>(1));
     cudaStream_t stream=nullptr;cudaGraph_t graph=nullptr;cudaGraphExec_t executable=nullptr;check(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));

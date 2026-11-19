@@ -18,12 +18,12 @@ def test_dry_surface_adapter_three_species(tmp_path):
     compile_dry_surface_adapter(tmp_path,3)
 
 def test_legacy_surface_policy_matches_preintegration(tmp_path):
-    # Only the policy refactor is compared: all dependencies are the same build.
+
     baseline=subprocess.check_output(['git','show','3c9788a:applications/CHMT/ablation/InterfaceMath.H'],cwd=ROOT,text=True)
     baseline=baseline.replace('"../../../common/gasWall/WallModel.H"','"'+str(ROOT/'common/gasWall/WallModel.H')+'"')
     overlay=tmp_path/'old/ablation';overlay.mkdir(parents=True)
     (overlay/'InterfaceMath.H').write_text(baseline)
-    # Local quoted includes must resolve beside the overridden original header.
+
     for name in ('InterfaceComposition.H','InterfaceCompositionArithmetic.H'):
         (overlay/name).write_text((ROOT/'applications/CHMT/ablation'/name).read_text())
     output=[]

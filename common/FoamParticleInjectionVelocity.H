@@ -1,10 +1,10 @@
 #pragma once
-// constant/particleProperties (optional, m/s):
-// particleTemperatureTransport false;
-// particleGasHeatTransferModel none;
-// particleInjectionVelocity (0 0.1 0);
-// Omit particleInjectionVelocity to follow the gas boundary velocity.
-// The override applies to particle sources selected by fixed epsilonS patches.
+
+
+
+
+
+
 #include "IOdictionary.H"
 #include "fvMesh.H"
 #include "ParticleInjectionVelocity.H"
@@ -27,7 +27,7 @@ inline ParticleInjectionVelocitySetting readParticleInjectionVelocity(const dict
  }
  return setting;
 }
-// Registry lookup is an application adapter; parsing uses the owning dictionary.
+
 inline ParticleInjectionVelocitySetting readParticleInjectionVelocity(const fvMesh& mesh) {
  if(!mesh.foundObject<IOdictionary>("particleProperties"))return {};
  return readParticleInjectionVelocity(mesh.lookupObject<IOdictionary>("particleProperties"));

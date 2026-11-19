@@ -6,8 +6,8 @@
 #endif
 namespace ugkp { namespace thermal {
 template<class Real> struct ParticleTrackingPlane {Real x,y,z,d;};
-// The gasUGKP/CHT face-plane convention, including the existing SMALL term.
-// A cell's neighbour-side normal is opposite the owner's normal.
+
+
 template<class Real>
 UGKP_TRACKING_HD inline ParticleTrackingPlane<Real> particleTrackingPlane(
     int cell,int owner,Real sx,Real sy,Real sz,Real area,

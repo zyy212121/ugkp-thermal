@@ -1,6 +1,8 @@
+#include "../../common/FoamPhysicalAdvanceTime.H"
 #include "FoamGasNumericsControls.H"
 #include "FoamSolverScheme.H"
 #include "FoamGasTimeStepControls.H"
+#include "FoamMomentumTransportInput.H"
 #include "FoamParticleSolverControls.H"
 #include "gasNumerics/FoamGasScalarSolverControls.H"
 #include <type_traits>
@@ -25,6 +27,7 @@
 #include "gpu/GpuBoundarySchedule.H"
 #include "gpu/GpuDragModel.H"
 #include "thermal/GpuSolidThermalCoupler.H"
+#include "thermal/FrozenFoamFields.H"
 #include "thermal/GpuThermalExchangeState.H"
 #include "autoPtr.H"
 #endif
@@ -34,23 +37,20 @@ using namespace Foam;
 namespace
 {
 
-#ifdef UGKWP_USE_CUDA
 inline bool finiteScalar(const scalar x)
 {
     return (x == x) && (mag(x) < GREAT);
 }
-#else
-inline bool finiteScalar(const scalar x)
-{
-    return (x == x) && (mag(x) < GREAT);
-}
-#endif
 }
 
 int main(int argc, char *argv[])
 {
     #include "setRootCase.H"
-    #include "createTime.H"
+#ifdef UGKWP_USE_CUDA
+    gpuThermal::SnapshotFileOperation::install();
+#endif
+    Info<< "Create time\n" << endl;
+    ugkp::gpu::PhysicalAdvanceTime runTime(Time::controlDictName,args);
     (void)ugkp::solverControls::startupScheme(runTime);
 
     std::string precisionError;
@@ -116,13 +116,14 @@ int main(int argc, char *argv[])
             << " wallKappa=" << sstWallKappa
             << " wallE=" << sstWallE
             << " wallCmu=" << sstWallCmu
-            << "; kMin=" << sstKMin
-            << " omegaMin=" << sstOmegaMin << nl;
+            << "; kMin=" << sstCoefficients.minimumK
+            << " omegaMin=" << sstCoefficients.minimumOmega << nl;
     }
 
 #ifdef UGKWP_USE_CUDA
     Info<< "GPU precision=" << ugkp::precision::compiledBits
-        << " (fixed at startup), time=64 wallEnergyAccumulation=64" << nl;
+        << " (fixed at startup), time=64 wallEnergyAccumulation="
+        << ugkp::precision::compiledBits << nl;
 #endif
     constexpr bool gpuResidentStrict = true;
     const bool gpuResidentPureGasOnly = gpuScheduling.pureGasOnly;
@@ -175,8 +176,6 @@ int main(int argc, char *argv[])
         const label gpuResidentMaxFaceWalkHops =
             gpuScheduling.maxFaceWalkHops;
         const auto gasTimeStepControls=ugkp::solverControls::readGasTimeStepControls(runTime,mesh.name());
-        const label gpuResidentCourantUpdateInterval=gasTimeStepControls.courantUpdateInterval;
-        const scalar gpuResidentMaxDeltaTGrowth=gasTimeStepControls.maximumTimeStepGrowth;
 
         const scalar epsSMinStrict =
             ugkwpProps.lookupOrDefault<scalar>("epsSMin", 1.0e-12);
@@ -219,9 +218,6 @@ int main(int argc, char *argv[])
 
 
 
-        const bool adjustTimeStep = gasTimeStepControls.adjustTimeStep;
-        const scalar maxCo = gasTimeStepControls.maxCo;
-        const scalar maxDeltaT = gasTimeStepControls.maxDeltaT;
 
         const bool gpuResidentPureGasChtBridge =
             gpuResidentPureGasOnly && gpuResidentSolidThermalCoupling;
@@ -248,20 +244,20 @@ int main(int argc, char *argv[])
                 k,
                 omega,
                 *sstWallDistancePtr,
-                sstAlphaK1,
-                sstAlphaK2,
-                sstAlphaOmega1,
-                sstAlphaOmega2,
-                sstBeta1,
-                sstBeta2,
-                sstBetaStar,
-                sstGamma1,
-                sstGamma2,
-                sstA1,
+                sstCoefficients.sigmaK1,
+                sstCoefficients.sigmaK2,
+                sstCoefficients.sigmaOmega1,
+                sstCoefficients.sigmaOmega2,
+                sstCoefficients.beta1,
+                sstCoefficients.beta2,
+                sstCoefficients.betaStar,
+                sstCoefficients.gamma1,
+                sstCoefficients.gamma2,
+                sstCoefficients.a1,
                 sstB1,
-                sstC1,
-                sstKMin,
-                sstOmegaMin,
+                sstCoefficients.productionLimit,
+                sstCoefficients.minimumK,
+                sstCoefficients.minimumOmega,
                 sstWallTreatment,
                 sstWallKappa,
                 sstWallE,
@@ -322,47 +318,13 @@ int main(int argc, char *argv[])
             scalar lastMeasuredCo = scalar(0);
             resident.configureMolecularTransport(molecularTransport.config());
             resident.configureBoundaryLayer(boundaryLayerInput,runTime,mesh,Tgas);
-            label stepsSinceCourant = gpuResidentCourantUpdateInterval;
-
-            while (runTime.run())
-            {
-
-                const bool courantRefreshDue =
-                    adjustTimeStep
-                 && stepsSinceCourant >= gpuResidentCourantUpdateInterval;
-                if (courantRefreshDue)
-                {
-                    const scalar oldDt = runTime.deltaTValue();
-                    lastMeasuredCo = resident.computeGasCourant
-                    (
-                        oldDt,
-                        runTime.value() + oldDt
-                    );
-                    if (lastMeasuredCo > SMALL)
-                    {
-                        const scalar requestedDt =
-                            oldDt*maxCo/max(lastMeasuredCo, SMALL);
-                        runTime.setDeltaT(ugkwp::selectCourantTimeStep(
-                            oldDt, requestedDt, gpuResidentMaxDeltaTGrowth, maxDeltaT, true));
-                    }
-                    stepsSinceCourant = 1;
-                }
-                else
-                {
-                    stepsSinceCourant = min
-                    (
-                        stepsSinceCourant + 1,
-                        gpuResidentCourantUpdateInterval
-                    );
-                }
-
-                runTime++;
-
-                resident.advanceOneStep
-                (
-                    runTime.deltaTValue(),
-                    runTime.value()
-                );
+            const auto advanceControls=runTime.advanceControls(gasTimeStepControls);
+            resident.configureAdvance(runTime.initialAdvance(advanceControls),true);
+            while(runTime.run()){
+                const auto request=runTime.advanceBoundary(advanceControls,progressLogInterval);
+                resident.enqueueAdvance(request);
+                const auto completed=resident.collectAdvance(&runTime);
+                runTime.publishAdvance(completed);lastMeasuredCo=completed.lastCourant;
 
                 if
                 (
@@ -591,56 +553,58 @@ int main(int argc, char *argv[])
         scalar lastMeasuredCo = scalar(0);
         resident.configureMolecularTransport(molecularTransport.config());
         resident.configureBoundaryLayer(boundaryLayerInput,runTime,mesh,Tgas);
-        label stepsSinceCourant = gpuResidentCourantUpdateInterval;
 
-        while (runTime.run())
+        const label maxThermalEvents=runTime.controlDict().lookupOrDefault<label>("maxThermalCouplingEvents",0);
+        if(maxThermalEvents<0||(maxThermalEvents>0&&!solidThermalCoupler.valid()))
+        {
+            FatalIOErrorInFunction(runTime.controlDict())
+                << "maxThermalCouplingEvents requires an active thermal coupler and a nonnegative limit"
+                << exit(FatalIOError);
+        }
+        const auto advanceControls=runTime.advanceControls(gasTimeStepControls);
+        resident.configureAdvance(runTime.initialAdvance(advanceControls),false);
+        bool deviceThermal=false,requestedDeviceThermal=false;
+        label completedThermalEvents=0,completedRadiationEvents=0;
+        bool advancePending=false;
+        auto enqueueBoundary=[&]{
+            auto request=runTime.advanceBoundary(advanceControls,progressLogInterval);
+            const bool useDevice=solidThermalCoupler.valid()&&!runTime.observesExternalWrite();
+            if(useDevice!=requestedDeviceThermal){
+                if(useDevice)deviceThermal=solidThermalCoupler->configureDeviceAdvance(Tgas);
+                else if(deviceThermal){resident.bindAdvanceExtension({});deviceThermal=false;}
+                requestedDeviceThermal=useDevice;
+            }
+            if(solidThermalCoupler.valid())request.nextHeat=solidThermalCoupler->nextCouplingTime();
+            if(maxThermalEvents)request.thermalOutputEvent=maxThermalEvents-completedThermalEvents;
+            if(solidThermalCoupler.valid()&&!deviceThermal){
+
+                if(request.nextHeat>runTime.value())
+                    request.boundary=ugkp::gpu::eventDeadline(runTime.value(),request.nextHeat,request.boundary);
+                else request.maximumSteps=1;
+            }
+            if(deviceThermal){
+                if(writeAtThermalCoupling||request.progressInterval)request.maximumThermalEvents=1;
+                else if(maxThermalEvents)request.maximumThermalEvents=maxThermalEvents-completedThermalEvents;
+            }
+            resident.enqueueAdvance(request);
+        };
+        while (runTime.run()&&(!maxThermalEvents||completedThermalEvents<maxThermalEvents))
         {
             if (writeAtThermalCoupling)
             {
                 runTime.setWriteInterval(GREAT);
             }
 
-            const bool courantRefreshDue =
-                adjustTimeStep
-             && stepsSinceCourant >= gpuResidentCourantUpdateInterval;
-            if (courantRefreshDue)
-            {
-                const scalar oldDt = runTime.deltaTValue();
-                lastMeasuredCo = resident.computeGasCourant
-                (
-                    oldDt,
-                    runTime.value() + oldDt
-                );
-                if (lastMeasuredCo > SMALL)
-                {
-                    const scalar requestedDt =
-                        oldDt*maxCo/max(lastMeasuredCo, SMALL);
-                    runTime.setDeltaT(ugkwp::selectCourantTimeStep(
-                        oldDt, requestedDt, gpuResidentMaxDeltaTGrowth, maxDeltaT, true));
-                }
-                stepsSinceCourant = 1;
-            }
-            else
-            {
-                stepsSinceCourant = min
-                (
-                    stepsSinceCourant + 1,
-                    gpuResidentCourantUpdateInterval
-                );
-            }
-
-            runTime++;
-
-            resident.advanceOneStep
-            (
-                runTime.deltaTValue(),
-                runTime.value()
-            );
+            if(!advancePending)enqueueBoundary();
+            advancePending=false;
+            const auto completed=resident.collectAdvance(&runTime);
+            runTime.publishAdvance(completed);lastMeasuredCo=completed.lastCourant;
 
             bool thermalCoupledThisStep = false;
             if (solidThermalCoupler.valid())
             {
                 const gpuThermal::GpuThermalCouplingResult coupling =
+                    deviceThermal?solidThermalCoupler->collectDeviceEvents(completed):
                     solidThermalCoupler->exchangeIfDue
                     (
                         runTime,
@@ -658,11 +622,18 @@ int main(int argc, char *argv[])
                         Us,
                         theta,
                         Tp,
-                        dMeanCell
+                        dMeanCell,
+                        maxThermalEvents && completedThermalEvents+1==maxThermalEvents
                 );
                 if (coupling.coupled)
                 {
                     thermalCoupledThisStep = true;
+                    completedThermalEvents+=coupling.heatEvents;
+                    completedRadiationEvents+=coupling.radiationEvents;
+                    Info<< "THERMAL_EVENT accepted=" << completedThermalEvents
+                        << " radiation=" << completedRadiationEvents
+                        << " time=" << Time::timeName(runTime.timeToUserTime(coupling.completedCouplingTimeS))
+                        << " interval=" << coupling.elapsedCouplingTimeS << nl;
                     if
                     (
                         ugkwp::logging::progressLogDue
@@ -700,12 +671,14 @@ int main(int argc, char *argv[])
             (
                 runTime.writeTime()
              || (writeAtThermalCoupling && thermalCoupledThisStep)
+             || (maxThermalEvents&&completedThermalEvents==maxThermalEvents)
             )
             {
                 ugkp::precision::ScopedRestartWritePrecision writePrecision;
                 ugkp::precision::beginPrecisionWrite(runTime.timePath().c_str());
                 const bool thermalCouplingWrite =
-                    writeAtThermalCoupling && thermalCoupledThisStep;
+                    (writeAtThermalCoupling && thermalCoupledThisStep)
+                 || (maxThermalEvents&&completedThermalEvents==maxThermalEvents);
 
                 if (gasTurbulenceModel == 3)
                 {
@@ -727,6 +700,7 @@ int main(int argc, char *argv[])
                         thermalCouplingWrite
                     );
                 }
+                resident.writeBoundaryLayerDiagnostics(boundaryLayerInput, runTime);
                 if (solidThermalCoupler.valid())
                 {
                     (void)
@@ -748,7 +722,12 @@ int main(int argc, char *argv[])
                             theta,
                             Tp,
                             dMeanCell,
-                            thermalCouplingWrite
+                            thermalCouplingWrite,[&]{
+                                if(deviceThermal&&(!maxThermalEvents||completedThermalEvents<maxThermalEvents)&&
+                                   ugkp::gpu::foamAdvancePrefetchAllowed(runTime)){
+                                    enqueueBoundary();advancePending=true;
+                                }
+                            }
                         );
                 }
                 else
@@ -782,11 +761,14 @@ int main(int argc, char *argv[])
                     }
                     (void)resident.writeParticleRestartMirror(runTime);
                 }
-                resident.writeBoundaryLayerDiagnostics(boundaryLayerInput, runTime);
-                ugkp::precision::writeRestartPrecision(runTime.timePath().c_str());
+                if(!solidThermalCoupler.valid())ugkp::precision::writeRestartPrecision(runTime.timePath().c_str());
             }
         }
 
+        if(solidThermalCoupler.valid())solidThermalCoupler->finishWrites();
+        Info<< "THERMAL_RUN_COMPLETE heatEvents=" << completedThermalEvents
+            << " radiationEvents=" << completedRadiationEvents
+            << " time=" << runTime.timeName() << endl;
         return 0;
 #endif
     }

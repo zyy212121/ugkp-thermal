@@ -14,9 +14,9 @@ template<class Real> struct AnchoredTemperatureDerivative {
 };
 
 
-template<class Real,class Caloric>
+template<class Real,class Caloric,class Entries>
 UGKP_RAD_DERIV_HD AnchoredTemperatureDerivative<Real> anchoredTemperatureDerivative
-(const AnchoredParticleRadiationResponse<Real,Caloric>& response,bool heating){
+(const AnchoredParticleRadiationResponse<Real,Caloric,Entries>& response,bool heating){
     AnchoredTemperatureDerivative<Real> r;const auto d=response.domain();r.mass=d.mass;
     r.capacityMagnitude=heating?d.upper:-d.lower;r.available=r.capacityMagnitude>Real(0)&&r.mass>Real(0);
     if(!r.available)return r;

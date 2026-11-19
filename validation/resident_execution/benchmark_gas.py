@@ -17,7 +17,7 @@ def main():
         run(['blockMesh','-case',template],out/(name+'-mesh.log'),env)
         if name=='small_sod':run(['setFields','-case',template],out/(name+'-init.log'),env)
         times={'baseline':[],'optimized':[]};hashes={};steps={}
-        # Alternate order to reduce warmup/temperature/order bias; discard pair 0.
+
         for i in range(a.repeat+1):
             for kind in (['baseline','optimized'] if i%2==0 else ['optimized','baseline']):
                 case=out/f'{name}-{kind}-{i}';shutil.copytree(template,case)

@@ -28,6 +28,7 @@ __device__ GpuReal steadySampleValue(const State& s,int c,int k)
 template<class State>
 __global__ void beginSteadySampleWindowKernel(State* sp)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     State& s=*sp;const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if(c>=s.nCells)return;
     for(int k=0;k<GpuSteadySamplingReport::fields;++k)
@@ -44,8 +45,10 @@ __global__ void beginSteadySampleWindowKernel(State* sp)
 template<class State>
 __global__ void accumulateSteadySampleWindowKernel(State* sp,GpuTime dt)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     State& s=*sp;const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if(c>=s.nCells)return;
+    dt=ugkwp::particleResidentStepDt(s,dt);
     for(int k=0;k<GpuSteadySamplingReport::fields;++k)
     {
         const int j=k*s.nCells+c;const GpuReal q=steadySampleValue(s,c,k);
@@ -55,10 +58,12 @@ __global__ void accumulateSteadySampleWindowKernel(State* sp,GpuTime dt)
 }
 
 template<class State>
-__global__ void finishSteadySampleWindowKernel(State* sp,GpuTime duration)
+__global__ void finishSteadySampleWindowKernel(State* sp,GpuTime duration,const double* residentDuration=nullptr)
 {
+    if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     State& s=*sp;const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if(c>=s.nCells)return;
+    if(residentDuration)duration=*residentDuration;
     const int n=GpuSteadySamplingReport::fields*s.nCells;
     for(int k=0;k<GpuSteadySamplingReport::fields;++k)
     {

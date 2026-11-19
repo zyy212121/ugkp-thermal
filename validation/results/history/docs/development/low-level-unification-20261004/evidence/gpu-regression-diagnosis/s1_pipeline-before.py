@@ -43,9 +43,9 @@ int main(){
 text+='\n'.join('mem(s->'+n+',129*('+width(n)+'));' for typ,n in ptr)
 text+='\nmem(s->csrReductionTasks,129);printf("allocated\\n");\n'
 text+=r"""
- // Valid zero-capacity initialization cannot seed a split base directory.
- // Exercise the actual CUDA launch error before auto/tasks/consumers, then
- // retain the existing positive-grid S1/L2 production-consumer matrix.
+
+
+
  for(int aggregated:{0,1}){
   DeviceState zeroHost=*s;
   zeroHost.particleCapacity=0;zeroHost.particleWorkGrid=0;
@@ -141,8 +141,8 @@ text=text.replace(' CHECK(launchCsrSegmentedMomentReduction(&host,block,true)==0
  for(int pos=0;pos<s->cellParticleOffset[4];++pos){int i=s->sortedParticleIndex[pos];
  CHECK(s->compactPStatus[pos]==1);CHECK(s->compactPx[pos]==s->px[i]);CHECK(s->compactPOrigId[pos]==s->pOrigId[i]);}
  """)
-# Pressure updates primary compact fields before the tail is copied. Check
-# source-indexed old velocities before the reference update can hide an error.
+
+
 text=text.replace('  applyPressureParticleStateDevice<false>(*s,i,1,2,3,2,4,6,.125,.5,.25,true);','')
 text=text.replace('#endif\nint main()',r"""
 __global__ void projectOriginal(DeviceState* s){
@@ -164,7 +164,7 @@ tail=r"""
  CHECK(cudaDeviceSynchronize()==cudaSuccess);
  CHECK(*s->wallBoundParticleCountDevice==wall);
 """
-call='' # The shared fused traversal must copy ALL fields for S1 and S2.
+call=''
 
 projection = r"""
  for(int cutoff=0;cutoff<2;++cutoff){
@@ -198,8 +198,8 @@ else:
  advance=s[s.index('    const bool fusedSurvivorGather ='):]
  post=re.search(r'accumulateParticleMomentsSegmentedKernel<([^>]+)>\s*<<<',advance).group(1)
  text=text.replace('else accumulateParticleMomentsSegmentedKernel<false,true>', 'else accumulateParticleMomentsSegmentedKernel<'+post+'>')
-# Exercise the production S1 host directory route before the lower-level
-# worker matrix. Mixed status 0/1/2/3 must yield an exact survivor directory.
+
+
 text=text.replace('  clearParticleCellBinsKernel<<<1,32>>>(s);', r"""
  if(!heavy){
   DeviceState directoryHost=*s;

@@ -1,6 +1,6 @@
 #pragma once
 
-// One host protocol for full/split directory preparation and task readiness.
+
 #include "GpuParticleDirectoryHostPolicy.cuh"
 #include "GpuParticleDirectoryGraph.cuh"
 
@@ -190,8 +190,8 @@ int preparePreTransportParticleDirectory(DeviceState* s, const int block)
     }
 
 #if GPU_DIRECTORY_HAS_BASE_ONLY
-    // Compaction already built the direct-base tasks. No injection means the
-    // next step can retain their contents and publication tag unchanged.
+
+
     if (s->nBoundarySources == 0) return prepareSourceFreeSplitPreDirectory(s);
 #endif
     selectParticleDirectory(s, true);
@@ -202,8 +202,8 @@ int preparePreTransportParticleDirectory(DeviceState* s, const int block)
     return prepareParticleDirectoryTasks(s,block,splitParticleDirectoryKind());
 }
 
-// Preparation, directory classification and automatic task readiness are one
-// operation, so production callers cannot pass a mismatched directory kind.
+
+
 int prepareParticleDirectoryAndSchedule(DeviceState* s, const int block)
 {
     if (s->csrCellLocalPathEnabled == 0) return 0;

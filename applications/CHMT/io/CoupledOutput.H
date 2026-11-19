@@ -7,16 +7,28 @@
 #include <ostream>
 #include <iomanip>
 namespace chmt { namespace io {
-// Caller supplies the accepted synchronized macro endpoint. No rejected gas
-// trial or partial CPU candidate may acquire output/restart authority.
 
-inline bool writeAcceptedCoupledSummary(std::ostream& stream,const HostState& state,
+
+
+struct AcceptedSummary {
+    Real time;
+    std::uint64_t step,sequence;
+    std::size_t cells,solidCells,faces;
+};
+inline AcceptedSummary acceptedSummary(const HostState& state) {
+    return {state.time,state.acceptedSteps,state.commitSequence,state.gas.size(),state.solid.size(),state.surface.area.size()};
+}
+inline bool writeAcceptedCoupledSummary(std::ostream& stream,const AcceptedSummary& state,
     const ModelConfig& model,std::string& error) {
     stream<<std::setprecision(17)<<"time,accepted_steps,gas_cells,material_cells,interface_faces,gas_mode,thermo_hash,commit_sequence,sst_chemistry_integral_audit_collection\n"
-        <<state.time<<','<<state.acceptedSteps<<','<<state.gas.size()<<','<<state.solid.size()<<','
-        <<state.surface.area.size()<<','<<static_cast<int>(model.physics.gasMode)<<','<<model.physics.gasThermoFingerprint<<','<<state.commitSequence<<",NOT_COLLECTED_LEGACY_CHECKPOINT_SLOTS_ONLY\n";
+        <<state.time<<','<<state.step<<','<<state.cells<<','<<state.solidCells<<','
+        <<state.faces<<','<<static_cast<int>(model.physics.gasMode)<<','<<model.physics.gasThermoFingerprint<<','<<state.sequence<<",NOT_COLLECTED_LEGACY_CHECKPOINT_SLOTS_ONLY\n";
     if(!stream){error="coupled summary write failed";return false;}
     error.clear();return true;
+}
+inline bool writeAcceptedCoupledSummary(std::ostream& stream,const HostState& state,
+    const ModelConfig& model,std::string& error) {
+    return writeAcceptedCoupledSummary(stream,acceptedSummary(state),model,error);
 }
 inline bool writeAcceptedGasFields(std::ostream& stream,const HostState& state,
     const ModelConfig& model,std::string& error){
@@ -62,11 +74,14 @@ inline bool writeAcceptedMaterialFields(std::ostream& stream,const HostState& st
 inline bool writeAcceptedExchangeFields(std::ostream& stream,const HostState& state,
     const ModelConfig&,std::string& error){
     stream<<std::setprecision(17)<<"packet,step,geometry,face,stage,kind,gas_cell,solid_cell,mass,energy,conductive,advective,pressure_work,viscous_work,radiation,liquid_kinetic_advection,consumer_mask\n";
-    for(std::size_t i=0;i<state.ledger.size();++i){const auto& q=state.ledger[i];
+    std::size_t i=0;
+    state.ledger.forEachChunk([&](const ExchangePacket* packets,std::size_t count){
+      for(std::size_t j=0;j<count;++j,++i){const auto& q=packets[j];
         stream<<i<<','<<q.step<<','<<q.geometry<<','<<q.face<<','<<q.stage<<','<<static_cast<int>(q.kind)<<','
             <<q.gasCell<<','<<q.solidCell<<','<<q.mass<<','<<q.energy<<','<<q.conductive<<','<<q.advective<<','
             <<q.pressureWork<<','<<q.viscousWork<<','<<q.radiation<<','<<q.liquidKineticAdvection<<','<<q.consumerMask<<'\n';
     }
+    });
     if(!stream){error="exchange field output write failed";return false;}error.clear();return true;
 }
 inline bool writeAcceptedWallLayerFields(std::ostream& stream,const HostState& state,

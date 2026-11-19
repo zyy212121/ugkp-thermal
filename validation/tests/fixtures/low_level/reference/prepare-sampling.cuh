@@ -1,4 +1,4 @@
-// Immutable fa71f477 reference.
+
 __global__ void preparePoissonPoolSamplingKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;

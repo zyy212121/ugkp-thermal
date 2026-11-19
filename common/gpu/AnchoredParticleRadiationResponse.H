@@ -33,8 +33,9 @@ template<class Real> struct AnchoredRadiationSample {
     RadiationEnergyDomain<Real> domain{};
     bool withinDomain=false,publicationValid=true;
 };
-template<class Real,class Caloric> struct AnchoredParticleRadiationResponse {
-    const RadiationEntryParticle<Real>* entries=nullptr;
+template<class Real,class Caloric,class Entries=const RadiationEntryParticle<Real>*>
+struct AnchoredParticleRadiationResponse {
+    Entries entries{};
     int count=0;
     Real minimumTemperature=0,maximumTemperature=0;
     Caloric caloric{};

@@ -63,7 +63,7 @@ for(int c=0;c<2;++c){s.gasFluxPositivityScale[c]=2;threadIdx.x=c;prepareSteadyGa
 def test_pseudo_step_neighbor_cell_uses_face_owner_eddy_viscosity(tmp_path):
     compile_probe(tmp_path,kernel_fixture()+r'''
 int main(){DeviceState s;initialise(s);double steps[2]={};s.gasPseudoDt=steps;s.nut[0]=3;s.nut[1]=1;
-// For the neighbour row, the interior face still sees max(owner,neighbour).
+
 threadIdx.x=1;prepareSteadyGasTimeStepKernel(&s,.5,1.);
 const double thermalRatio=s.gasCp/((s.gasCp-s.Rgas)*s.turbulentPrandtl);
 const double transport=fmax(4./3.,thermalRatio);

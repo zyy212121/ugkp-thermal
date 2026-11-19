@@ -811,7 +811,7 @@ __global__ void computeGasConvectiveCourantByCellKernel
 
 
     const GPU_OPERATOR_REAL co =
-        GPU_OPERATOR_R(0.5)*GPU_OPERATOR_R(dt)*sumAmaxSf/clampMin(stabilityVolume, OfSmall);
+        GPU_OPERATOR_R(0.5)*GPU_OPERATOR_R(ugkwp::gasResidentStepDt(s,dt))*sumAmaxSf/clampMin(stabilityVolume, OfSmall);
     s.gasFluxPositivityScale[c] = nativeRefinement && !ugkwp::gasFinite(co) ? OfGreat : co;
     if(!ugkwp::gasFinite(co))ugkwp::gasRecordCellFailure(s,c,ugkwp::GasTransportCode::NonFiniteState);
 }
@@ -1192,6 +1192,8 @@ __global__ void blendGasConservativeStateKernel
     }
 }
 
+#include "operators/recoverStationaryGasPrimitive.cuh"
+
 template<class GasState>
 __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nativeRefinement=false)
 {
@@ -1335,59 +1337,7 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
         s.Ux[c]=ux;s.Uy[c]=uy;s.Uz[c]=uz;s.p[c]=pressure;s.Tgas[c]=temperature;
         return;
     }
-    gasInventoryFloorWarning(s,c,s.rho[c],s.rhoMin,-1,2625,30,ugkp::diagnostics::Quantity::Density);
-    const Energy rhoSafe =
-        clampMin(s.rho[c], s.rhoMin);
-    if(!gasProducerScalarValid(s,c,Energy(s.rhoUx[c])/rhoSafe,30012)
-        ||!gasProducerScalarValid(s,c,Energy(s.rhoUy[c])/rhoSafe,30104)
-        ||!gasProducerScalarValid(s,c,Energy(s.rhoUz[c])/rhoSafe,30105))return;
-    const Energy ux = Energy(s.rhoUx[c])/rhoSafe;
-    const Energy uy = Energy(s.rhoUy[c])/rhoSafe;
-    const Energy uz = Energy(s.rhoUz[c])/rhoSafe;
-    const Energy kinetic = ugkwp::gasLegacyKineticEnergy(rhoSafe, ux, uy, uz);
-    if(!gasProducerScalarValid(s,c,ux,30106)||!gasProducerScalarValid(s,c,uy,30107)
-        ||!gasProducerScalarValid(s,c,uz,30108)||!gasProducerScalarValid(s,c,kinetic,30109)
-        ||!gasProducerScalarValid(s,c,s.rhoE[c]-kinetic,30110))return;
-
-    const Energy minimumInternalEnergy = fmax
-    (
-        s.rhoMin,
-        ugkwp::gasLegacyThermalMinimumInternalEnergy
-        (
-            rhoSafe, Energy(s.Rgas), Energy(s.TgasMin),
-            Energy(s.gammaGas), Energy(OfSmall)
-        )
-    );
-    gasInventoryFloorWarning(s,c,s.rhoE[c]-kinetic,minimumInternalEnergy,-1,2626,30,ugkp::diagnostics::Quantity::InternalEnergy);
-    const Energy internalE = clampMin
-    (
-        s.rhoE[c] - kinetic,
-        minimumInternalEnergy
-    );
-    const Energy p = (s.gammaGas - Energy(1.0))*internalE;
-    const Energy T = p/(rhoSafe*s.Rgas);
-
-    if(!gasProducerScalarValid(s,c,p,30013)||!gasProducerScalarValid(s,c,T,30111,true))return;
-    const bool repairDensity=!ugkwp::gasFinite(s.rho[c]) || s.rho[c]<s.rhoMin;
-    s.rho[c] = rhoSafe;
-    {
-
-        if (repairDensity || !ugkwp::gasFinite(Energy(s.rhoUx[c])/rhoSafe)) s.rhoUx[c]=rhoSafe*ux;
-        if (repairDensity || !ugkwp::gasFinite(Energy(s.rhoUy[c])/rhoSafe)) s.rhoUy[c]=rhoSafe*uy;
-        if (repairDensity || !ugkwp::gasFinite(Energy(s.rhoUz[c])/rhoSafe)) s.rhoUz[c]=rhoSafe*uz;
-    }
-
-
-    {
-        if (!ugkwp::gasFinite(s.rhoE[c]-kinetic)
-            || s.rhoE[c]-kinetic < minimumInternalEnergy)
-            s.rhoE[c] = kinetic + internalE;
-    }
-    s.Ux[c] = ux;
-    s.Uy[c] = uy;
-    s.Uz[c] = uz;
-    s.p[c] = p;
-    s.Tgas[c] = T;
+    recoverStationaryGasPrimitive<Energy>(s,c,conserved[0],conserved[1],conserved[2],conserved[3],s.rhoE[c]);
     }
 }
 

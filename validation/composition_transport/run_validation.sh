@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fresh output directory; every executable comes from this source checkout.
+
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 out=${1:?Usage: bash validation/composition_transport/run_validation.sh /absolute/fresh/output}
 mkdir "$out" || exit 1

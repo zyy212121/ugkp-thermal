@@ -37,8 +37,8 @@ void specialWitnesses() {
   require(near(c.filmAux[f].meanVelocity.x,profile.meanVelocity.x,1e-15)&&near(c.filmAux[f].topVelocity.x,profile.topVelocity.x,1e-15),"endpoint incidence uses changed pressure and thickness");
   require(near(c.filmAux[f].kineticEnergy,p.liquid.rho*profile.kineticPerArea,1e-15),"endpoint kinetic profile");}
  for(auto q:c.film)qout(q);for(auto a:c.filmAux)aout(a);
- // Repeated internal edges, nonuniform degree, a boundary-only face, and a
- // shuffled global order. The baseline's serial scan is the exact reference.
+
+
  for(int variant=0;variant<3;++variant){
   auto mesh=h.surface;mesh.edgeOwner={1,2,0,0,1};mesh.edgeNeighbour={2,-1,1,1,0};
   mesh.edgeLength.assign(5,1);mesh.edgeConormal.assign(5,Vec3{1,0,0});
@@ -48,7 +48,7 @@ void specialWitnesses() {
   h.surface=mesh;for(int f=0;f<3;++f)d[f].pressure=100000+17*f*f;
   require(recoverAndProfile(h,p,d,e,error),error);
   for(int f=0;f<3;++f){vout(surfaceGradient(f,-1,e,h.surface));aout(e.aux[f]);}
-  // Reusing Evaluation after changing actual geometry must read the new offsets.
+
   for(auto& x:h.surface.edgeOwnerOffset)x=x*1.75;
   for(auto& x:h.surface.edgeNeighbourOffset)x=x*1.75;
   require(recoverAndProfile(h,p,d,e,error),error);
@@ -86,7 +86,7 @@ for(int ny:{8,16,32,64})for(int order:{1,2})for(int mode:{0,1})for(int sign:{-1,
  require(advanced,error);require(profileCalls==2,"initial and direct endpoint profile paths");
  if(order==2&&mode==0&&sign==1)std::cerr<<"ADVCOUNT "<<h.film.size()<<' '<<advanceAllocations<<' '<<advanceBytes<<'\n';
  for(auto q:c.film)qout(q);for(auto a:c.filmAux)aout(a);
- // Test-only actual inventories, independent of deleted runtime reports.
+
  Real beforeU=0,afterU=0,deltaPV=0,beforeK=0,afterK=0;
  for(std::size_t f=0;f<h.film.size();++f){
   const Real oldPV=h.filmAux[f].pressure*h.film[f].mass/p.liquid.rho;

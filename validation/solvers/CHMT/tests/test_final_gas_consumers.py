@@ -26,7 +26,7 @@ int main(int argc,char**argv){
  assert(beginGasWindow(*b,f.program,f.error));
  auto& v=b->storage.hostView();
  if(test==0){
-  // Actual public recovery publishes an out-of-range temperature and all tails.
+
   v.rhoE[0]=NAN;v.Tgas[0]=-777;v.p[0]=-778;v.gasSpecies.soundSpeed[0]=-779;
   blockIdx.x=threadIdx.x=0;blockDim.x=1;transport::recoverGasPrimitivesKernel(b->deviceState);
   assert(v.p[0]!=-778&&v.gasSpecies.soundSpeed[0]!=-779);
@@ -36,7 +36,7 @@ int main(int argc,char**argv){
   assert(std::isnan(b->trial.gas[0].energy));
  }
  if(test==1){
-  // A real missing caloric source must survive a later numerical diagnosis.
+
   b->deviceState->gasSpecies.thermo.coefficients=nullptr;
   blockIdx.x=threadIdx.x=0;blockDim.x=1;transport::recoverGasPrimitivesKernel(b->deviceState);
   assert(v.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage));
@@ -46,8 +46,8 @@ int main(int argc,char**argv){
   assert(transport::CoupledTrialPolicy::validate(b.get())!=0);
  }
  if(test==2){
-  // Former audit-counter wrap is no longer a production operation.  Stale
-  // checkpoint audit slots must not alter physical-state publication.
+
+
   b->model.physics.gasMode=ugkwp::GasMode::MixtureChemistry;
   b->trial.gasChemistryAudit.resize(1);auto& legacy=b->trial.gasChemistryAudit[0];
   legacy.acceptedSteps=INT_MAX;legacy.rejectedSteps=2;legacy.energyResidual=NAN;
@@ -58,7 +58,7 @@ int main(int argc,char**argv){
   assert(legacy.acceptedSteps==INT_MAX&&legacy.rejectedSteps==2&&std::isnan(legacy.energyResidual));
  }
  if(test==3){
-  // thermoView forwards its actual source; declared vector size is not a gate.
+
   auto table=f.gas;table.species.resize(1);auto view=table.thermoView<2>();assert(view.species==table.species.data());
  }
 
@@ -76,7 +76,7 @@ int main(int argc,char**argv){
  }
  if(test>=7&&test<=13){
   if(test==11){assert(rollbackGasWindow(*b,f.error));f.program.interval.end=0;f.program.knots.back().time=0;assert(beginGasWindow(*b,f.program,f.error));}
-  if(test==12)assert(rollbackGasWindow(*b,f.error)); // actual supplied program/history/state remain present
+  if(test==12)assert(rollbackGasWindow(*b,f.error));
   const double caps[]={0,-1,INFINITY,NAN,0,1e-5,1e-5};const double cap=caps[test-7];
   GasMicroReport report;const double before=b->trial.gas[0].energy;
   assert(advanceGasMicrostep(*b,cap,report,f.error));
@@ -190,8 +190,8 @@ int main(int argc,char** argv){
   if(scenario==0){assert(std::abs(massChange)<1e-12);assert(hostChemistryObservations[half].after[0]<hostChemistryObservations[half].before[0]);
    assert(hostChemistryObservations[half].after[1]>hostChemistryObservations[half].before[1]);assert(hostChemistryObservations[half].afterEnergy[0]==hostChemistryObservations[half].beforeEnergy[0]);}
  }
- // The final consumer publishes the observed second half using the endpoint
- // volume, independently of any removed diagnostic residual/counter fields.
+
+
  for(int k=0;k<Ns;++k){const Real expected=hostChemistryObservations[1].after[k]*hostChemistryObservations[1].volume[0];const Real actual=b->trial.gas[0].species[k];
   assert(actual==expected||(std::isnan(actual)&&std::isnan(expected)));}
  assert(b->trial.time==.0001);assert(!b->deviceState->gasSpecies.chemistryStatus);
@@ -237,24 +237,24 @@ def test_cold_wall_courant_uses_current_supplied_mass_without_profile(tmp_path):
  assert(!v.gasBoundaryLayer.exchange[0].ready&&!b->preparedWallReady);
  for(auto& knot:b->program.knots)knot.faces[0].speciesRate[0]=.021;
  assert(chmt::currentGasCourant(*b,.0001,co));assert(v.gasPhiRho[wall]==-.021&&wallUploads==2);
- // The physical area-integrated flux is the supplied Js, not the cold zero.
+
  assert(v.gasPhiRho[wall]==-v.magSf[wall]*v.gasBoundaryLayerModel.input[0].massFlux[0]);
  assert(v.gasPhiRho[wall]!=0);
  for(auto& knot:b->program.knots)knot.faces[0].speciesRate[0]=.034;
  failWallUpload=true;assert(!chmt::currentGasCourant(*b,.0001,co));assert(wallUploads==3);
  assert(chmt::currentGasCourant(*b,.0001,co));assert(v.gasPhiRho[wall]==-.034&&wallUploads==4);
  std::cout<<"wall input bytes="<<sizeof(*v.gasBoundaryLayerModel.input)<<" unchanged stage uploads=0; cold/current Js=-0.013,-0.021,-0.034\n";
- // A genuinely published previous mass is the established lagged Co input.
+
  v.gasBoundaryLayerModel.config.model=ugkwp::gaswall::BoundaryLayerModel::ConstantTransport;
  assert(b->storage.refreshView());assert(chmt::prepareCoupledBoundaryLayer(b.get(),.0001,0)==0);
  assert(b->storage.wallMassPublished());const double lagged=v.gasBoundaryLayer.exchange[0].mass;
  assert(lagged==-.034);const int publishedUploads=wallUploads;
  for(auto& knot:b->program.knots)knot.faces[0].speciesRate[0]=.055;
  assert(chmt::currentGasCourant(*b,.0001,co));assert(v.gasPhiRho[wall]==lagged&&wallUploads==publishedUploads);
- // Normal stage publication, rather than Co, now consumes the actual update.
+
  assert(chmt::prepareCoupledBoundaryLayer(b.get(),.0001,0)==0);
  assert(v.gasBoundaryLayer.exchange[0].mass==-.055&&wallUploads==publishedUploads+1);
- // Missing thermodynamics must escape the same reduction before trial begin.
+
  v.gasSpecies.thermo.coefficients=nullptr;assert(b->storage.refreshView());
  assert(!chmt::currentGasCourant(*b,.0001,co));assert(v.rhoK[0]==oldK&&v.rhoOmega[0]==oldOmega);
 }

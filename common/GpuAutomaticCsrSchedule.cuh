@@ -10,7 +10,7 @@ int prepareCsrSegmentedReductionTasksOnInspection
 (DeviceState* s,const int block,const GPU_DIRECTORY_PARAMETER_TYPE GPU_DIRECTORY_SELECTOR);
 
 #ifdef UGKP_RESIDENT_CSR_CHOICE
-// The inspection cadence belongs to the device schedule, including graph replay.
+
 __global__ void beginAutomaticCsrInspectionKernel(DeviceState* s) {
     if(threadIdx.x||blockIdx.x)return;
     auto& runtime=*s->csrAutomaticRuntime;
@@ -28,9 +28,9 @@ __global__ void decideAutomaticCsrScheduleKernel(DeviceState* s) {
 }
 #endif
 
-// A successful auto call publishes a decision AND guarantees executable tasks.
-// Producers invalidate readiness in the common task pipeline, including while
-// L1 is active. Normal non-inspection steps reuse their freshly prepared tasks.
+
+
+
 int runAutomaticCsrSchedule
 (DeviceState* s, const int block,
  const GPU_DIRECTORY_PARAMETER_TYPE GPU_DIRECTORY_SELECTOR)
@@ -53,8 +53,8 @@ int runAutomaticCsrSchedule
     err=cudaGetLastError();
     if(err==cudaSuccess){decideAutomaticCsrScheduleKernel<<<1,1,0,stream>>>(s->deviceState);err=cudaGetLastError();}
     if(err!=cudaSuccess){setLastError("automatic CSR resident decision",err);return 1;}
-    // A fresh directory already has tasks for non-inspection steps. Rebuild
-    // only if the device inspection changed the threshold/selected path.
+
+
     if(s->csrTasksReady&&s->csrPreparedDirectoryKind==GPU_DIRECTORY_ARGUMENT)
         return prepareCsrSegmentedReductionTasksOnInspection(s,block,GPU_DIRECTORY_SELECTOR);
     s->csrTasksReady=0;
@@ -94,7 +94,7 @@ int runAutomaticCsrSchedule
         s->csrHeavyTileParticles = threshold;
         s->csrHeavyReductionActive = active;
         s->csrHeavyReductionEnabled = active;
-        // A fresh threshold invalidates any earlier task partition.
+
         s->csrTasksReady = 0;
         publishHeavyReductionDecisionKernel<<<1, 1>>>(s->deviceState, active);
         err = cudaGetLastError();

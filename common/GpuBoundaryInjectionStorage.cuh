@@ -1,10 +1,10 @@
-// Included after each backend's DeviceState, memory helpers and syncDeviceState.
+
 void releaseBoundaryInjection(ugkwp::BoundaryInjectionStorage& g) {
     release(g.offsets); release(g.vertices); release(g.scratch);
     release(g.counts); release(g.points); release(g.triangles);
 }
 
-// Geometry is deliberately captured from the initial mesh for every application.
+
 __global__ void buildBoundaryInjectionKernel(DeviceState* sp) {
     DeviceState& s=*sp;
     const int j=blockIdx.x*blockDim.x+threadIdx.x;

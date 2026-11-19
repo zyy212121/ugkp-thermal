@@ -1,4 +1,4 @@
-// Native production descriptor generation and periodic two-integer readback.
+
 #include <cuda_runtime.h>
 #include <cub/cub.cuh>
 #include <algorithm>

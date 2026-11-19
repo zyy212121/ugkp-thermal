@@ -18,7 +18,7 @@ g::InterfaceGasStageResult probeInterfaceStage(g::InterfaceGasStage& owner,const
     Device<g::InterfaceGasStageInput> seed(std::vector<g::InterfaceGasStageInput>{{{
         {old.p,end.p,area.p,gas.p,{depth.p,sizeof(double)},{previous.p,sizeof(double)},{film.p,sizeof(double)}},reference.p,d.gas.geometricTolerance},controls}}),
         input(std::vector<g::InterfaceGasStageInput>(1));
-    check(cudaStreamSynchronize(nullptr)); // Complete default-stream fixture uploads before graph replay.
+    check(cudaStreamSynchronize(nullptr));
     cudaStream_t stream;cudaGraph_t graph;cudaGraphExec_t executable;cudaGraph_t child;
     check(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));check(cudaGraphCreate(&graph,0));
     check(cudaStreamBeginCapture(stream,cudaStreamCaptureModeGlobal));selectInterfaceMotion<<<1,1,0,stream>>>(seed.p,input.p);check(cudaStreamEndCapture(stream,&child));
@@ -26,7 +26,7 @@ g::InterfaceGasStageResult probeInterfaceStage(g::InterfaceGasStage& owner,const
     owner.appendTo(graph,first,input.p);check(cudaGraphInstantiateWithFlags(&executable,graph,0));
     static bool exported=false;if(!exported){check(cudaGraphDebugDotPrint(graph,"interface-stage-graph.dot",cudaGraphDebugDotFlagsVerbose));exported=true;}
     for(int replay=0;replay<2;++replay)check(cudaGraphLaunch(executable,stream));
-    // Also exercise the standalone graph after the externally composed graph.
+
     owner.prepare(input.p,stream);check(cudaStreamSynchronize(stream));
     const auto view=owner.view();g::InterfaceGasStageResult result;
     check(cudaMemcpy(&result.motion.status,view.motion.status,sizeof(result.motion.status),cudaMemcpyDeviceToHost));

@@ -43,8 +43,8 @@ template<class Storage, class Caloric>
         else upper = middle;
     }
     const double solvedTemperature = lower + 0.5*(upper - lower);
-    // The small flux stays small; subtracting two large absolute h values here
-    // would discard heat that the persistent carry is meant to retain.
+
+
     const double proposedSpecificHeat =
         conductanceIntegral*(wallTemperature - solvedTemperature)/physicalMass;
     auto candidate = state;
@@ -79,7 +79,7 @@ LEGACY_COLD_REFERENCE = r'''
  }
  const double next=(residual-storageChange)+specificHeat;
  const double accepted=storageChange+(next-residual);
- // Validate the actual shared-mean representation BEFORE any component write.
+
  if(!(::fabs(next)<=DBL_MAX) || !(minimumStored+next>0.)
     || !(maximumStored+next<=FLT_MAX))return {false,0.};
  for(int j=0;j<count;++j)nodes[j]=coldWallStoredEnthalpyFloor(double(nodes[j])+correction);
@@ -116,11 +116,11 @@ PAIRED_REFERENCE = r'''
  const double rate=conductancePerMass/cp;
  const double a=-::expm1(-(rate>0.?rate:0.)*double(dt));
  if(count==64){
-  // The2D model applies gas power to its top surface during explicit
-  // conduction substeps. Reserve a positive upper budget; actual signed work
-  // is recorded by that existing solver, not replaced by a uniform source.
-  // Existing phase-changing substeps guarantee positive H/T but not a
-  // local temperature maximum principle across a sharp Cp transition.
+
+
+
+
+
   const double storageEpsilon=sizeof(GpuReal)==sizeof(float)?0x1p-23:0x1p-52;
   const double roundoffGuard=1.+64.*storageEpsilon;
   const double upper=conductancePerMass*double(dt)*(Tg>0.?Tg:0.)*roundoffGuard;
@@ -129,11 +129,11 @@ PAIRED_REFERENCE = r'''
  double deltaT=a*(Tg-Ti);
  if(deltaT<double(s.TpMin)-Ti)deltaT=double(s.TpMin)-Ti;
  if(deltaT>double(s.TpMax)-Ti)deltaT=double(s.TpMax)-Ti;
- // Evaluate the small component last, so residual heat is consumed rather than
- // being rounded away in a large H+carry subtraction.
+
+
  double dh=law.enthalpyIncrement(Ti,deltaT);
- // Secant weights make Q = A*(Tg-weighted Ti) exactly in the unclipped
- // interval, preventing nonlinear-Cp gas-temperature overshoot.
+
+
  double effectiveA=a;
  if(Tg!=Ti)effectiveA=deltaT/(Tg-Ti);
  if(deltaT!=0.)cp=dh/deltaT;

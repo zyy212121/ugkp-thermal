@@ -17,8 +17,8 @@
 
 namespace Foam
 {
-// Host-only dictionary, immutable mesh and diagnostic adapter. All wall-profile
-// evaluation and physical gas inventories remain in the resident backend.
+
+
 class BoundaryLayerInput
 {
     bool active_=false,prepared_=false,hasLocalSst_=false;
@@ -44,7 +44,7 @@ class BoundaryLayerInput
         {
             WarningInFunction<<"Cannot download boundaryLayer node profiles: "
                 <<ugkwpGpuResidentStrictLastError()<<endl;
-            return; // Optional output cannot reject an accepted physical step.
+            return;
         }
         const fileName path=time.timePath()/"uniform"/"gasBoundaryLayerProfiles.csv";
         std::ofstream output(path.c_str());
@@ -52,7 +52,7 @@ class BoundaryLayerInput
             speciesNames_,config_.nodes,profiles.data(),stageTime,time.value());
         output.close();
         if(!flowWritten || !output)WarningInFunction<<"Cannot write finite boundaryLayer node profiles "<<path<<endl;
-        // Equilibrium ODE has no local k/omega: do not create that interface/file.
+
         if(hasLocalSst_)
         {
             const fileName sstPath=time.timePath()/"uniform"/"gasBoundaryLayerSstProfiles.csv";
@@ -135,7 +135,7 @@ public:
         config_.equilibriumStressClosure=stress=="localStress";
         Info<<"boundaryLayer equilibriumStressClosure: "<<stress<<nl;
         hasLocalSst_=turbulenceModel==3 && config_.model==1;
-        // Read once. Subsequent timesteps never inspect the option or dictionary.
+
         if(d.lookupOrDefault<bool>("writeProfiles",false))profileWriter_=&BoundaryLayerInput::writeProfiles;
         speciesNames_=gasModel.speciesNames;
         config_.speciesCount=checkedCount(speciesNames_.size(),"species count");
@@ -150,8 +150,8 @@ public:
         geometryOptions_.profileStretch=config_.stretch;
         config_.turbulentPrandtl=coefficient(d,"turbulentPrandtl","Prt",turbulentPrandtl);
         config_.turbulentSchmidt=coefficient(d,"turbulentSchmidt","Sct",gasModel.turbulentSchmidt);
-        // Production consumes physical wall response, never the auxiliary
-        // owner-k integral; profile controls do not create geometry points.
+
+
     }
     void configureSolverControls(const Time& time,const word& region=word::null)
     {

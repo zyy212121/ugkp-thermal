@@ -50,7 +50,7 @@ def write_input(path, marker):
 
 
 def child_env():
-    # Do not let warmed pytest imports or an inherited FSH PYTHONPATH mask the route.
+
     return {**os.environ, "PYTHONPATH": str(SOURCE_ROOT),
             "PYTHONDONTWRITEBYTECODE": "1"}
 

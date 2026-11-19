@@ -36,7 +36,7 @@ puts("PASS injection-directory atomic and warp count/scatter exact coverage");
 accumulateMobilePackingMomentsKernel<<<2,32>>>(s);deviceSync();
 for(int c=0;c<2;c++){double mass=0,stuck=0;for(int i=0;i<37;i++)if(s->pStatus[i]==1&&s->pCellId[i]==c){if(IS_STUCK)stuck+=.5;else mass+=.5;}near(s->mobilePackingRho[c],mass,"packing mobile mass");near(s->mobilePackingMomX[c],3*mass,"packing momentum");STUCK_CHECK}
 puts("PASS packing mobile/constraint mass and averaged momentum");
-// Injection: fractional mass balance and capacity saturation use the same source ledger.
+
 s->particleCapacity=3;*s->particleCountDevice=0;s->nBoundarySources=1;s->injectionParcelMass=1;s->sourceFace[0]=0;s->sourceCell[0]=0;s->sourceMassRate[0]=2.5;s->sourceUx[0]=3;s->sourceT[0]=400;s->sourceTheta[0]=.25;s->sourceD[0]=1e-4;
 injectBoundaryParticlesKernel<<<1,32>>>(s,1.,0.);deviceSync();ck(*s->particleCountDevice==2,"injection number");near(s->sourceResidualMass[0],.5,"fractional residual");
 injectBoundaryParticlesKernel<<<1,32>>>(s,1.,1.);deviceSync();ck(*s->particleCountDevice==3,"capacity respected");near(s->sourceResidualMass[0],2.,"saturated residual");

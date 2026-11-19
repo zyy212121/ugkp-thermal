@@ -39,18 +39,18 @@ struct ParticleRadiationMaterialResult
     scalarField finalMeanTemperatureK;
     scalarField deltaParticleRadiationEnergyJ;
     List<scalarField> solidWallRadiationEnergyJ;
-    scalar escapedBoundaryRadiationEnergyJ;
+    RadiationReal escapedBoundaryRadiationEnergyJ;
     ugkp::gpu::RadiationMaterialDeviceView resident{};
 };
 
 namespace detail
 {
 
-scalar clampParticleRadiationTableValue
+RadiationReal clampParticleRadiationTableValue
 (
-    scalar value,
-    scalar minimum,
-    scalar maximum
+    RadiationReal value,
+    RadiationReal minimum,
+    RadiationReal maximum
 );
 
 struct ParticleRadiationTransactionContext
@@ -58,14 +58,14 @@ struct ParticleRadiationTransactionContext
     const fvMesh& mesh;
     const MieTable& mieTable;
     const labelList& coupledSolidPatchIds;
-    scalar particleTemperatureMinK;
-    scalar particleTemperatureMaxK;
-    scalar radiationActiveEpsilonMin;
+    RadiationReal particleTemperatureMinK;
+    RadiationReal particleTemperatureMaxK;
+    RadiationReal radiationActiveEpsilonMin;
     ugkp::gpu::ParticleRadiationMaterial* materialDevice = nullptr;
     bool exportFields = true;
 };
 
-scalar particleCellCapacityJPerK
+RadiationReal particleCellCapacityJPerK
 (
     const ParticleRadiationMaterialSnapshot& snapshot,
     label cellI
@@ -95,8 +95,8 @@ ParticleRadiationMaterialResult solveParticleRadiationTransaction
 {
     scalarField canonicalTemperatureK(snapshot.particleMeanTemperatureK);
     scalarField canonicalDiameterM(snapshot.representativeDiameterM);
-    // Physical temperature drives black-body emission in both DO and the
-    // material response. Mie queries clamp their optical coordinates only.
+
+
     const bool canonicalCellArraysHaveMeshSize =
         snapshot.epsilonS.size() >= context.mesh.nCells()
      && canonicalTemperatureK.size() >= context.mesh.nCells()
@@ -105,7 +105,7 @@ ParticleRadiationMaterialResult solveParticleRadiationTransaction
     {
         for (label cellI = 0; cellI < context.mesh.nCells(); ++cellI)
         {
-            if (snapshot.epsilonS[cellI] > context.radiationActiveEpsilonMin)
+            if (RadiationReal(snapshot.epsilonS[cellI]) > context.radiationActiveEpsilonMin)
             {
                 if (canonicalDiameterM[cellI] > scalar(0))
                 {
@@ -161,14 +161,20 @@ ParticleRadiationMaterialResult solveParticleRadiationTransaction
 
 }
 
+
+struct ParticleRadiationParentBinding {
+    ugkp::gpu::DiscreteOrdinateRadiation* radiation=nullptr;
+    ugkp::gpu::ParticleRadiationMaterial* material=nullptr;
+};
+
 class GpuParticleRadiationCoupler
 {
     const fvMesh& mesh_;
     const MieTable& mieTable_;
     const MieDoRadiationSolver& radiationSolver_;
     const labelList coupledSolidPatchIds_;
-    const scalar particleTemperatureMinK_;
-    const scalar particleTemperatureMaxK_;
+    const RadiationReal particleTemperatureMinK_;
+    const RadiationReal particleTemperatureMaxK_;
     mutable MieDoRadiationWorkspace radiationWorkspace_;
     std::unique_ptr<ugkp::gpu::ParticleRadiationMaterial> materialDevice_;
 
@@ -188,8 +194,13 @@ public:
         const ParticleRadiationMaterialSnapshot& snapshot,
         bool exportFields=true
     ) const;
+    void acceptParentSolve() const { radiationWorkspace_.acceptParentSolve(); }
+    ParticleRadiationParentBinding prepareParent
+    (const ParticleRadiationMaterialSnapshot&,const double* deviceElapsed) const;
     ParticleRadiationMaterialResult collect() const;
     ParticleRadiationMaterialResult collectBoundaryEnergy() const;
+    scalar collectEscapedEnergy() const;
+    void freezeWarmStart(ugkp::gpu::RadiationWarmStart&,void* nextWriter=nullptr) const;
     bool readWarmStart(const std::string& path) const;
     bool writeWarmStart(const std::string& path) const;
 };

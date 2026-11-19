@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the frozen or candidate production owner with test-only intensity export.
+
 set -euo pipefail
 if [[ $# -lt 3 ]]; then echo "usage: $0 REPOSITORY OWNER_SOURCE OUTPUT [CUDA_ARCHIVE]" >&2; exit 2; fi
 root=$(realpath "$1"); source=$(realpath "$2"); out=$(realpath -m "$3"); mkdir "$out"

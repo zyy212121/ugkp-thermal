@@ -658,39 +658,45 @@ template<class R,int N> UGKWP_GAS_HD inline bool feasibleLayerComposition(R* sta
 template<class R,int N,int M,class TableReal,class Team=SerialWallTeam>
 UGKWP_GAS_HD UGKWP_WALL_DEVICE_LEAF bool applyLayerNewtonUpdate(const WallInput<R,N,TableReal>& in,
  const WallModelConfig<R>& c,const LayerContext<R,N>& ctx,WallWorkspace<R,N,M>& w,
- R& norm,R& acceptedAlpha,const Team& team=Team{}){
-    const R previous=norm;R alpha=1;acceptedAlpha=0;
+ R& norm,R& acceptedAlpha,const Team& team=Team{},int* sharedBudget=nullptr){
+    const R previous=norm;R alpha=1,bestNorm=0,bestAlpha=0;acceptedAlpha=0;
+    bool available=false;
+    int localBudget=c.numerics.maximumLineSearchIterations>0?c.numerics.maximumLineSearchIterations:1;
+    int& remaining=sharedBudget?*sharedBudget:localBudget;
     const bool checkStorage=!ctx.trialStorageComplete;
     auto candidateInput=in;candidateInput.diagnostics=nullptr;
     candidateInput.model.thermo.diagnostics=nullptr;
 
-    for(int line=0;line<c.numerics.maximumLineSearchIterations;++line){
-        bool feasible=true;
+
+    for(int line=0;line<c.numerics.maximumLineSearchIterations&&remaining>0;++line){
+        --remaining;bool feasible=true;
         for(int i=team.rank();i<c.nodes;i+=team.size()){
             for(int j=0;j<N+4;++j)w.trial[i][j]=w.state[i][j]+alpha*w.delta[i][j];
             feasible=feasibleLayerComposition<R,N>(w.trial[i])&&feasible;
         }
-        team.sync();R next=0;
-        bool storageAvailable=true;
-        const bool valid=allResidual(candidateInput,c,ctx,w.trial,w.y,w.residual,next,team,checkStorage?&in:nullptr,&storageAvailable,feasible,w.upper);
+        team.sync();R next=0;bool storageAvailable=true;
+        const bool valid=allResidual(candidateInput,c,ctx,w.trial,w.y,w.residual,next,team,
+            checkStorage?&in:nullptr,&storageAvailable,feasible,w.upper);
         if(!storageAvailable)return false;
-        if(valid&&gasFinite(next)&&next<previous){
-            for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)
-                w.state[i][j]=w.trial[i][j];
-            team.sync();acceptedAlpha=alpha;
-
-
-
-
-
-
-
-            norm=next;return true;
+        if(valid&&gasFinite(next)){
+            if(!available||next<bestNorm){
+                for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)w.lower[i][0][j]=w.trial[i][j];
+                team.sync();bestNorm=next;bestAlpha=alpha;available=true;
+            }
+            if(next<previous){
+                for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)w.state[i][j]=w.trial[i][j];
+                team.sync();acceptedAlpha=alpha;norm=next;return true;
+            }
         }
         alpha*=c.numerics.lineSearchReduction;
     }
 
 
+
+    if(available){
+        for(int i=team.rank();i<c.nodes;i+=team.size())for(int j=0;j<N+4;++j)w.state[i][j]=w.lower[i][0][j];
+        team.sync();acceptedAlpha=bestAlpha;
+    }
     return allResidual(in,c,ctx,w.state,w.y,w.residual,norm,team);
 }
 template<class R,int B> UGKWP_GAS_HD inline bool eliminateBlock(R (&a)[B][B],R (&upper)[B][B],R* rhs,int active=B){

@@ -116,7 +116,7 @@ struct CsrReductionTask
 
 struct DeviceState
 {
-    const void* particleTrackingKernel = nullptr; // host launch selection only
+    const void* particleTrackingKernel = nullptr;
 
     ugkp::boundary::View gasBoundaryProgram;
     ugkp::boundary::Resident* gasBoundaryOwner=nullptr;
@@ -519,8 +519,8 @@ struct DeviceState
     int* csrCellTaskOffset = nullptr;
     CsrReductionTask* csrReductionTasks = nullptr;
     int* csrMultiTaskCellList = nullptr;
-    // All nonempty-cell tasks, including single-task cells.
-    // Only cells requiring multiple tasks and final reduction.
+
+
     int* csrHeavyCellList = nullptr;
     int* csrHeavyTaskCell = nullptr;
     int* csrHeavyTaskBegin = nullptr;
@@ -1289,8 +1289,8 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
     release(s->compactPRng);
     release(s->compactPOrigId);
 
-    // All preceding cudaFree calls belong to the original teardown and have
-    // completed outstanding users. Drain before freeing diagnostic evidence.
+
+
     if(s->diagnosticOwner) {
         s->diagnosticOwner->observeCompletedWork();
         s->diagnosticOwner->dispatchPending();
@@ -1860,7 +1860,7 @@ struct GasPrimDevice
 
 #include "operators/clearParticleMomentsKernel.cuh"
 
-// FSH is outside the four-application unification; retain its established policy.
+
 #define GPU_OPERATOR_GRAVITY_DENSITY_FLOOR true
 #include "operators/applyGasGravityKernel.cuh"
 #undef GPU_OPERATOR_GRAVITY_DENSITY_FLOOR
@@ -2076,7 +2076,7 @@ __device__ void finalizeOneThermalizedMobileParticle
 
 #include "operators/correctOnePoissonThermalizedParticlePath.cuh"
 
-// Solver-specific payload: preserve all existing history and publication semantics.
+
 #include "GpuCellLocalThermalFields.cuh"
 #define GPU_PARTICLE_EXTRA_FIELDS CellLocalThermalExtraFields<false, false>
 #include "GpuCellLocalPrimary.cuh"
@@ -3141,7 +3141,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureScheduledInlet
         return 1;
     }
     err = cudaDeviceSynchronize();
-    // Reuse this pre-existing completion point; do not add a synchronization.
+
     if(err==cudaSuccess) {
         err=s->diagnosticOwner->observeCompletedWork();
         if(s->diagnosticOwner->dispatchPending())return 1;
@@ -3445,7 +3445,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     if (err == cudaSuccess)
     {
         err = cudaDeviceSynchronize();
-    // Reuse this pre-existing completion point; do not add a synchronization.
+
     if(err==cudaSuccess) {
         err=s->diagnosticOwner->observeCompletedWork();
         if(s->diagnosticOwner->dispatchPending())return 1;
@@ -3560,7 +3560,7 @@ extern "C" int ugkwpGpuResidentStrictComputeGasCourant
         convectiveBegin + s->nCells
     );
     *maxCo = *maxConvectiveIt;
-    // Courant's existing reduction has returned its host scalar.
+
     const auto diagnosticReadback=s->diagnosticOwner->observeCompletedWork();
     if(diagnosticReadback!=cudaSuccess) {setLastError("diagnostics at Courant readback",diagnosticReadback);return 1;}
     if(s->diagnosticOwner->dispatchPending())return 1;
@@ -3574,8 +3574,8 @@ extern "C" int ugkwpGpuResidentStrictAdvance
     double simulationTime
 )
 {
-    // Legacy/particle callers pass the committed interval end. Transport RK
-    // stages start at simulationTime-dt; injection and publication retain the end.
+
+
     DeviceState* s = asState(handle);
     if (validateState(s, "advance") != 0)
     {
@@ -4256,8 +4256,8 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
     double simulationTime
 )
 {
-    // Legacy/particle callers pass the committed interval end. Transport RK
-    // stages start at simulationTime-dt; injection and publication retain the end.
+
+
     DeviceState* s = asState(handle);
     if (validateState(s, "pure-gas advance") != 0)
     {
@@ -4356,7 +4356,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadFields
     rc |= copyToHost(Uz, s->Uz, n, "cudaMemcpy strict Uz result");
     rc |= copyToHost(p, s->p, n, "cudaMemcpy strict p result");
     rc |= copyToHost(Tgas, s->Tgas, n, "cudaMemcpy strict Tgas result");
-    // Tgas has just completed a pre-existing blocking field readback.
+
     const auto diagnosticReadback=n?s->diagnosticOwner->observeCompletedWork():cudaSuccess;
     if(diagnosticReadback!=cudaSuccess) {setLastError("diagnostics at field readback",diagnosticReadback);rc|=1;}
     if(s->diagnosticOwner->dispatchPending())return 1;
@@ -4904,7 +4904,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadAndResetParticleWallHeatLedgers
         return 1;
     }
     err = cudaDeviceSynchronize();
-    // Reuse this pre-existing completion point; do not add a synchronization.
+
     if(err==cudaSuccess) {
         err=s->diagnosticOwner->observeCompletedWork();
         if(s->diagnosticOwner->dispatchPending())return 1;
@@ -5467,7 +5467,7 @@ extern "C" int ugkwpGpuResidentStrictSetDiagnosticOperation(void* handle,std::ui
     DeviceState* s=asState(handle);
     if(!s || !s->diagnostics)return 1;
     s->diagnosticOwner->setOperationContext(sequence,step,time);
-    // Ordered before graph replay, never captured with frozen timestep values.
+
     ugkp::diagnostics::beginOperationKernel<<<1,1>>>(s->diagnostics,sequence,step,time);
     const auto rc=cudaGetLastError();
     if(rc!=cudaSuccess){setLastError("begin diagnostic metadata",rc);return 1;}

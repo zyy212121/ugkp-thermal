@@ -78,7 +78,7 @@ int main(int argc,char**argv)try{
   const float imported=ugkwp::legacyRestart::importMobileTemperature(restored.pT[0],restored.pThermalEnthalpyResidual[0]);
   ck(imported==float(oldLaw.temperature(oldH)),"legacy mobile enthalpy not rounded once");
   ck(ugkwp::legacyRestart::importMobileTemperature(300.125,0)==float(300.125),"zero carry conversion drift");
-  // Only maintained 1D cold-wall arithmetic belongs to current acceptance.
+
   for(int count:{8}){
    float* nodes=count==8?restored.pColdNodeSpecificEnthalpy.data()+8:restored.pCold2DNodeSpecificEnthalpy.data()+128;
    const double carry=count==8?restored.pThermalEnthalpyResidual[1]:restored.pThermalEnthalpyResidual[2];
@@ -105,7 +105,7 @@ int main(int argc,char**argv)try{
  ck(os.str().find("SCHEMA9_FLOAT_COLD_PROFILES")!=std::string::npos,"FP64 schema changed");
 #endif
  ROUNDTRIP
- // Existing directional precision policy only. No new rejection is introduced.
+
  const std::string dir=argv[1];std::filesystem::create_directories(dir);std::string error;
  for(int saved:{32,64}){std::ofstream f(ugkp::precision::metadataPath(dir));f<<"schema 1\ncomputePrecision "<<saved<<"\nrestartPrecision "<<saved<<"\n";f.close();
   bool ok=ugkp::precision::checkRestartPrecision(dir,error);

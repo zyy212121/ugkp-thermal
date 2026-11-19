@@ -1,5 +1,5 @@
 #pragma once
-// Test-only producer for historical bytes; not included by solver code.
+
 #include "common/GpuThermalParticleRestartCodec.H"
 namespace Foam { namespace gpuThermalRestart {
 template<class Disk,class Memory> inline void writeConverted(std::ostream& os,const Memory* p,std::size_t b,std::size_t n)

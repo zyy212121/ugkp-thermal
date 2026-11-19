@@ -8,7 +8,7 @@ unsigned long long adapterConstructions=0;
 using namespace chmt;
 void require(bool ok){if(!ok)std::abort();}
 int main(){std::cout<<std::hexfloat;
- // Original valid/inactive-species routes must also work with floating traps.
+
  #if defined(__GLIBC__)
  feenableexcept(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW);
  #endif
@@ -24,7 +24,7 @@ int main(){std::cout<<std::hexfloat;
   require(chmt::finite(secant));std::cout<<secant<<' '<<speciesCv(s,a)<<' '<<speciesCv(s,b)<<'\n';
   std::cerr<<model<<' '<<(a==b)<<' '<<(model&&minValue(a,b)<=s.Tmid&&maxValue(a,b)>s.Tmid)<<' '<<count<<'\n';
   MaterialCaloric c;c.a0=formation;c.a1=2300;c.a2=.031;c.gas[0]=s;c.pore[0]=.35;
-  // All other gas tables remain unconfigured and inactive, preserving the real consumer.
+
   std::cout<<c.secant(a,b)<<' '<<c.capacity(a)<<' '<<c.energy(a)<<'\n';
  }
  return 0;}

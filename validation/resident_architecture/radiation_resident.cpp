@@ -42,12 +42,12 @@ int main(){
 #ifndef UGKP_RADIATION_LEGACY_REFERENCE
         DiscreteOrdinateRadiation resident(g,t,c);
         Device mass(s.epsilon),tm({s.epsilon[0]*600,s.epsilon[1]*700}),dm({s.epsilon[0]*s.diameter[0],s.epsilon[1]*s.diameter[1]});
-        // One internal-face slot precedes the boundary face values.
+
         Device boundary({0,400,500}),contact({0,.25,0}),scale({1,1,1});
         auto input=s;input.epsilon.clear();input.temperature.clear();input.diameter.clear();
         input.resident={true,2,1,2,mass.p,tm.p,dm.p,boundary.p,contact.p,scale.p,1,100,nullptr};
         input.residentWallTemperature={1,1};input.contactEmissivity={1,0};
-        // Host counterpart applies the same existing exposed-area law.
+
         auto exposed=s;exposed.emissivity[0]*=.75;
 #endif
         for(int sample=0;sample<3;++sample){
@@ -59,8 +59,8 @@ int main(){
             }
             auto out=host.solve(s,sample>0);std::vector<double> intensities;host.downloadIntensities(intensities);dump(out,intensities,parallel?"parallel":"serial",sample);
 #ifndef UGKP_RADIATION_LEGACY_REFERENCE
-            // A separate host-input workspace makes the resident source and
-            // contact coverage comparison independent of the dump/oracle state.
+
+
             DiscreteOrdinateRadiation equivalent(sample==2?([&]{auto m=g;m.volume={1.25,.75};m.internalFlux={.8,-.8};m.transportDiagonal={.8,1,1,.8};return m;}()):g,t,c);
             auto expected=equivalent.solve(exposed,false);auto actual=resident.solve(input,false);
             same(expected.incident,actual.incident,"resident incident");same(expected.power,actual.power,"resident power");same(expected.boundaryFlux,actual.boundaryFlux,"resident boundary flux");
@@ -97,7 +97,7 @@ int main(){
         DiscreteOrdinateRadiation zeroDirections(closed,t,{});out=zeroDirections.solve(snapshot,false);zeroDirections.downloadIntensities(intensity);
         dump(out,intensity,"zero-directions",0);
     }
-    // A nonphysical incoming intensity must still yield an explicit location.
+
     auto bad=g;bad.boundaryType[0]=RadiationBoundary::Fixed;bad.fixedIntensity[0]=-1e8;
     try{DiscreteOrdinateRadiation solver(bad,t,{});solver.solve(s,false);throw std::runtime_error("missing radiation failure");}
     catch(const RadiationError& e){std::cout<<"failure "<<e.iteration<<' '<<e.cell<<' '<<e.patch<<' '<<e.face<<' '<<e.what()<<'\n';}

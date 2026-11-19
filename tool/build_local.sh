@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build all applications with checkout-local object and executable paths.
+
 source_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd) || exit 1
 if [[ -z ${WM_PROJECT_DIR:-} ]]; then
     source "${OPENFOAM_BASHRC:-/opt/openfoam10/etc/bashrc}"

@@ -1,17 +1,17 @@
 #pragma once
 #include "configuration/ModelIO.H"
+#include "FoamMomentumTransportInput.H"
 namespace chmt { namespace io {
 inline void readSharedPhasePhysics(ModelConfig& m,const Foam::dictionary& momentum,
     const Foam::dictionary& particles,bool particlesEnabled) {
     auto& p=m.physics;p.enableParticles=particlesEnabled;
     p.enableSst=text(momentum,"simulationType","laminar")=="RAS"
-        && flag(momentum.subOrEmptyDict("RAS"),"turbulence",true)
-        && text(momentum.subOrEmptyDict("RAS"),"model","kOmegaSST")=="kOmegaSST";
+        && ugkp::solverControls::rasModel(momentum.subOrEmptyDict("RAS"),"kOmegaSST")=="kOmegaSST";
             if (momentum.found("RAS")) {
                 const auto ras=momentum.subDict("RAS");
                 const auto a=ras.subOrEmptyDict("kOmegaSSTCoeffs");
-                p.sst.turbulentPrandtl=readNumber(ras,"turbulentPrandtl",p.sst.turbulentPrandtl);
-                p.sst.turbulentSchmidt=readNumber(ras,"turbulentSchmidt",p.sst.turbulentSchmidt);
+                p.sst.turbulentPrandtl=readPhysical(ras,"turbulentPrandtl",p.sst.turbulentPrandtl);
+                p.sst.turbulentSchmidt=readPhysical(ras,"turbulentSchmidt",p.sst.turbulentSchmidt);
                 const auto family=text(a,"wallTreatment","lowRe");
                 require(family=="boundaryLayer"||family=="lowRe","unsupported CHMT sst.wallTreatment: "+family);
                 p.wallModel.family=family=="boundaryLayer"?ugkwp::gaswall::WallFamily::BoundaryLayer:ugkwp::gaswall::WallFamily::LowRe;
@@ -29,36 +29,22 @@ inline void readSharedPhasePhysics(ModelConfig& m,const Foam::dictionary& moment
                     p.wallWorkspaceSlots=layer.lookupOrDefault<Foam::label>("workspaceSlots",p.wallWorkspaceSlots);
                 }
                 auto& t = p.sst;
-#define CHMT_READ_SST(name) t.name=readNumber(a,#name,t.name)
-                CHMT_READ_SST(a1);
-                CHMT_READ_SST(betaStar);
-                CHMT_READ_SST(beta1);
-                CHMT_READ_SST(beta2);
-                CHMT_READ_SST(gamma1);
-                CHMT_READ_SST(gamma2);
-                t.sigmaK1=readNumber(a,"alphaK1",t.sigmaK1);
-                t.sigmaK2=readNumber(a,"alphaK2",t.sigmaK2);
-                t.sigmaOmega1=readNumber(a,"alphaOmega1",t.sigmaOmega1);
-                t.sigmaOmega2=readNumber(a,"alphaOmega2",t.sigmaOmega2);
-                CHMT_READ_SST(turbulentPrandtl);
-                CHMT_READ_SST(turbulentSchmidt);
-                t.productionLimit=readNumber(a,"c1",t.productionLimit);
-                t.minimumK=readNumber(a,"kMin",t.minimumK);
-                t.minimumOmega=readNumber(a,"omegaMin",t.minimumOmega);
-#undef CHMT_READ_SST
+                ugkp::solverControls::readSstCoefficients(a,t);
+                t.turbulentPrandtl=readPhysical(a,"turbulentPrandtl",t.turbulentPrandtl);
+                t.turbulentSchmidt=readPhysical(a,"turbulentSchmidt",t.turbulentSchmidt);
             }
             if (p.enableParticles) {
                 const auto& a=particles;
                 auto& t=m.particlePhase;
                 t.randomSeed=std::stoull(text(a,"gpuResidentRandomSeed","1"));
-#define CHMT_PARTICLE_NUMBER(name) t.name=readNumber(a,#name,t.name)
-                t.injectionParcelMass=readNumber(a,"parcelMass",t.injectionParcelMass);
-                t.rhoSolid=readNumber(a,"rhoS",t.rhoSolid);t.diameter=readNumber(a,"dS",t.diameter);
+#define CHMT_PARTICLE_NUMBER(name) t.name=readPhysical(a,#name,t.name)
+                t.injectionParcelMass=readPhysical(a,"parcelMass",t.injectionParcelMass);
+                t.rhoSolid=readPhysical(a,"rhoS",t.rhoSolid);t.diameter=readPhysical(a,"dS",t.diameter);
                 t.dn=Foam::readParticleDiameterShape(a);
-                t.minimumDiameter=readNumber(a,"dMin",t.minimumDiameter);t.maximumDiameter=readNumber(a,"dMax",t.maximumDiameter);
-                t.minimumTemperature=readNumber(a,"TpMin",t.minimumTemperature);t.maximumTemperature=readNumber(a,"TpMax",t.maximumTemperature);
-                CHMT_PARTICLE_NUMBER(dragResidualRe);t.minimumSolidFraction=readNumber(a,"epsSMin",t.minimumSolidFraction);
-                t.minimumTheta=readNumber(a,"thetaMin",t.minimumTheta);CHMT_PARTICLE_NUMBER(collisionalRestitution);
+                t.minimumDiameter=readPhysical(a,"dMin",t.minimumDiameter);t.maximumDiameter=readPhysical(a,"dMax",t.maximumDiameter);
+                t.minimumTemperature=readPhysical(a,"TpMin",t.minimumTemperature);t.maximumTemperature=readPhysical(a,"TpMax",t.maximumTemperature);
+                CHMT_PARTICLE_NUMBER(dragResidualRe);t.minimumSolidFraction=readPhysical(a,"epsSMin",t.minimumSolidFraction);
+                t.minimumTheta=readPhysical(a,"thetaMin",t.minimumTheta);CHMT_PARTICLE_NUMBER(collisionalRestitution);
                 CHMT_PARTICLE_NUMBER(pressureKickFraction);CHMT_PARTICLE_NUMBER(packingFraction);
 #undef CHMT_PARTICLE_NUMBER
                 t.solveTemperature=flag(a,"solveParticleTemperature",t.solveTemperature);
@@ -77,13 +63,13 @@ inline void readSharedPhasePhysics(ModelConfig& m,const Foam::dictionary& moment
                 w.model=contact=="reboundContact"?1:contact=="coldWall2D"?4:3;
                 {
                     const auto& c=contactProperties;
-#define CHMT_CONTACT_NUMBER(name) w.name=readNumber(c,#name,w.name)
+#define CHMT_CONTACT_NUMBER(name) w.name=readPhysical(c,#name,w.name)
                     w.sommerfeldThreshold=Foam::readSommerfeldThreshold(c,w.sommerfeldThreshold);CHMT_CONTACT_NUMBER(maximumCoverage);
                     CHMT_CONTACT_NUMBER(depositionHeatTransferEfficiency);CHMT_CONTACT_NUMBER(reflectionHeatTransferEfficiency);
                     CHMT_CONTACT_NUMBER(adhesionEnergyScale);CHMT_CONTACT_NUMBER(contactAngleDegree);
                     CHMT_CONTACT_NUMBER(meltingTemperature);CHMT_CONTACT_NUMBER(mushyRange);CHMT_CONTACT_NUMBER(latentHeat);
                     CHMT_CONTACT_NUMBER(solidDensity);CHMT_CONTACT_NUMBER(solidSpecificHeat);CHMT_CONTACT_NUMBER(solidThermalConductivity);
-                    CHMT_CONTACT_NUMBER(pinningThicknessFraction);w.interfaceResistance=readNumber(c,"interfaceThermalResistance",w.interfaceResistance);
+                    CHMT_CONTACT_NUMBER(pinningThicknessFraction);w.interfaceResistance=readPhysical(c,"interfaceThermalResistance",w.interfaceResistance);
 #undef CHMT_CONTACT_NUMBER
                     w.heatTransfer=flag(c,"heatTransfer",false);
                     w.wallTransientResistance=flag(c,"wallTransientResistance",w.wallTransientResistance);

@@ -17,7 +17,7 @@ int main() {
  }
  std::cout<<"helper_reference_cases="<<checked<<"\n";
  assert(hardwareReductionTile(-1,256,1,1)==0);assert(hardwareReductionTile(1,0,1,1)==0);
- // Saturation preserves partition counts and > threshold decisions for int populations.
+
  for(int i=0;i<200000;++i) {
   long long raw=static_cast<long long>(INT_MAX)+1+(rng()%INT_MAX);int count=rng()%(static_cast<uint64_t>(INT_MAX)+1);
   int n=count?1+(count-1)/INT_MAX:0;long long nw=count?1+(static_cast<long long>(count)-1)/raw:0;

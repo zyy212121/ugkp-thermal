@@ -11,7 +11,7 @@ int main(){Model m;m.in.temperature=m.in.matching.temperature=500;m.in.matching.
  WallModelConfig<GpuReal> c;c.enableSst=true;c.nodes=32;c.maxIterations=100;
  WallWorkspace<GpuReal,2,48> w;WallOutput<GpuReal,2> with,without;WallStatus s;
  m.in.integrateOwnerKSource=true;assert(evaluateWallModel(m.in,c,w,with,s));assert(std::isfinite(with.integratedKSource));
- // No valid quadrature pointers: this path cannot touch even one point.
+
  m.in.integrateOwnerKSource=false;m.in.quadrature.distance=nullptr;m.in.quadrature.volumeWeight=nullptr;
  assert(evaluateWallModel(m.in,c,w,without,s));assert(std::isnan(without.integratedKSource));
  assert(with.traceTemperature==without.traceTemperature&&with.traceDensity==without.traceDensity&&with.ownerOmega==without.ownerOmega&&with.wallKFlux==without.wallKFlux&&with.conductiveHeatFlux==without.conductiveHeatFlux&&with.residual==without.residual&&with.iterations==without.iterations);

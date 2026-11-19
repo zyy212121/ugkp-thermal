@@ -4,6 +4,7 @@
 #include "RadiationResidentView.H"
 #include "ExecutionGraph.H"
 #include <functional>
+#include <future>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -18,18 +19,23 @@ struct RadiationGeometry {
     std::vector<double> reflectionWeights;
     std::vector<RadiationBoundary> boundaryType;
     std::vector<double> volume,weights,directionCosines;
-    // Direction-major arrays preserve the native geometry and face order.
+
     std::vector<double> internalFlux,transportDiagonal,boundaryFlux,boundaryCosine;
     std::vector<double> boundaryArea,diffuseDenominator,fixedIntensity;
+};
+struct RadiationGeometryUpdate {
+    unsigned long long geometryRevision=0,executionRevision=0;
+    int rebuiltDirections=0,updatedDirectionValues=0;
+    bool rebuiltStructure=false,updatedReflection=false,rebuiltSourceGraph=false;
 };
 struct RadiationControls {
     RadiationReal activeEpsilonMinimum=0,phaseTolerance=RadiationReal(1e-12),sourceTolerance=RadiationReal(1e-10);
     RadiationReal linearTolerance=RadiationReal(1e-12),linearRelativeTolerance=0,sourceRelaxation=1,small=RadiationReal(1e-15);
     int phaseIterations=200,sourceIterations=500,linearIterations=1000;
-    // This retains the original distinction between frozen angular sources
-    // and sequential angular Gauss-Seidel updates; it is not a case selector.
+
+
     bool parallelAngles=false;
-    int maximumConcurrentAngles=0; // 0 retains all-direction concurrency for API callers.
+    int maximumConcurrentAngles=0;
     bool controlsAlreadyResolved=false;
 };
 struct RadiationSnapshot {
@@ -49,7 +55,12 @@ struct RadiationResult {
     RadiationReal maximumRelativeChange=0;
     RadiationReal materialRelativeResidual=0,transportRelativeResidual=0;
     RadiationReal materialResidualTarget=0,transportResidualTarget=0;
-    int sourceIterations=0;
+    int sourceStop=0;unsigned long long matvecs=0,workLimit=0;
+    double wideResidual=0,arithmeticDelta=0;
+    int sourceIterations=0,lastLinearIterations=0,lastLinearStopReason=0;
+    unsigned long long linearSolves=0,totalLinearIterations=0;
+    RadiationReal sourceResidualTarget=0,lastLinearResidual=0;
+    bool sourceConverged=false,lastLinearConverged=false;
 };
 struct RadiationError:std::runtime_error {
     RadiationReal value;int iteration,cell,patch,face;
@@ -66,20 +77,48 @@ struct RadiationThermalIterationDeviceView {
 };
 using RadiationThermalIterationHook=std::function<ExecutionGraphNode(
     ExecutionGraph,ExecutionGraphNode,void*,const RadiationThermalIterationDeviceView&)>;
+class RadiationWarmStart;
 class DiscreteOrdinateRadiation {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:
     DiscreteOrdinateRadiation(const RadiationGeometry&,const MieOpticalTable&,const RadiationControls&);
     ~DiscreteOrdinateRadiation();
+
+
+    void enqueue(const RadiationSnapshot&,bool warmStart,bool publishDiagnostics=true);
+
+    void awaitCompletion() const;
+
+
+    void prepareParentInputs(const RadiationSnapshot&,bool warmStart);
+    ExecutionGraphNode appendInputsTo(ExecutionGraph,ExecutionGraphNode dependency=nullptr);
+
+
+    ExecutionGraphNode appendSourceTo(ExecutionGraph,ExecutionGraphNode dependency=nullptr);
+    void resetContinuation(void* stream);
+    const int* continuationStage()const noexcept;
+    const int* capacityPendingDevice()const noexcept;
+    bool servicePendingCapacity();
+    void acceptExternalCompletion(const std::shared_future<void>&);
+    void acceptExternalExecution(void* producerStream);
+    ExecutionGraphNode appendDiagnosticsTo(ExecutionGraph,ExecutionGraphNode dependency);
+    void* producerStream()const noexcept;
     RadiationResult solve(const RadiationSnapshot&,bool warmStart,bool exportFields=true);
-    // Explicit output publication. Device consumers use deviceView() directly.
+
     RadiationResult collect(bool exportFields=true);
-    // Same topology/angular quadrature: refresh metric/transport graphs while
-    // retaining optical tables and angular intensities on the device.
+
+
+
     void updateGeometry(const RadiationGeometry&);
-    // Explicit diagnostic export; ordinary solves retain angular fields on GPU.
+    RadiationGeometryUpdate lastGeometryUpdate()const noexcept;
+    unsigned long long executionRevision()const noexcept;
+
+    void freezeIntensities(RadiationWarmStart&, void* nextWriter=nullptr) const;
     void downloadIntensities(std::vector<double>&)const;
     void uploadIntensities(const std::vector<double>&);
+
+
+
     RadiationDeviceView deviceView() const noexcept;
     void setThermalIterationHook(RadiationThermalIterationHook, unsigned long long owner=0, unsigned long long revision=0);
 };

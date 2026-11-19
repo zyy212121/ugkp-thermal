@@ -80,8 +80,8 @@ def generate():
             raise ValueError("case leaves common NASA7 validity interval; shorten the declared actual horizon: " + definition["name"])
         midpoint_jump = 0.0
         if definition["initial_temperature"] == 1000:
-            # Pinned NASA7 branches are not perfectly continuous at 1000 K.
-            # Cantera integrates dT/dt but reports energy from piecewise NASA h.
+
+
             for index, sp in enumerate(model["thermo"]):
                 def energy(coefficients):
                     t = 1000.0

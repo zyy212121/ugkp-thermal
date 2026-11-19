@@ -35,8 +35,8 @@ def test_corrected_cold_wall_fixture_preserves_other_frozen_oracles(tmp_path, ap
             ("thermalPressureParticles", "applyCollisionalPressureProjectionParticlesAtomicKernel", "baselinePressureParticles"),
         ]:
             assert frozen[key].replace(old, new) in source
-        # These are generator contracts only; actual numerical assertions run in
-        # the CUDA fixture, and host scalar physics has separate executable tests.
+
+
         assert "coldScalar<<<1,1>>>" in source
         assert "Foam::gpuThermal::advanceColdWallProfile(" in source
         assert "seedColdReference(s,reference);" in source

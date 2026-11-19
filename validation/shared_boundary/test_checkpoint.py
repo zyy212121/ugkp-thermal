@@ -27,7 +27,7 @@ int main(int argc,char** argv){
  assert(ugkp::boundary::evaluate(v,0,restored.time,0)==375);
  auto bytes=[&](){std::ifstream f(std::string(argv[1])+"/state.chmt",std::ios::binary);return std::string(std::istreambuf_iterator<char>(f),{});};
  const auto saved=bytes();assert(chmt::writeCheckpoint(argv[1],model,restored,error));assert(saved==bytes());
- // The current startup field program remains authoritative on restore.
+
  auto startup=std::make_shared<ugkp::boundary::Definition>(*definition);
  startup->faces[0].solidMode=1;startup->faces[0].function[ugkp::boundary::SolidFraction]=1;
  startup->functions.push_back({ugkp::boundary::FunctionKind::Table,ugkp::boundary::Bounds::Clamp,2,2,0});
@@ -73,7 +73,7 @@ int main(){
  assert(std::abs(evaluate(view,0,.5,0)-.1875)<1e-6);
  const auto originalI=iv;const auto originalR=rv;encode(restored,iv,rv);
  assert(iv==originalI&&rv==originalR);
- // Literal historical 14-int / 11-real face, not produced by current encode.
+
  std::vector<int> oldI={1,0,0, 0,0,0,1,1,0, -1,-1,-1,-1,-1,-1, 0,-1};
  std::vector<double> oldR={0,0,-1e30,1,1, 1,2,3,4,1234,300};
  auto old=decode(oldI,oldR);

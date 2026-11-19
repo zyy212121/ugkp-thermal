@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Supplemental full OF10 coordinator exercise with sequential host execution of
-# common kernel bodies. This is NOT native CUDA, device, or parallel-race evidence.
+
+
 set -euo pipefail
 source_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 root="$source_root"

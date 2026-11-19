@@ -1,5 +1,5 @@
 #pragma once
-// One operator implementation; scalar/time adapters are compile-time only.
+
 __device__ void updateBarthLimiter
 (
     const GPU_OPERATOR_REAL centre,
@@ -10,8 +10,8 @@ __device__ void updateBarthLimiter
 )
 {
     const GPU_OPERATOR_REAL delta = predicted - centre;
-    // Limiting is homogeneous: a trace scalar has the same admissible
-    // relative slope as a bulk scalar. Only an exactly zero slope is inactive.
+
+
     if (delta > GPU_OPERATOR_R(0.0))
     {
         limiter = fmin(limiter, (maximum - centre)/delta);
@@ -38,7 +38,7 @@ __device__ void updateVenkatakrishnanLimiter
     }
     const GPU_OPERATOR_REAL admissible =
         delta > GPU_OPERATOR_R(0.0) ? maximum - centre : minimum - centre;
-    // Test signs without a product, which underflows for trace inventories.
+
     if ((delta > GPU_OPERATOR_R(0.0) && admissible <= GPU_OPERATOR_R(0.0))
         || (delta < GPU_OPERATOR_R(0.0) && admissible >= GPU_OPERATOR_R(0.0)))
     {
@@ -48,8 +48,8 @@ __device__ void updateVenkatakrishnanLimiter
 
 
 
-    // Evaluate the same rational function without squaring an unbounded
-    // ratio. For a very small slope admissible/delta may itself overflow.
+
+
     GPU_OPERATOR_REAL value;
     if (fabs(admissible) >= fabs(delta))
     {

@@ -397,7 +397,7 @@ namespace composition_detail {
     CHMT_HD inline void refine(PhysicalReal* Y,const PhysicalReal* bulk,const PhysicalReal* Js,PhysicalReal pressure,
     PhysicalReal T,PhysicalReal distance,const PhysicsConfig& supplied,Info& info,const CompositionResidualInputs* prepared=nullptr) {
         const PhysicsConfig& p=supplied;
-        for(int it=0;it<p.numerics.surface.refinementIterations;++it){
+        for(int it=0;it<p.numerics.surface.refinementIterations&&info.refine<p.numerics.surface.refinementIterations;++it){
             PhysicalReal f[Ns]{},jac[Ns*Ns]{};
             if(!compositionResidualPolicy<false>(Y,bulk,Js,pressure,T,distance,p,f,jac,prepared))return;
             ++info.refine;
@@ -765,7 +765,7 @@ namespace composition_detail {
         if(half>=0){one=root+half;two=c;}else{one=b;two=root-half;}
         const PhysicalReal sum=one+two;
         if(!quotientFinite(one,sum,Y[0])||!quotientFinite(two,sum,Y[1]))return false;
-        bool solved=false;certify(Y,bulk,Js,pressure,T,distance,p,tolerance,best,&solved,false,prepared);
+        bool solved=false;certify(Y,bulk,Js,pressure,T,distance,p,tolerance,best,&solved,true,prepared);
         return solved;
     }
 
@@ -810,7 +810,7 @@ namespace composition_detail {
             changed=changed||next[dependent]!=Y[dependent];
             ++info.structuredIterations;
             bool solved=false;
-            certify(next,bulk,Js,pressure,T,distance,p,tolerance,best,&solved,false,prepared);
+            certify(next,bulk,Js,pressure,T,distance,p,tolerance,best,&solved,true,prepared);
             if(solved)return true;
             if(!changed)return false;
             for(int i=0;i<Ns;++i)Y[i]=next[i];
@@ -832,7 +832,7 @@ namespace composition_detail {
         if(certify(initialY,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,true,prepared)&&best.converged){
             return publishSelection(best,p,tolerance,out,info,suppliedInfo);
         }
-        best={};
+        const Selection initial=best;best={};
         PhysicalReal d[Ns]{},u[Ns]{},v[Ns]{},r[Ns]{},J=0,Db=0;
         PhysicalReal Rref=0,scale=0,rmin=1,rmax=0,dmin=std::numeric_limits<PhysicalReal>::max(),dmax=0;
         for(int i=0;i<Ns;++i)Rref=energyArithmetic::maximum(Rref,prepared->gasR[i]);
@@ -883,29 +883,14 @@ namespace composition_detail {
             const bool solved=Ns==2
                 ?uniqueTwoSpecies(d,u,v,r,bulk,Js,pressure,T,distance,p,tolerance,best,prepared)
                 :uniqueNewton(d,u,v,r,scaledJ,scaledDb,bulk,Js,pressure,T,distance,p,tolerance,best,info,prepared);
-            if(solved)return publishSelection(best,p,tolerance,out,info,suppliedInfo);
-        }
-        if(positive){PhysicalReal lower=std::numeric_limits<PhysicalReal>::max(),upper=-lower;bool bounded=true;
-            const PhysicalReal rowGamma=(4*Ns+16)*epsilon/(1-(4*Ns+16)*epsilon);
-            for(int i=0;i<Ns;++i){PhysicalReal one=0,two=0,three=0,numerator=0,magnitude=0,ratio=0,error=0;
+            (void)solved;
 
 
-                if(!productFinite(u[i],rBulk,one)||!productFinite(v[i],sumBulk,two)
-                    ||!productFinite(d[i],bulk[i],three)||!sumFinite(one,two,numerator)
-                    ||!sumFinite(numerator,-three,numerator)||!quotientFinite(numerator,bulk[i],ratio)
-                    ||!sumFinite(energyArithmetic::absolute(one),energyArithmetic::absolute(two),magnitude)||!sumFinite(magnitude,energyArithmetic::absolute(three),magnitude)
-                    ||!productFinite(rowGamma,magnitude,error)||!quotientFinite(error,bulk[i],error)){
-                    bounded=false;break;
-                }
-                PhysicalReal lowEdge=0,highEdge=0;
-                if(!sumFinite(ratio,-error,lowEdge)||!sumFinite(ratio,error,highEdge)){bounded=false;break;}
-                lower=energyArithmetic::minimum(lower,::nextafter(lowEdge,-std::numeric_limits<PhysicalReal>::infinity()));
-                upper=energyArithmetic::maximum(upper,::nextafter(highEdge,std::numeric_limits<PhysicalReal>::infinity()));
-            }
-            if(bounded){PhysicalReal narrowedA=energyArithmetic::maximum(a,lower),narrowedB=energyArithmetic::minimum(b,upper);
-                if(narrowedA<=narrowedB){a=narrowedA;b=narrowedB;}
-            }
+            if(!best.certified)best=initial;
+            return publishSelection(best,p,tolerance,out,info,suppliedInfo);
         }
+
+
         PhysicalReal cuts[Ns+2]{};
         int cutCount=2;
         cuts[0]=a;

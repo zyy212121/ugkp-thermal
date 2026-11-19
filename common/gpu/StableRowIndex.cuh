@@ -5,9 +5,9 @@
 #include <cub/device/device_scan.cuh>
 #include <cstddef>
 namespace ugkp { namespace gpu {
-// CSR index for an arbitrary item->row device mapping. Negative/out-of-range
-// mappings are inactive. Stable sorting retains the original order within each
-// row, so downstream FP64 sums use the same ordering as host row construction.
+
+
+
 struct StableRowIndexView {
     int* keys=nullptr;int* sortedKeys=nullptr;int* inputIndices=nullptr;
     int* indices=nullptr;int* counts=nullptr;int* offsets=nullptr;

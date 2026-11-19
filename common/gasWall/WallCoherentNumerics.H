@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <cmath>
 namespace ugkwp { namespace gaswall { namespace coherent {
-// Bounded storage with vector-like active length, not a physical acceptance
-// policy. Capacities come from the already selected workspace bucket.
+
+
 template<class T,int Capacity> struct BoundedVector {
  T data[Capacity];int count=0;
  UGKWP_GAS_HD int size()const{return count;}
@@ -21,14 +21,14 @@ template<class T,int Capacity> struct BoundedVector {
  UGKWP_GAS_HD bool operator!=(const BoundedVector&v)const{return !(*this==v);}
 };
 template<class T> UGKWP_GAS_HD inline void swapValue(T&a,T&b){T t=a;a=b;b=t;}
-// Numerical alternatives only; never validates or rejects a physical input.
-// Original scalar probes retain their existing (including clipped-Y) behavior.
+
+
 UGKWP_GAS_HD inline bool fdProbeAdmissible(const WallInput<double,2>& in,
                                           int column,double value){
  if(!std::isfinite(value))return false;
  if(column==2)return in.temperature+value>0;
  if(column==3)return value>=0&&value<=1;
- // a=state[4] is signed: the existing physical coordinate is k=a*a.
+
  if(column==5)return value>=0;
  return true;
 }
@@ -37,9 +37,9 @@ template<class Probe> UGKWP_GAS_HD inline int fdSelectDirection(Probe probe){
  if(probe(-1))return -1;
  return 0;
 }
-// FD-only compatibility with the actual PCHIP pieces. Does not change F.
-// At an exact switching tie, permit a finite one-sided adjacent piece;
-// exact zero is intentional (no fitted epsilon or physical admissibility gate).
+
+
+
 template<class R> UGKWP_GAS_HD inline bool pchipFdMargin(R base,R trial){return base==0 || (base>0?trial>0:trial<0);}
 template<class R> UGKWP_GAS_HD inline int pchipInteriorPiece(R dl,R dr){return ((dl>0&&dr>0)||(dl<0&&dr<0))?1:0;}
 template<class R> UGKWP_GAS_HD inline int pchipEndpointPiece(R d0,R d1,R slope){return slope*d0<=0?0:d0*d1<0&&std::abs(slope)>3*std::abs(d0)?1:2;}
@@ -60,4 +60,4 @@ template<int M> struct CachedLU {int n=0;BoundedVector<int,M*6>pivot;BoundedVect
  template<class Vector> UGKWP_GAS_HD void solve(Vector&b)const{for(int k=0;k<n;++k){if(pivot[k]!=k)swapValue(b[pivot[k]],b[k]);for(int i=k+1;i<std::min(n,k+18);++i)b[i]-=lower[k*17+i-k-1]*b[k];}for(int i=n-1;i>=0;--i){for(int j=i+1;j<std::min(n,i+35);++j)b[i]-=upper[i*35+j-i]*b[j];b[i]/=upper[i*35];}}
 };
 
-}}} // ugkwp::gaswall::coherent
+}}}

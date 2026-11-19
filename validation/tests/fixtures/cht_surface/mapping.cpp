@@ -39,9 +39,9 @@ scalarField recordedSurfaceTemperature(const volScalarField& temperature, label 
     return coupledPatchSurfaceTemperature(temperature, patchI);
 }
 
-// The actual mapping method is CUDA-build-only. The host harness substitutes
-// only its mapper and GPU upload boundary; all temperature/property operations
-// and the production method body are compiled unchanged.
+
+
+
 struct Mapper
 {
     labelList patches;
@@ -98,7 +98,7 @@ struct MappingHarness
 
 void testSnapshots(const volScalarField& solid, const labelList& coupledPatchIds_)
 {
-    // Empty owner set, mixed gas/owner set, and all-owner auxiliary solid.
+
     for (label ownerCount=0; ownerCount<=coupledPatchIds_.size(); ++ownerCount)
     {
         labelList ownerConductivityPatchIds_(ownerCount);
@@ -184,7 +184,7 @@ int main(int argc, char** argv)
     }
     Mapper mapper(pairs);
     MappingHarness harness(mesh,solid,mapper,properties);
-    // Include disabled contact, sparse/non-leading contact, and all-contact.
+
     for (unsigned mask : {0u,1u,2u,5u,7u})
     {
         DynamicList<label> contactPairs, contactPatches;
@@ -218,22 +218,22 @@ int main(int argc, char** argv)
                     near(harness.resident.temperatures[pairs[i]][f],Tw);
                     if (mask & (1u<<i))
                     {
-                        // Fixture rho=1000, Cp=1, kappa(T)=0.02*T.
+
                         near(harness.resident.effusivities[pairs[i]][f],std::sqrt(20*Tw));
                     }
                 }
             }
         }
     }
-    // A finite supplied surface is the value consumed by the mapper.
+
     solid.boundaryFieldRef()[pairs[2]][0]+=1;
     harness.resident=Resident();
     harness.mapSolidWallTemperatureToFluid(gas);
     require(harness.resident.uploads==2, "finite surface was not uploaded");
     const scalarField& surface=solid.boundaryField()[pairs[2]];
     near(harness.resident.temperatures[pairs[2]][surface.size()-1],surface[0]);
-    // The existing order publishes temperature before consuming contact
-    // effusivity. Invalid physical properties must prevent the second upload.
+
+
     solid.boundaryFieldRef()[pairs[0]][0]=std::numeric_limits<scalar>::quiet_NaN();
     harness.resident=Resident();
     bool rejected=false;

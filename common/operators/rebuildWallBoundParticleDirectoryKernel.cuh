@@ -1,5 +1,6 @@
 #pragma once
-// One operator implementation; scalar/time adapters are compile-time only.
+#include "wall/ParticleWallFaceInteraction.H"
+
 __global__ void rebuildWallBoundParticleDirectoryKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;
@@ -33,7 +34,7 @@ __global__ void finalizeParticleWallContactAreaScaleKernel(DeviceState* sp)
     }
 
     GPU_OPERATOR_REAL scale = GPU_OPERATOR_R(1.0);
-    if (s.particleStuckCandidateMask[faceI] != 0)
+    if (particleWallFaceInteraction(s,faceI) != 0)
     {
         const GPU_OPERATOR_REAL representedArea =
             s.particleWallRepresentedContactArea[faceI];

@@ -72,8 +72,8 @@ int main(){State s;initialise(s);Real oldV[2]={1,1},newV[2]={2,2},sweep[3]={0,0,
 MISSING;s.gasPhiRho[0]=.2;s.gasSpecies.flux[0]=.18;s.gasSpecies.flux[3]=.02;const Real before[7]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};threadIdx.x=0;applyGasFluxDivergenceByCellKernel(&s,.5);
 const Real after[7]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0],s.rhoE[0],s.gasSpecies.rho[0],s.gasSpecies.rho[2]};
 {
- // The established incidence walk skips an invalid index or an unowned face.
- // Only connected face 0 contributes: independently integrate its signed flux.
+
+
  ck(s.gasSpecies.cellStatus[0]==0,"skipped incidence blocked connected flux");
  const long double outward[7]={Real(.2),0,0,0,0,Real(.18),Real(.02)};
  for(int k=0;k<7;++k){const long double expected=(static_cast<long double>(before[k])-.5L*outward[k])/(MOVING?2.L:1.L);
@@ -145,8 +145,8 @@ def test_zero_geometry_interval_only_fails_at_real_frame_division(tmp_path,opera
       'positivity':r'''s.gasPhiRho[0]=2;s.gasSpecies.flux[0]=Real(1.8);s.gasSpecies.flux[3]=Real(.2);computeGasFluxPositivityScaleKernel(&s,0.);ck(s.gasSpecies.cellStatus[0]==0&&s.gasFluxPositivityScale[0]==1&&s.gasSpecies.positivityScale[0]==1&&s.gasSpecies.positivityScale[2]==1,"zero-time limiter branch changed");''',
       'frame':r'''ugkwp::GasFaceFrame<Real> frame;frame.area=-77;bool evaluated=false;
 ck(!ugkwp::gasGeometryFaceFrame(s,0,0.,frame,&evaluated)&&evaluated,"zero interval did not report an evaluated invalid frame");
-// A false numerical result does not imply untouched output. Check only the
-// independently known finite geometric quantities, never accept NaN velocity.
+
+
 ck(frame.area==1&&frame.nx==1&&frame.ny==0&&frame.nz==0,"evaluated face geometry was not published");
 s.gasGeometry.faceSweptVolume=nullptr;frame.area=-77;evaluated=true;
 ck(!ugkwp::gasGeometryFaceFrame(s,0,0.,frame,&evaluated)&&!evaluated&&frame.area==-77,"missing sweep storage was evaluated or published");''',

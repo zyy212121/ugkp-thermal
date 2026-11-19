@@ -1,4 +1,4 @@
-// New current-source regression coverage; not a recovered historical test suite.
+
 #include "tests/TestSupport.H"
 #include "materials/Reaction.H"
 #include "coupling/ExchangeLedger.H"

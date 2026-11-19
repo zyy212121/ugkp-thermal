@@ -79,8 +79,8 @@ primitives<<<4,128>>>(s,values);sync();for(int i=0;i<512;i++)for(int j=0;j<9;j++
 puts("PASS bitwise moments and face states: invalid cells, nonfinite inputs, internal faces from both sides, periodic owners and wall kinds");
 dragRates<<<4,128>>>(values);sync();for(int i=0;i<512*4;i++)equal(values[2*i],values[2*i+1],"drag policy rate");
 puts("PASS 2048 bitwise drag rates including zero slip, Re/alpha thresholds and denominator bounds");
-// Pressure publication uses a finite positive fixture; primitive tests above
-// separately cover nonfinite moment sanitization.
+
+
 for(int c=0;c<16;c++){s->momRhoP[c]=100;s->momRhoEP[c]=500;s->momRhoUPx[c]=25;s->momRhoUPy[c]=-12.5;s->momRhoUPz[c]=0;}
 PRESSURE_TEST
 WALL_TEST
@@ -125,9 +125,9 @@ puts("PASS bitwise unsorted particle update with mobile, transient and deposited
     if app!='gasUGKP':
         extra+=r'''
 __global__ void wallChannels(DeviceState*s,DeviceState*r){int i=threadIdx.x+blockDim.x*blockIdx.x;if(i>=129)return;int f=i%3;Real e=(i%7==0)?Real(0):Real((i%2?-1:1)*(1+i%5)*.125);auto a=i%2?s->particleWallReflectedEnergy:s->particleWallDepositedEnergy;auto b=i%2?r->particleWallReflectedEnergy:r->particleWallDepositedEnergy;atomicAddParticleWallEnergyByFace(*s,a,f,e);baseline_atomicAddParticleWallEnergyByFace(*r,b,f,e);}
-// The scalar Thomas solve is a separate path from the eight-lane PCR solve.
-// Start both from the same stored profile values at every step; do not compare two
-// independently drifting trajectories or freeze the corrected implementation.
+
+
+
 __global__ void coldScalar(DeviceState*r,double*out,double dt,double gasConductance,double duration,double gasTemperature){
  if(threadIdx.x!=0)return;
  Real h[8],ring[8],mean=0;for(int n=0;n<8;n++){h[n]=Real(r->pColdNodeSpecificEnthalpy[n]);ring[n]=Real(r->pColdRingSolidMass[n]);mean+=h[n]/Real(8);}
@@ -159,8 +159,8 @@ void nearCold(double actual,double expected,double bound,const char*name){
         cold=r'''
 s->coldWallSolidificationEnabled=reference->coldWallSolidificationEnabled=1;
 s->coldWallSolidificationParameters=reference->coldWallSolidificationParameters={2327.,20.,1.16e6,3990.,1273.,5.9,.25,0.,1,4};
-// PCR/Thomas arithmetic is double; only the CHT node cache remains float.
-// Use each actual profile owner for the explicit storage rounding budget.
+
+
 const double coldArithmeticTolerance=128*GPU_REAL_EPSILON;
 double largestColdResidual=0,largestColdBound=0,largestColdNodeError=0,largestColdWallError=0;
 for(int closed:{0,1})for(int stable=0;stable<STABLE_MODES;stable++)for(int transient:{0,1})for(int initialTemperature:{1000,2328,3500}){
@@ -202,9 +202,9 @@ for(int closed:{0,1})for(int stable=0;stable<STABLE_MODES;stable++)for(int trans
  equal(s->pColdContactAge[0],age,"rejected age unchanged");equal(s->pColdFrozenArea[0],frozen,"rejected frozen area unchanged");equal(reference->pColdContactAge[0],age,"rejected scalar age unchanged");equal(reference->pColdFrozenArea[0],frozen,"rejected scalar frozen area unchanged");
  }
 }
-// Delay wetting beyond the whole step to isolate gas relaxation. This independent
-// constant-cp exponential catches both a top-node-only source and reapplying the
-// gas step during every nonlinear iteration, even if both solvers share a bug.
+
+
+
 for(int stable=0;stable<STABLE_MODES;stable++)for(int iterations:{1,4,12})for(int gasTemperature:{700,1700}){
  auto& p=s->coldWallSolidificationParameters;p.nonlinearIterations=iterations;
  s->pColdNodeSpecificEnthalpy[0]=p.solidSpecificHeatJkgK*Real(1000);

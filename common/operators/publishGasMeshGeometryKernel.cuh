@@ -3,9 +3,9 @@
 #include "../gasTransport/GasMeshGeometry.H"
 #include "../gpu/ResidentStageGeometry.H"
 namespace ugkwp {
-// Addresses/topology are initialized by the gas owner. Only mutable metric
-// arrays are written here. Failed candidate geometry is never published.
-// These kernels do not touch physical fields, boundary data or resident clocks.
+
+
+
 template<class State>
 __global__ void publishGasCellGeometryKernel(State* state,
     ugkp::gpu::geometry::PolyhedralGeometryDeviceView geometry,

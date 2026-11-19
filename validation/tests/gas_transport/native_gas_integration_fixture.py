@@ -36,8 +36,8 @@ struct DeviceState:State{
  std::vector<cudaGraphNode_t>gasGraphTimeNodes;std::vector<cudaKernelNodeParams>gasGraphTimeParams;
 };
 '''
-    # Match the selected revision's real startup callback interface. The older
-    # immutable oracle revision predates it and retains its original host shape.
+
+
     callbacks='int (*gasBoundaryLayerLaunch)(DeviceState*)'
     if callbacks in native:
         declarations="""
@@ -76,8 +76,8 @@ template<class S,class T>void advanceGasChemistryKernel(S*s,T dt,const Real*v){i
     api=api.replace("SQR3_FUNCTION",function((root/"common/operators/publishScheduledInletConfigurationKernel.cuh").read_text(),"__device__ GPU_OPERATOR_REAL sqr3"))
     if callbacks in native:
         if 'evaluateGasBoundaryLayerTeamKernel' in native:
-            # Host CUDA shims execute the real scalar math once per CTA owner;
-            # cooperative math/barriers have separate threaded oracle tests.
+
+
             api+=r'''
 template<bool Capture,int Capacity=0,class GasState> void evaluateGasBoundaryLayerTeamKernel(GasState* state){
  if(threadIdx.x)return;

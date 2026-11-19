@@ -1,4 +1,4 @@
-// The oracle links only the original 88bc5434 long-double batch function.
+
 #include "materials/MaterialTransport.H"
 #include "materials/MaterialInventoryMath.H"
 #include <cfloat>
@@ -43,7 +43,7 @@ std::vector<Batch> cases(){
   for(auto&q:b.q){for(int c=0;c<Nc;++c)q.condensed[c]+=1e10;for(int s=0;s<Ns;++s)q.pore[s]+=1e10;}
   for(int i=0;i<512;++i){const int c=(i*7)%4,k=i%(Nc+Ns+1);const double v=std::ldexp(double(i%13-6),i%21-12);
    b.packets.push_back(delta(c,k,v,i%2));}
-  // Packets without a solid consumer neither contribute nor increase counts.
+
   ExchangePacket ignored;ignored.kind=ExchangeKind::GasFilm;ignored.solidCell=-333;ignored.energy=std::numeric_limits<Real>::quiet_NaN();b.packets.insert(b.packets.begin()+7,ignored);
  }
  {

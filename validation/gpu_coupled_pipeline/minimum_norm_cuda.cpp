@@ -1,4 +1,4 @@
-// Compile the independent oracle from the frozen checkout, not this branch.
+
 #include "mesh/Geometry.C"
 #include "gpu/PolyhedralGeometry.H"
 #include <random>

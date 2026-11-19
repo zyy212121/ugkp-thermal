@@ -10,6 +10,7 @@
 #define GpuResidentStrict_H
 
 #include "fvCFD.H"
+#include "FoamAdvanceProgress.H"
 #include "../../../common/FoamSolverScheme.H"
 #include "../../../common/DiagnosticsFoam.H"
 #include "SharedGasModelInput.H"
@@ -34,6 +35,7 @@
 #include <cmath>
 #include <cstdint>
 #include <fstream>
+#include <functional>
 #include <limits>
 #include <sstream>
 #include <algorithm>
@@ -389,6 +391,32 @@ protected:
     scalar legacyRestartParcelMass_;
 
 public:
+    void configureAdvance(const ugkp::gpu::AdvanceState& state,bool pureGas){
+        requireInitialised("configureAdvance");
+        check(ugkwpGpuResidentStrictConfigureAdvance(handle_,&state,pureGas),"configure device advance");
+    }
+    void enqueueAdvance(const ugkp::gpu::AdvanceRequest& request){
+        requireInitialised("enqueueAdvance");
+        check(ugkwpGpuResidentStrictEnqueueAdvance(handle_,&request),"submit device advance");
+    }
+    ugkp::gpu::AdvanceState collectAdvance(const Foam::Time* time=nullptr){
+        ugkp::gpu::AdvanceState report;
+        check(ugkp::gpu::collectFoamAdvance(handle_,report,time),"collect device advance");return report;
+    }
+#ifdef UGKWP_STEADY_APPLICATION
+    void configureSteadyAdvance(const ugkp::gpu::SteadyAdvanceControls& controls,const scalarField& scales=scalarField()){
+        check(ugkwpGpuResidentStrictConfigureSteadyAdvance(handle_,&controls,scales.begin(),scales.size()),
+            "configure device steady criteria");
+    }
+    void collectSteadyResidual(scalarField& values){
+        values.setSize(7+ugkwp::compiledGasSpecies);
+        check(ugkwpGpuResidentStrictCollectSteadyResidual(handle_,values.begin()),"collect steady residual report");
+    }
+    GpuSteadySamplingReport collectSteadyWindow(){
+        GpuSteadySamplingReport report;
+        check(ugkwpGpuResidentStrictCollectSteadyWindow(handle_,&report),"collect steady statistics report");return report;
+    }
+#endif
     template<class Real>
     void configureGasScalarSolvers(const ugkp::gasNumerics::ScalarSolverControls<Real>& controls)
     {
@@ -1172,14 +1200,14 @@ public:
     }
 
     template<class T>
-    void writeBinaryParticleBlock
+    static void writeBinaryParticleBlock
     (
         std::ofstream& os,
         const T* values,
         const label count,
         const char* fieldName,
         const fileName& restartFile
-    ) const
+    )
     {
         using Wire = typename std::conditional<std::is_floating_point<T>::value,
             double, typename std::conditional<(sizeof(T)>4),std::uint64_t,T>::type>::type;
@@ -1211,7 +1239,7 @@ public:
         }
     }
 
-    label writeParticleRestartMirror(const Time& runTime) const
+    std::function<label()> prepareParticleRestartMirror(const Time& runTime) const
     {
         requireInitialised("writeParticleRestartMirror");
 
@@ -1286,6 +1314,9 @@ public:
         }
 
         const fileName restartFile = particleRestartFile(runTime);
+        const auto writeEps=prepareEpsGPrevRestartMirror(runTime);
+        const auto writeSource=prepareSourceResidualRestartMirror(runTime);
+        return [px=std::move(px), py=std::move(py), pz=std::move(pz), pux=std::move(pux), puy=std::move(puy), puz=std::move(puz), pT=std::move(pT), pTheta=std::move(pTheta), pd=std::move(pd), pm=std::move(pm), pCellId=std::move(pCellId), pStatus=std::move(pStatus), pRng=std::move(pRng), pOrigId=std::move(pOrigId), nParticles, restartFile, writeEps, writeSource]() {
         std::ofstream os
         (
             restartFile.c_str(),
@@ -1336,12 +1367,15 @@ public:
                 << restartFile << exit(FatalError);
         }
 
-        writeEpsGPrevRestartMirror(runTime);
-        writeSourceResidualRestartMirror(runTime);
+        writeEps();writeSource();
         return label(nParticles);
+        };
     }
 
-    void writeEpsGPrevRestartMirror(const Time& runTime) const
+    label writeParticleRestartMirror(const Time& runTime) const
+    { return prepareParticleRestartMirror(runTime)(); }
+
+    std::function<void()> prepareEpsGPrevRestartMirror(const Time& runTime) const
     {
         requireInitialised("writeEpsGPrevRestartMirror");
 
@@ -1360,6 +1394,8 @@ public:
         );
 
         const fileName restartFile = epsGPrevRestartFile(runTime);
+        const label cells=hostMirrorCells_;
+        return [epsGPrev=std::move(epsGPrev), restartFile, cells]() {
         std::ofstream os(restartFile.c_str());
         if (!os.good())
         {
@@ -1371,14 +1407,18 @@ public:
         os.setf(std::ios::scientific);
         os.precision(std::numeric_limits<double>::max_digits10);
 
-        os << hostMirrorCells_ << '\n';
+        os << cells << '\n';
         forAll(epsGPrev, cellI)
         {
             os << epsGPrev[cellI] << '\n';
         }
+        };
     }
 
-    void writeSourceResidualRestartMirror(const Time& runTime) const
+    void writeEpsGPrevRestartMirror(const Time& runTime) const
+    { prepareEpsGPrevRestartMirror(runTime)(); }
+
+    std::function<void()> prepareSourceResidualRestartMirror(const Time& runTime) const
     {
         requireInitialised("writeSourceResidualRestartMirror");
 
@@ -1412,6 +1452,7 @@ public:
         }
 
         const fileName restartFile = sourceResidualRestartFile(runTime);
+        return [sourceFace=std::move(sourceFace), residualMass=std::move(residualMass), restartFile, nSources]() {
         std::ofstream os(restartFile.c_str());
         if (!os.good())
         {
@@ -1426,7 +1467,11 @@ public:
         {
             os << sourceFace[i] << ' ' << residualMass[i] << '\n';
         }
+        };
     }
+
+    void writeSourceResidualRestartMirror(const Time& runTime) const
+    { prepareSourceResidualRestartMirror(runTime)(); }
 
 protected:
     static fileName particleRestartFile(const Time& runTime)

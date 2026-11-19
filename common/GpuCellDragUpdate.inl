@@ -23,7 +23,7 @@
     }
 
     s.thetaDragAlpha[c] = GPU_OPERATOR_R(1.0);
-    // A zero-time source may refresh coupling caches, never conserved state.
+
     if (dt == GPU_OPERATOR_TIME(0)) return;
     const GPU_OPERATOR_REAL rhoP = clampMin(finiteOr(s.momRhoP[c], GPU_OPERATOR_R(0.0)), GPU_OPERATOR_R(0.0));
 
@@ -170,8 +170,8 @@
     const GPU_OPERATOR_REAL wy = ugy - usy;
     const GPU_OPERATOR_REAL wz = ugz - usz;
 
-    // Strictly zero resolved exchange must not reconstruct rounded momenta or
-    // phase-weighted energy. Preserve the existing repair for invalid inputs.
+
+
     if (!repairGasInternal && wx==GPU_OPERATOR_R(0) && wy==GPU_OPERATOR_R(0)
         && wz==GPU_OPERATOR_R(0) && dI==GPU_OPERATOR_R(0)) return;
 

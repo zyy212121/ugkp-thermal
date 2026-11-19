@@ -9,8 +9,8 @@ struct CpuSurfaceResult {
     std::vector<ExchangePacket> phasePackets;
     std::vector<WallFaceSample> wall;
 };
-// This constructs dry constitutive PROPOSALS; phasePackets remains empty.
-// It never applies/recomputes the gas interval's already accepted energy.
+
+
 bool evaluateCpuSurface(const HostState&,const PhysicsConfig&,
     const std::vector<GasPrimitive>& bulk,const std::vector<GasGradient>& gradients,
     const std::vector<SolidQ>& materialRate,const std::vector<FilmQ>& filmRate,

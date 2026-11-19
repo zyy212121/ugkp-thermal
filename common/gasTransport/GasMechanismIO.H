@@ -8,8 +8,8 @@
 
 namespace ugkwp
 {
-// Host-owned canonical SI tables. A view is rebuilt against each host/device
-// allocation; neither this object nor any borrowed pointer is an IPC payload.
+
+
 struct GasMechanismConfiguration
 {
     std::string phase;
@@ -123,7 +123,7 @@ inline std::uint64_t mechanismIdentity(const GasMechanismConfiguration& model)
     }
     return hash;
 }
-} // namespace gasModelIoDetail
+}
 
 template<int Ns>
 inline GasMechanismConfiguration parseGasMechanismProperties
@@ -303,5 +303,5 @@ inline GasMechanismConfiguration readGasMechanismProperties
     if (input.bad()) throw gasModelIoDetail::error("failed reading mechanism '" + path + "'");
     return parseGasMechanismProperties<Ns>(text, thermo, expectedPhase, thermoSpeciesNames);
 }
-} // namespace ugkwp
+}
 #endif

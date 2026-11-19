@@ -1,7 +1,7 @@
 #include "GasBuildConfig.H"
 #pragma once
 
-// to STL containers are placed in the gas state or checkpoint.
+
 struct BoundaryLayerAllocation
 {
     ugkwp::GasBoundaryLayerState<double> gasBoundaryLayer;

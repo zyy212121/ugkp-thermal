@@ -17,8 +17,8 @@ struct SweepTrialView {
     const Point* points=nullptr;
     const SweepTrialStatus* status=nullptr;
 };
-// Coordinate generation and its stopping predicates are resident. The caller
-// supplies the current Newton state and correction; no trial is committed here.
+
+
 class ResidentSweepTrial {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:

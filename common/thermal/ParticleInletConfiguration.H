@@ -1,8 +1,8 @@
 #pragma once
 #include <vector>
 namespace ugkp { namespace thermal {
-// One resident inlet program. Faces and schedules are resolved by the mesh
-// adapter once; the common injection kernel samples gas boundary velocity.
+
+
 struct ParticleInletConfiguration {
     std::vector<int> faces;
     std::vector<double> times,volumeFraction;

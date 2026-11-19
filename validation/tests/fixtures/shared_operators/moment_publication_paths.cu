@@ -1,5 +1,5 @@
-// Native path fixture: compile with the application's real include directory.
-// This file never calls publishParticleMomentsCell directly.
+
+
 #include "GpuResidentStrict.cu"
 #include <algorithm>
 #include <array>
@@ -108,9 +108,9 @@ void near(const long double got, const long double expected,
     }
 }
 
-// Independent host particle ledger: no CSR task traversal, GPU reduction or
-// publisher is reused. The established host/device material law is the only
-// shared oracle dependency; this fixture does not revalidate that law itself.
+
+
+
 CellLedger referenceLedger(const std::vector<Particle>& particles,
                            const DeviceState& state)
 {
@@ -139,7 +139,7 @@ CellLedger referenceLedger(const std::vector<Particle>& particles,
 #if MH04_THERMAL
         cell.extensive[6] += mass*Foam::gpuThermal::aluminaSpecificEnthalpyJkg(boundedTemperature);
 #else
-        // Fixture parameters deliberately give thermal mass ratio 1/2 and Cp 4.
+
         cell.extensive[6] += mass*2*boundedTemperature;
 #endif
         ++cell.count;
@@ -181,8 +181,8 @@ void checkCell(DeviceState& state, const CellLedger& reference, const int c,
         return;
     }
     require(state.cellParticleCount[c] == reference[c].count, "survivor count mismatch");
-    // Compare reconstructed extensive amounts with the independent ledger.
-    // No copied invV expression or sum-array-to-field publisher is the oracle.
+
+
     const long double effectiveVolume = std::max<long double>(state.V[c], state.rhoMin);
     for (int component = 0; component < 7; ++component)
         near(static_cast<long double>(fields[component][c])*effectiveVolume,
@@ -268,13 +268,13 @@ void initialize(DeviceState& state, ManagedStorage& storage,
         state.pStuck[i] = Foam::gpuThermal::particleWallMobile + (p.stuck ? 1 : 0);
 #endif
     }
-    // A shuffled fullIndexed CSR is sufficient to exercise both real consumers.
-    // Invalid/wrong-cell records are extras and never enter the host ledger.
+
+
     std::vector<int> sorted;
     for (int c = 0; c < cellCount; ++c)
     {
         state.cellParticleOffset[c] = static_cast<int>(sorted.size());
-        if (c == 3) continue;  // Actual empty cell, with no synthetic L2 task.
+        if (c == 3) continue;
         std::reverse(bins[c].begin(), bins[c].end());
         bins[c].insert(bins[c].begin() + bins[c].size()/2, -1);
         bins[c].push_back(particleCount + 3);
@@ -343,8 +343,8 @@ void runL2(DeviceState& state, const CellLedger& reference, const int block,
     checkGuards(state);
     if (*state.csrHeavyCellCount > 0)
     {
-        // A separate real kernel consumes actual worker partials; do not seed
-        // synthetic sums or bypass the reduction/finalizer being refactored.
+
+
         *state.csrHeavyTaskCursor = 0;
         finalizeCsrSegmentedMomentCellsKernel<<<2, block, sharedBytes>>>(&state);
         finishLaunch();
@@ -354,7 +354,7 @@ void runL2(DeviceState& state, const CellLedger& reference, const int block,
     require(state.cellParticleCount[cellCount] == 0, "completed L2 count sentinel not zero");
     checkGuards(state);
 }
-} // namespace mh04_fixture
+}
 
 int main()
 {

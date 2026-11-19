@@ -15,16 +15,16 @@ int main(){device::PolyhedralGeometry gpu;int count=0;
                 double expected=std::numeric_limits<double>::max();for(int f:walls)for(int k=m.faceOffsets[f]+1;k+1<m.faceOffsets[f+1];++k)
                     expected=std::min(expected,chmt::triangleDistance(m.cellCentres[c],m.points[m.facePoints[m.faceOffsets[f]]],m.points[m.facePoints[k]],m.points[m.facePoints[k+1]]));
                 assert(r.distance[c].invalidFace<0);assert(std::abs(expected-r.distance[c].distance)<=2e-13*std::max(1.,std::abs(expected)));}
-            // Interleave a face-only device operation; it cannot stale a full
-            // query's topology, coordinates or cached output fields.
+
+
             auto other=m.points;for(auto& p:other)p.x+=1;device::Topology only;only.faceOffsets=t.faceOffsets;only.facePoints=t.facePoints;gpu.sweep(only,points(m.points),points(other));++count;
         }
         const auto noWalls=gpu.rebuild(t,points(m.points),{});for(auto r:noWalls.distance)assert(r.invalidFace<0&&r.distance==0);++count;
     }
-    // More than 64 MiB of distinct queries forces bounded-cache eviction.
-    // The frozen centroid recurrence is evaluated at each translated state:
-    // even binary translations can alter its final division roundoff. Outlet
-    // metadata disables distance work in this independent eviction oracle.
+
+
+
+
     const auto base=meshes[6];const auto baseTopology=topology(base);
     for(int iteration=0;iteration<1026;++iteration){const double shift=iteration<1024?double(iteration+1)/8:0;
         auto translated=base.points;for(auto& p:translated)p.x+=shift;

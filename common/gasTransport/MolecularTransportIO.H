@@ -3,8 +3,8 @@
 #include <algorithm>
 #include "MolecularViscosity.H"
 namespace ugkwp {
-// Molecular transport is independent of calorics, chemistry and solid properties.
-// All applications read constant/gasTransportProperties with this parser.
+
+
 struct MolecularTransportConfiguration {
     MolecularViscosityModel model=MolecularViscosityModel::Constant;
     std::vector<std::string> speciesNames;
@@ -12,7 +12,7 @@ struct MolecularTransportConfiguration {
     std::vector<double> massRatioQuarter,wilkeDenominator;
     MolecularViscosityView<double> coefficients;
     std::vector<PowerLawDiffusivity<double>> diffusion;
-    std::uint64_t hash=0; // zero preserves the absent/const identity
+    std::uint64_t hash=0;
     MolecularViscosityView<double> view() const {
         auto v=coefficients;v.model=model;v.count=int(speciesNames.empty()?species.size():speciesNames.size());
         v.species=species.data();v.massRatioQuarter=massRatioQuarter.data();v.wilkeDenominator=wilkeDenominator.data();
@@ -117,4 +117,4 @@ inline MolecularTransportConfiguration readMolecularTransport(const std::string&
     if(input.bad())throw std::runtime_error("failed reading molecular transport: "+path);
     return parseMolecularTransport(text,species);
 }
-} // namespace ugkwp
+}

@@ -1,4 +1,3 @@
-// Generated from full Cantera 3.1.0 h2o2.yaml; SI m, mol, s, J/mol.
 schemaVersion 1;
 units siMolar;
 sourceSha256 "0efc6c52862741a29e0c29b65d979c7d8cb409db5282bca83b9c5437b3d8c8d4";
@@ -13,7 +12,6 @@ reactions
 {
     reaction0
     {
-        // 2 O + M <=> O2 + M
         type thirdBody;
         reversible true;
         duplicate false;
@@ -29,7 +27,6 @@ reactions
     }
     reaction1
     {
-        // O + H + M <=> OH + M
         type thirdBody;
         reversible true;
         duplicate false;
@@ -45,7 +42,6 @@ reactions
     }
     reaction2
     {
-        // O + H2 <=> H + OH
         type elementary;
         reversible true;
         duplicate false;
@@ -61,7 +57,6 @@ reactions
     }
     reaction3
     {
-        // O + HO2 <=> OH + O2
         type elementary;
         reversible true;
         duplicate false;
@@ -77,7 +72,6 @@ reactions
     }
     reaction4
     {
-        // O + H2O2 <=> OH + HO2
         type elementary;
         reversible true;
         duplicate false;
@@ -93,7 +87,6 @@ reactions
     }
     reaction5
     {
-        // H + O2 + M <=> HO2 + M
         type thirdBody;
         reversible true;
         duplicate false;
@@ -109,7 +102,6 @@ reactions
     }
     reaction6
     {
-        // H + 2 O2 <=> HO2 + O2
         type elementary;
         reversible true;
         duplicate false;
@@ -125,7 +117,6 @@ reactions
     }
     reaction7
     {
-        // H + O2 + H2O <=> HO2 + H2O
         type elementary;
         reversible true;
         duplicate false;
@@ -141,7 +132,6 @@ reactions
     }
     reaction8
     {
-        // H + O2 + N2 <=> HO2 + N2
         type elementary;
         reversible true;
         duplicate false;
@@ -157,7 +147,6 @@ reactions
     }
     reaction9
     {
-        // H + O2 + AR <=> HO2 + AR
         type elementary;
         reversible true;
         duplicate false;
@@ -173,7 +162,6 @@ reactions
     }
     reaction10
     {
-        // H + O2 <=> O + OH
         type elementary;
         reversible true;
         duplicate false;
@@ -189,7 +177,6 @@ reactions
     }
     reaction11
     {
-        // 2 H + M <=> H2 + M
         type thirdBody;
         reversible true;
         duplicate false;
@@ -205,7 +192,6 @@ reactions
     }
     reaction12
     {
-        // 2 H + H2 <=> 2 H2
         type elementary;
         reversible true;
         duplicate false;
@@ -221,7 +207,6 @@ reactions
     }
     reaction13
     {
-        // 2 H + H2O <=> H2 + H2O
         type elementary;
         reversible true;
         duplicate false;
@@ -237,7 +222,6 @@ reactions
     }
     reaction14
     {
-        // H + OH + M <=> H2O + M
         type thirdBody;
         reversible true;
         duplicate false;
@@ -253,7 +237,6 @@ reactions
     }
     reaction15
     {
-        // H + HO2 <=> O + H2O
         type elementary;
         reversible true;
         duplicate false;
@@ -269,7 +252,6 @@ reactions
     }
     reaction16
     {
-        // H + HO2 <=> O2 + H2
         type elementary;
         reversible true;
         duplicate false;
@@ -285,7 +267,6 @@ reactions
     }
     reaction17
     {
-        // H + HO2 <=> 2 OH
         type elementary;
         reversible true;
         duplicate false;
@@ -301,7 +282,6 @@ reactions
     }
     reaction18
     {
-        // H + H2O2 <=> HO2 + H2
         type elementary;
         reversible true;
         duplicate false;
@@ -317,7 +297,6 @@ reactions
     }
     reaction19
     {
-        // H + H2O2 <=> OH + H2O
         type elementary;
         reversible true;
         duplicate false;
@@ -333,7 +312,6 @@ reactions
     }
     reaction20
     {
-        // OH + H2 <=> H + H2O
         type elementary;
         reversible true;
         duplicate false;
@@ -349,7 +327,6 @@ reactions
     }
     reaction21
     {
-        // 2 OH (+M) <=> H2O2 (+M)
         type Troe;
         reversible true;
         duplicate false;
@@ -365,7 +342,6 @@ reactions
     }
     reaction22
     {
-        // 2 OH <=> O + H2O
         type elementary;
         reversible true;
         duplicate false;
@@ -381,7 +357,6 @@ reactions
     }
     reaction23
     {
-        // OH + HO2 <=> O2 + H2O
         type elementary;
         reversible true;
         duplicate true;
@@ -397,7 +372,6 @@ reactions
     }
     reaction24
     {
-        // OH + H2O2 <=> HO2 + H2O
         type elementary;
         reversible true;
         duplicate true;
@@ -413,7 +387,6 @@ reactions
     }
     reaction25
     {
-        // OH + H2O2 <=> HO2 + H2O
         type elementary;
         reversible true;
         duplicate true;
@@ -429,7 +402,6 @@ reactions
     }
     reaction26
     {
-        // 2 HO2 <=> O2 + H2O2
         type elementary;
         reversible true;
         duplicate true;
@@ -445,7 +417,6 @@ reactions
     }
     reaction27
     {
-        // 2 HO2 <=> O2 + H2O2
         type elementary;
         reversible true;
         duplicate true;
@@ -461,7 +432,6 @@ reactions
     }
     reaction28
     {
-        // OH + HO2 <=> O2 + H2O
         type elementary;
         reversible true;
         duplicate true;

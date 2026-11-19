@@ -53,7 +53,7 @@ require(report.maximumSweepResidual>1e-10&&ctx.warnings[0].count>0&&ctx.fatalCla
 controls.maximumIterations=60;ctx={};std::vector<Vec3> noDirections(5);
 require(constrainFaceSweeps(mesh,faces,target,zero,fixed,noDirections,1,out,sweeps,report,error,controls,tol),error);
 require(report.rank==0&&report.maximumSweepResidual>0&&ctx.fatalClaim==0,"rank-deficient finite accuracy policy changed");
-// Real producer calls with fault injection at its private geometry callback.
+
 ctx={};const int savedMask=fegetexcept();std::feclearexcept(FE_ALL_EXCEPT);
 feenableexcept(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW);const int trialMask=fegetexcept();
 int trialCalls=0,finalCalls=0;TrajectoryCheck domain=[&](const HostMesh&,std::string& e,ugkp::diagnostics::DeviceContext* d,bool&){

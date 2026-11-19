@@ -34,7 +34,7 @@ class Contracts(unittest.TestCase):
             for repo in ('gpu-riemann-gkp-main', 'ugkp-thermal'):
                 shutil.copytree(PAIR / repo, pair / repo, symlinks=True,
                     ignore=shutil.ignore_patterns('.git','examples','results','build','bin','lib','build_logs','linux64*','__pycache__','.pytest_cache','*.o','*.a','*.so','*.log','*.dep'))
-            # A successful first build must not make the next source gate fail.
+
             generated = {
                 'applications/gasUGKP/Make/linux64GccDPInt32Opt/files': b'generated make inputs',
                 'applications/gasUGKP/Make/linux64GccDPInt32Opt/gpu/client.o': b'object',
@@ -52,7 +52,7 @@ class Contracts(unittest.TestCase):
             self.assertEqual(post_build.returncode, 0, post_build.stdout + post_build.stderr)
             for relative, payload in generated.items():
                 self.assertEqual((generated_root / relative).read_bytes(), payload)
-            # Arbitrary files remain protected; do not globally ignore suffixes.
+
             unexpected = generated_root / 'applications/gasUGKP/unlisted.a'
             unexpected.write_bytes(b'unregistered input')
             rejected = run(tool, '--pair-root', pair)
@@ -76,7 +76,7 @@ class Contracts(unittest.TestCase):
             self.assertEqual(repaired.returncode, 0, repaired.stdout + repaired.stderr)
             self.assertEqual(target.read_bytes(), original)
             self.assertEqual(sentinel.read_text(), 'retain me')
-            # A new overlapping input must be registered before it is silently mirrored.
+
             for repo in ('gpu-riemann-gkp-main', 'ugkp-thermal'):
                 (pair / repo / 'common/NewUnmanaged.cuh').write_text('same bytes')
             unlisted = run(tool, '--pair-root', pair)
@@ -115,7 +115,7 @@ class Contracts(unittest.TestCase):
             wire.write_text(''.join(lines))
             result = run(tool, '--root', copied, '--cpu', '--output', out / 'wrong-wire-order')
             self.assertNotEqual(result.returncode, 0, result.stdout)
-            # Even changing the metadata and regenerating both sides cannot silently
+
 
             import json
             metadata = copied / 'common/ParticleFieldManifest.json'

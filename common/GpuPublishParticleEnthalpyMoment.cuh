@@ -1,5 +1,5 @@
 #pragma once
-// Shared physical update; the including backend supplies its state and scalar adapters.
+
 __device__ void publishParticleEnthalpyMoment
 (
     DeviceState& s,

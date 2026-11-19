@@ -32,13 +32,13 @@ int main(){
  assert(host.sample(gas,sst,true,samples,error));assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(contexts[0].workspace==workspace);assert(contexts[0].matching.temperature==850);assert(contexts[0].mechanicalPressure==130000);
  samples[0].mechanicalPressure=0;assert(!host.contexts(samples,{},p.wallModel,contexts,error));
  gas[0].pressure=0;assert(host.sample(gas,sst,true,samples,error));assert(samples[0].mechanicalPressure==0);gas[0].pressure=130000;
- // BVP node changes cannot create or invalidate unused diagnostic geometry.
+
  assert(host.descriptors()[0].distance.empty());auto config=p.wallModel;
  config.family=WallFamily::BoundaryLayer;config.model=BoundaryLayerModel::ReactingSst;config.enableSst=true;config.nodes=24;config.stretch=2;
  assert(host.prepareGeometry(mesh,{0},error,config));assert(host.descriptors()[0].distance.empty());
- auto invalid=mesh;invalid.boundaryKind.clear();assert(host.prepareGeometry(invalid,{0},error,config)); // unchanged version: cached
- config.nodes=48;config.stretch=3;assert(host.prepareGeometry(invalid,{0},error,config)); // profile controls do not change physical geometry
- ++invalid.geometryVersion;assert(!host.prepareGeometry(invalid,{0},error,config)); // real geometry change still validates
+ auto invalid=mesh;invalid.boundaryKind.clear();assert(host.prepareGeometry(invalid,{0},error,config));
+ config.nodes=48;config.stretch=3;assert(host.prepareGeometry(invalid,{0},error,config));
+ ++invalid.geometryVersion;assert(!host.prepareGeometry(invalid,{0},error,config));
  ++mesh.geometryVersion;for(auto& point:mesh.points)point.z*=1.01;for(auto& centre:mesh.cellCentres)centre.z*=1.01;for(auto& volume:mesh.volumes)volume*=1.01;
  assert(host.prepareGeometry(mesh,{0},error,config));assert(host.descriptors()[0].distance.empty());assert(near(host.descriptors()[0].volume,1.01));
  samples.clear();assert(!host.contexts(samples,{},p.wallModel,contexts,error));

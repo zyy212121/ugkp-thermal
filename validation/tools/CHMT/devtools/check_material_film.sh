@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Current production components, replacing an absent historical test target.
-# These are host helper/candidate tests, not native OpenFOAM conduction.
+
+
 set -euo pipefail
 source_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 root="$source_root"

@@ -15,7 +15,7 @@ int main(){
  auto status=managed<MaterialStepResult>(2),result=managed<MaterialStepResult>(1);auto volumes=managed<Real>(2);auto offsets=managed<int>(3);
  for(int c=0;c<2;++c){current[c].condensed[0]=1;current[c].energy=500000;current[c].porosity=.5;initial[c]=current[c];}
  rates[0].condensed[0]=-2;rates[1].condensed[0]=2;rates[0].energy=-1000000;rates[1].energy=1000000;
- // Interior ALE face transfers 0.2 kg and its sensible energy conservatively.
+
  volumes[0]=.0016;volumes[1]=.0024;
  SolidQ oldReaction;auto old=advanceMaterialReactionsMath(current[0],.002,*p,.1,.001,.4,10000,oldReaction);
  chmt_test::check(old.code==MaterialReactionCode::Success,"old independent reaction");
@@ -33,7 +33,7 @@ int main(){
   }
   chmt_test::near(mass,2,"two-cell mass closure");chmt_test::near(energy,1000000,"two-cell energy closure");
  }
- // A terminal source is an implicit-conduction RHS, not yet a thermal state.
+
  p->enableReactions=false;rates[0]={};current[0].energy=500000;rates[0].energy=-600000;volumes[0]=.002;
  *result={};
  applyMaterialSourcesKernel<<<1,128>>>(1,current,rates,initial,change,candidateChange,nullptr,offsets,nullptr,offsets,nullptr,nullptr,nullptr,volumes,p,1,true,next,nullptr,status,.001,.4,10000);
@@ -51,8 +51,8 @@ int main(){
   applyMaterialSourcesKernel<<<1,128>>>(1,current,rates,initial,change,candidateChange,nullptr,offsets,nullptr,offsets,nullptr,nullptr,nullptr,volumes,p,1,reactions,next,nullptr,status,.001,.4,10000);
   check(cudaDeviceSynchronize());chmt_test::check(status[0].phase!=0,"intermediate or reacting invalid state remains rejected");
  }
- // Failure precedence is phase first, then lowest global cell; empty input
- // and off-block errors exercise the same production reduction.
+
+
  const int n=1000003;auto failures=managed<MaterialStepResult>(n);
  for(int trial=0;trial<4;++trial){
   if(trial==1){failures[n-1]={3,9,n-1,false};failures[700]={2,8,700,true};failures[800000]={1,7,800000,true};}

@@ -3,9 +3,9 @@
 #include "gpu/WorkPlan.H"
 
 namespace ugkwp {
-// Fixed-size FP64 inventory reductions. Sources provide count() and add(i,q).
-// The workspace and both launches stay on the caller's stream; the final sum
-// has one writer per component. No atomics or host convergence/readback.
+
+
+
 template<int Components,class Source>
 __global__ void vectorSumPartials(Source source,double* partials)
 {
@@ -46,4 +46,4 @@ inline cudaError_t accumulateVectorSum(Source source,int parts,double* partials,
     addVectorSumPartials<<<Components,block,block*sizeof(double),stream>>>(partials,parts,output,scale);
     return cudaGetLastError();
 }
-} // namespace ugkwp
+}

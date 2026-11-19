@@ -1,9 +1,9 @@
-// Compiled after production-header adapter by steady_cpu_particles.py selftest.
+
 int main(){
  ParticleState s;initialise(s);initialiseParticles(s,8);
  s.gasBoundaryP[1]=s.gasBoundaryP[2]=100000;
- // A forced high-probability pool exercises production random draws/correction,
- // not only the zero-collision branch. Theta and selected momentum are retained.
+
+
  s.particleCount=2;
  for(int i=0;i<2;++i){s.pStatus[i]=1;s.pCellId[i]=0;s.pm[i]=10;s.pd[i]=.001;s.pux[i]=i?20:-20;s.pT[i]=300;s.pTheta[i]=100;s.pRng[i]=123+i;s.px[i]=0;}
  particleMoments(s);
@@ -17,13 +17,13 @@ int main(){
  particleMoments(s);
  near(s.momRhoP[0]*s.V[0],mass,"pool mass");near(s.momRhoUPx[0]*s.V[0],momentum,"pool momentum");near(s.momRhoEP[0]*s.V[0],energy,"pool energy");
  ck(s.pRng[0]!=123&&s.pRng[1]!=124,"pool RNG not advanced");
- // Empty side patches perform the same geometric reflection, including travel remainder.
+
  s.particleCount=1;s.pStatus[0]=1;s.pCellId[0]=0;s.px[0]=.25;s.py[0]=.9;s.pz[0]=.5;
  s.pux[0]=s.puxOld[0]=0;s.puy[0]=s.puyOld[0]=2;s.puz[0]=s.puzOld[0]=0;
  trackOneParticleLocalFaceWalk(s,0,.1);
  ck(s.pStatus[0]==1&&s.puy[0]==-2,"empty side patch did not reflect");
  ck(std::abs(s.py[0]-.9)<1e-7,"reflected remainder travel differs");
- // Repeated injection/escape with tiny capacity must recycle survivor storage.
+
  ParticleState t;initialise(t);initialiseParticles(t,8);t.gasBoundaryP[1]=t.gasBoundaryP[2]=100000;
  t.sourceMassRate[0]=.01;t.injectionParcelMass=.001;t.sourceUx[0]=20;t.sourceT[0]=450;
  t.gasMu=1e-5;t.particleDiameterMin=t.particleDiameterMax=t.particleDiameterFallback=t.sourceD[0]=.01;
@@ -36,8 +36,8 @@ int main(){
  near(t.injectedMaterialHeat,t.injectedMass*1000*450,"actual injected material heat budget");
  ck(t.gasMaterialHeat>0,"particle-to-gas heat feedback not exercised");
  if(t.particleCount){ck(t.pT[0]<450,"production particle cooling not exercised");ck(t.referenceAge[0]>0,"active residence age absent");}
- // Frozen-species finite bath: exact production steady paired source conserves
- // represented gas+parcel momentum and formation-inclusive total energy.
+
+
  ParticleState m;Input mix;mix.cells=2;mix.local=0;mix.mixture=1;mix.y0=.9;mix.perturbation=0;mix.mu=1e-5;initialise(m,mix);initialiseParticles(m,8);
  m.particleCount=2;
  for(int i=0;i<2;++i){m.pStatus[i]=1;m.pCellId[i]=0;m.pm[i]=.01;m.pd[i]=.001;m.pux[i]=i?30:10;m.pT[i]=i?1000:300;m.pTheta[i]=2;}

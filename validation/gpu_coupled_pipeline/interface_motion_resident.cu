@@ -24,7 +24,7 @@ g::InterfaceGasPointMotionResult probeInterfaceMotion(g::InterfaceGasPointMotion
     owner.appendTo(graph,first,input.p);check(cudaGraphInstantiateWithFlags(&executable,graph,0));
     static bool exported=false;if(!exported){check(cudaGraphDebugDotPrint(graph,"interface-motion-graph.dot",cudaGraphDebugDotFlagsVerbose));exported=true;}
     for(int replay=0;replay<2;++replay)check(cudaGraphLaunch(executable,stream));
-    // Also exercise the standalone graph after the externally composed graph.
+
     owner.solveDevice(input.p,stream);check(cudaStreamSynchronize(stream));
     const auto view=owner.view();g::InterfaceGasPointMotionResult result;
     check(cudaMemcpy(&result.status,view.status,sizeof(result.status),cudaMemcpyDeviceToHost));

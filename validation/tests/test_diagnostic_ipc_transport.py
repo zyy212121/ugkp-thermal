@@ -37,11 +37,11 @@ int main() {
  std::uint64_t bytes=0;assert(receiveResponse(&client,bytes,true,sizeof(double))==0);
  assert(warnings==1 && bytes==sizeof(double));
  assert(receiveArray(client.fd,&received,1,&client));assert(received==42);assert(discardResponse(&client));
- // Success with no payload still delivers warnings before returning.
+
  header.payloadBytes=0;encoded=encodeWire(header);
  assert(writeAll(sockets[1],encoded.data(),encoded.size()));assert(writeAll(sockets[1],envelope.data(),envelope.size()));
  assert(finishNoPayload(&client)==0 && warnings==2);
- // Fatal remains failure even if the outer response status was mistakenly 0.
+
  ugkp::diagnostics::recordFatal(&context,ugkp::diagnostics::makeRecord(ugkp::diagnostics::Code::NonFinite,124));
  snapshot=ugkp::diagnostics::takeSnapshot(context);envelope=ugkp::diagnostics::encode(snapshot);
  header.diagnosticBytes=envelope.size();encoded=encodeWire(header);
@@ -49,13 +49,13 @@ int main() {
  client.diagnosticSink={};assert(finishNoPayload(&client)!=0);assert(client.terminalDiagnostic);
  assert(!startRequest(&client,Op::advance,0));
  close(sockets[0]);close(sockets[1]);
- // Reject incompatible layout after its 8-byte prefix, before payload reads.
+
  assert(socketpair(AF_UNIX,SOCK_STREAM,0,sockets)==0);client.fd=sockets[0];
  header.major=protocolMajor-1;encoded=encodeWire(header);
  assert(writeAll(sockets[1],encoded.data(),8));
  assert(receiveResponse(&client,bytes,false,0)!=0&&lastError.find("mismatch")!=std::string::npos);
  close(sockets[0]);close(sockets[1]);
- // A truncated same-version frame fails through ordinary transport errors.
+
  assert(socketpair(AF_UNIX,SOCK_STREAM,0,sockets)==0);client.fd=sockets[0];
  header.major=protocolMajor;encoded=encodeWire(header);
  assert(writeAll(sockets[1],encoded.data(),11));shutdown(sockets[1],SHUT_WR);

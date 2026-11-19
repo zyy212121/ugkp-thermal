@@ -27,7 +27,7 @@ MAPPING=r'''
  cudaStream_t stream;CUDA_OK(cudaStreamCreateWithFlags(&stream,cudaStreamNonBlocking));
  CHECK(ugkp::thermal::mapAttachedParticles(s,previous,endpoint,dMap,stream)==0);
  CUDA_OK(cudaStreamSynchronize(stream));CUDA_OK(cudaStreamDestroy(stream));
- // The application also remaps its boundary model directory with the mesh.
+
  const unsigned char reorderedMask[6]={4,1,3,0,0,0};
  CHECK(copyToDevice(s->particleStuckCandidateMask,reorderedMask,6,"remapped wall model")==0);
  std::vector<ugkp::thermal::ParticleState<>> mapped;
@@ -48,16 +48,16 @@ MAPPING=r'''
 #undef UGKP_PARTICLE_FIELD
 #undef UGKP_PARTICLE_OPTIONAL
 #undef UGKP_PARTICLE_ARRAY
-  // Inactive slots retain stale face IDs and are excluded from inventories.
-  // Their complete stored history, checked above, must still be unchanged.
+
+
   if(a.thermal.status!=0)CHECK(a.energy==b.energy);
  }
  CHECK(activeAttached>0&&unchanged>0);
  CUDA_OK(cudaFree(dOffsets));CUDA_OK(cudaFree(dOldIds));CUDA_OK(cudaFree(dNewIds));CUDA_OK(cudaFree(dOwners));
  CUDA_OK(cudaFree(dMap));CUDA_OK(cudaFree(dOldPoints));CUDA_OK(cudaFree(dNewPoints));
 
- // Exercise the public resident tracking refresh on a two-cell view, including
- // the neighbour side of an internal face and a periodic boundary neighbour.
+
+
  DeviceState tracking=*s;tracking.nCells=2;tracking.nFaces=4;tracking.nInternalFaces=1;tracking.nCellPlanes=5;
  tracking.deviceState=nullptr;
  const int starts[2]={0,2},counts[2]={2,3},ids[5]={0,1,0,2,3},owner[4]={0,0,1,1},neighbour[4]={1,-1,0,-1};

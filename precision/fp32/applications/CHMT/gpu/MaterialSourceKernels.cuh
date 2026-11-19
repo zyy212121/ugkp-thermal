@@ -18,6 +18,31 @@ __device__ void reduceMaterialFailure(MaterialStepResult value,MaterialStepResul
     }
     if(t==0)*result=values[0];
 }
+__device__ bool finishMaterialSourceCell(int c,SolidQ& result,
+    const int* radiationOffsets,const int* radiationFaces,const EnergyReal* radiation,
+    const unsigned* receivers,const Real* volumes,const PhysicsConfig* physics,
+    Real dt,bool finalStep,MaterialStepResult* status,
+    Real reactionMaxStep,PhysicalReal reactionCfl,int reactionBudget){
+    if(radiation)for(int e=radiationOffsets[c];e<radiationOffsets[c+1];++e){
+        const int face=radiationFaces[e];
+        if(receivers[face]==ConsumeSolid)result.energy+=radiation[face];
+    }
+
+
+
+    if(!validSolidInventory(result)){status[c]={3,0,c,true};return false;}
+    SolidQ reactedResult;
+    const auto reaction=advanceMaterialReactionsMath(result,volumes[c],*physics,
+        dt,reactionMaxStep,reactionCfl,reactionBudget,reactedResult);
+    if(reaction.code!=MaterialReactionCode::Success){status[c]={1,int(reaction.code),c,reaction.numericalFailure};return false;}
+    result=reactedResult;
+    MaterialPrimitive primitive;bool numerical=true;
+    if(!validSolidInventory(result)||(!finalStep&&!recoverMaterial(result,volumes[c],*physics,primitive,nullptr,-1,&numerical))){
+        status[c]={3,0,c,numerical};return false;
+    }
+    if(!finalStep)result.porosity=primitive.porosity;
+    return true;
+}
 template<class Packets>
 __device__ void applyMaterialSourceCell(int c,const SolidQ* current,const SolidQ* rates,
     const SolidQ* initial,const SolidQ* gasChange,SolidQ* candidateGasChange,Packets packets,const int* offsets,
@@ -30,24 +55,8 @@ __device__ void applyMaterialSourceCell(int c,const SolidQ* current,const SolidQ
     SolidQ result;
     const auto code=applyMaterialPacketRowView(transported,packets,indices,offsets[c],offsets[c+1],result);
     if(code!=MaterialInventoryCode::Success){status[c]={2,int(code),c,true};return;}
-    if(radiation)for(int e=radiationOffsets[c];e<radiationOffsets[c+1];++e){
-        const int face=radiationFaces[e];
-        if(receivers[face]==ConsumeSolid)result.energy+=radiation[face];
-    }
-
-
-
-    if(!validSolidInventory(result)){status[c]={3,0,c,true};return;}
-    SolidQ reactedResult;
-    const auto reaction=advanceMaterialReactionsMath(result,volumes[c],*physics,
-        dt,reactionMaxStep,reactionCfl,reactionBudget,reactedResult);
-    if(reaction.code!=MaterialReactionCode::Success){status[c]={1,int(reaction.code),c,reaction.numericalFailure};return;}
-    result=reactedResult;
-    MaterialPrimitive primitive;bool numerical=true;
-    if(!validSolidInventory(result)||(!finalStep&&!recoverMaterial(result,volumes[c],*physics,primitive,nullptr,-1,&numerical))){
-        status[c]={3,0,c,numerical};return;
-    }
-    if(!finalStep)result.porosity=primitive.porosity;
+    if(!finishMaterialSourceCell(c,result,radiationOffsets,radiationFaces,radiation,
+        receivers,volumes,physics,dt,finalStep,status,reactionMaxStep,reactionCfl,reactionBudget))return;
     SolidQ change=gasChange[c];
     for(int e=offsets[c];e<offsets[c+1];++e)
         change=addSolid(change,packetDelta(packets[indices[e]]).solid);
@@ -64,6 +73,39 @@ __global__ void applyMaterialSourcesKernel(int count,const SolidQ* current,const
     applyMaterialSourceCell(c,current,rates,initial,gasChange,candidateGasChange,packets,offsets,
         indices,radiationOffsets,radiationFaces,radiation,receivers,volumes,physics,dt,finalStep,
         next,donor,status,reactionMaxStep,reactionCfl,reactionBudget);
+}
+
+
+__global__ void beginStreamedMaterialPackets(int count,const SolidQ* current,
+    const SolidQ* rates,const SolidQ* gasChange,Real dt,SolidQ* transported,
+    SolidQ* candidateGasChange,MaterialPacketAccumulator* accumulated,MaterialStepResult* status){
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=count)return;
+    status[c]={};transported[c]=addSolid(current[c],rates[c],dt);
+    accumulated[c].begin(transported[c]);candidateGasChange[c]=gasChange[c];
+}
+__global__ void appendStreamedMaterialPackets(int count,const ExchangePacket* packets,
+    const int* offsets,const int* indices,MaterialPacketAccumulator* accumulated,SolidQ* candidateGasChange){
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=count)return;
+    auto row=accumulated[c];auto change=candidateGasChange[c];
+    for(int e=offsets[c];e<offsets[c+1];++e){
+        const auto packet=packets[indices[e]];row.append(packet);
+        change=addSolid(change,packetDelta(packet).solid);
+    }
+    accumulated[c]=row;candidateGasChange[c]=change;
+}
+__global__ void finishStreamedMaterialSources(int count,const MaterialPacketAccumulator* accumulated,
+    const SolidQ* initial,const SolidQ* candidateGasChange,
+    const int* radiationOffsets,const int* radiationFaces,const EnergyReal* radiation,
+    const unsigned* receivers,const Real* volumes,const PhysicsConfig* physics,
+    Real dt,bool finalStep,SolidQ* next,SolidQ* donor,MaterialStepResult* status,
+    Real reactionMaxStep,PhysicalReal reactionCfl,int reactionBudget){
+    const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=count)return;
+    SolidQ result;const auto code=accumulated[c].finish(next[c],result);
+    if(code!=MaterialInventoryCode::Success){status[c]={2,int(code),c,true};return;}
+    if(!finishMaterialSourceCell(c,result,radiationOffsets,radiationFaces,radiation,
+        receivers,volumes,physics,dt,finalStep,status,reactionMaxStep,reactionCfl,reactionBudget))return;
+    next[c]=result;
+    if(donor)donor[c]=addSolid(addSolid(result,initial[c],-1),candidateGasChange[c],-1);
 }
 __global__ void selectSourceFailure(const MaterialStepResult* status,int count,MaterialStepResult* result){
     if(result->phase)return;

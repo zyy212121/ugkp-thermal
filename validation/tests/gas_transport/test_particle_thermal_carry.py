@@ -36,8 +36,8 @@ template<class Storage>void run(){
  for(double sign:{-1.0,1.0}){
  p={Storage(3000),0};double gas=1e9;const double gas0=gas;
  for(int step=0;step<100000;++step){
-  // The shared publication uses actual represented gas decrement. The particle
-  // carry then retains that accepted amount rather than a prospective transfer.
+
+
   const double nextGas=gas-sign*.03,accepted=gas-nextGas;
   const auto result=ugkwp::publishParticleThermalHeat(p,accepted/mass,Storage(1),Storage(6000),law);
   ck(result.valid,"cumulative heat rejected");gas=nextGas;
@@ -52,8 +52,8 @@ template<class Storage>void run(){
  ck(std::abs(gain-sign*3000.L)<.012L,"cumulative physical exchange exceeded registered double-roundoff bound");
  std::printf("storage=%zu gain=%.17Lg reference_error=%.17Lg paired_error=%.17Lg carry=%.17g\n",sizeof(Storage),gain,gain-sign*3000.L,gain-(gas0-gas),p.specificEnthalpyResidual);
  }
- // Exercise both piecewise liquid breakpoints and phase boundaries with
- // nonzero legacy temperatures and zero carry, as old-checkpoint migration.
+
+
  for(bool phase:{false,true}){
   law.phaseChange=phase;law.solidCp=1200.;law.latentHeat=1e6;
   for(double t:{1.,2317.,2327.,2337.,4000.,5999.}){
@@ -69,7 +69,7 @@ template<class Storage>void run(){
   }
  }
  law=Caloric{};
- // A real shared bound clips the accepted heat, not only a primitive cache.
+
  p={Storage(3000),.001};const double oldH=ugkwp::effectiveParticleEnthalpy(p,law);
  const auto bounded=ugkwp::publishParticleThermalHeat(p,1e12,Storage(1),Storage(3100),law);
  ck(bounded.valid&&bounded.limited&&p.temperature==Storage(3100),"shared bound not honored");

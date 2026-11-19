@@ -7,7 +7,7 @@ struct BoundaryLayerConfigV1
 {
     std::uint32_t version=1,speciesCount=0,model=1,nodes=ugkwp::gaswall::defaultWallNodes,maxIterations=60;
     std::uint32_t wallCount=0,quadratureCount=0,matchingCount=0,workspaceSlots=0;
-    union { std::uint32_t equilibriumStressClosure=1; std::uint32_t reservedAudit; }; // 0 wallStress, 1 localStress
+    union { std::uint32_t equilibriumStressClosure=1; std::uint32_t reservedAudit; };
     double relativeTolerance=ugkwp::gaswall::defaultWallRelativeTolerance,absoluteTolerance=ugkwp::gaswall::defaultWallAbsoluteTolerance,stretch=ugkwp::gaswall::defaultWallStretch;
     double turbulentPrandtl=.9,turbulentSchmidt=.7;
     ugkwp::gaswall::WallIterationControls<double> numerics;
@@ -24,7 +24,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
 extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
 (void* handle,std::uint32_t wallCount,std::uint32_t speciesCount,double* diagnostics);
 
-// Startup-only opt-in; downloaded rows are face-major, node-major y,U[3],T,k,omega,Y[Ns].
+
 extern "C" int ugkwpGpuResidentStrictEnableBoundaryLayerProfilesV1(void* handle);
 extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1
 (void* handle,std::uint32_t walls,std::uint32_t nodes,std::uint32_t species,double* profiles,double* stageTime);

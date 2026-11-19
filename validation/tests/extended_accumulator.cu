@@ -51,8 +51,8 @@ int main(){
         -0.0,-0.0,0.0,1e-308,1e-308,-1e-308,-1e-308,
         0x1p-1022,-0x1p-1022,0x1p-1074,0x1p-1074};
     for(int j=0;j<width;++j)input[j]=edge[j];
-    // Whole rows at the bottom of the binary64 range exercise scale and
-    // donor bounds too; mixed full-range random rows cannot cover this.
+
+
     const double tiny=std::numeric_limits<double>::denorm_min();
     const double normal=std::numeric_limits<double>::min();
     const double subnormal=std::nextafter(normal,0.);

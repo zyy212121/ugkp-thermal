@@ -65,8 +65,8 @@ CHMT_HD inline bool invertCaloric(Real a0,Real a1,Real a2,Real target,Real lo,Re
     using namespace ugkp::diagnostics;
     Real result=0;
     const Real delta=target-a0;
-    // This caloric law is quadratic. Select its positive-capacity root directly;
-    // metadata endpoints are neither trial states nor admissibility preflights.
+
+
     if(!finite(delta)||!finite(a1)||!finite(a2))
         return materialInversionFailure(tol.diagnostics,3838,ugkwp::ThermoStatus::NonFiniteInput,target,delta);
     if(delta==0&&a0!=0&&finite(lo)&&lo>0&&caloricIntegral(a0,a1,a2,lo)==target&&a1+a2*lo>0){
@@ -76,8 +76,8 @@ CHMT_HD inline bool invertCaloric(Real a0,Real a1,Real a2,Real target,Real lo,Re
         if(a1<=0)return materialInversionFailure(tol.diagnostics,3850,ugkwp::ThermoStatus::NonPositiveHeatCapacity,target,a1);
         result=delta/a1;
     }else{
-        // Form sqrt(2*a2*delta) by square roots before multiplication, then
-        // use hypot/rescaled subtraction; neither cp^2 nor 2*delta is formed.
+
+
         const Real cross=::sqrt(Real(2))*::sqrt(absValue(a2))*::sqrt(absValue(delta));
         Real root=0;
         if((a2<0)==(delta<0))root=::hypot(a1,cross);
@@ -110,9 +110,9 @@ template<bool Terminal=false>
 CHMT_HD inline bool invertMaterialEnergy(const MaterialEnergyEvaluator& energy,Real target,
     Real lo,Real hi,const Tolerances& tol,Real& temperature,ugkp::diagnostics::DeviceContext* diagnostics=nullptr,int maximumIterations=100) {
     using namespace ugkp::diagnostics;
-    // A valid sign bracket is mathematical solver state, not a physical trial.
-    // If metadata endpoints do not bracket the target, retain extrapolating
-    // Newton and its existing range warning; metadata is not an admission gate.
+
+
+
     auto bracketEnergy=energy;bracketEnergy.thermo.diagnostics=nullptr;
     Real left=lo,right=hi,leftEnergy=0,rightEnergy=0,leftCapacity=0,rightCapacity=0;
     const bool bracket=finite(lo)&&finite(hi)&&hi>lo
@@ -156,7 +156,7 @@ CHMT_HD inline bool recoverGas(const GasQ& q,Real volume,const PhysicsConfig& p,
     };
     if(!finite(volume)||volume<=0)return physicalFailure(volume,-1,ugkp::diagnostics::Quantity::Unspecified);
     if(!finite(q.mass)||q.mass<=0)return physicalFailure(q.mass,-1,ugkp::diagnostics::Quantity::Unspecified);
-    // Diagnose a true density overflow before executing the trapping division.
+
     if(volume<1&&q.mass>std::numeric_limits<Real>::max()*volume)
         return physicalFailure(std::numeric_limits<Real>::infinity(),-1,ugkp::diagnostics::Quantity::Density);
     const Real momentum[]={q.momentum.x,q.momentum.y,q.momentum.z};
@@ -287,8 +287,8 @@ CHMT_HD inline Real reactionRate(const Reaction& r,const Real* condensedMass,Rea
 CHMT_HD inline Real reactionFormationEnergy(const Reaction& r,const PhysicsConfig& p) {
     Real value=0;for(int c=0;c<Nc;++c)value+=r.condensedNu[c]*p.condensed[c].e0;
     for(int s=0;s<Ns;++s)if(r.gasNu[s]!=0){
-        // This legacy diagnostic is a zero-temperature LinearCp intercept;
-        // NASA7 has branch-specific integration constants, not that intercept.
+
+
         if(p.species[s].model!=ugkwp::SpeciesThermoModel::LinearCp)return undefinedValue();
         value+=r.gasNu[s]*p.species[s].e0;
     }
@@ -329,8 +329,8 @@ inline bool validateReaction(const Reaction& r,const PhysicsConfig& p,int index,
     const Real massTolerance=64*std::numeric_limits<Real>::epsilon()+p.tolerances.relativeMass;
     if(!finite(massTolerance)||!consumes||!produces||scale==0){error=prefix+"missing or invalid stoichiometric operator";return false;}
     if(absValue(sum)/scale>massTolerance)reportPhysicsWarning(p,ugkp::diagnostics::Code::ConservationResidual,3834,sum/scale,massTolerance,0,index);
-    // Element residuals are mol/mol extent: their threshold is dimensionless
-    // roundoff, not the absolute kg inventory tolerance used by time updates.
+
+
     for(int e=0;e<Ne;++e){
         const Real threshold=64*std::numeric_limits<Real>::epsilon()*maxValue(1,elementScale[e]);
         if(!finite(threshold)){error=prefix+"nonfinite element threshold "+std::to_string(e);return false;}
@@ -339,8 +339,8 @@ inline bool validateReaction(const Reaction& r,const PhysicsConfig& p,int index,
     error.clear();return true;
 }
 
-// Restrict one molar extent before rebuilding ALL linked mass changes. No
-// component clipping and no independent heat source accompanies formation e0.
+
+
 CHMT_HD inline bool limitReactionExtent(const Reaction& r,const SolidQ& q,Real requested,Real& accepted,DeviceStatus* status=nullptr,int index=-1) {
     if(!finite(requested)||requested<0)return failStatus(status,ErrorCode::InvalidInput,index,requested,ErrorLocation::Cell);
     Real extent=requested;
@@ -411,5 +411,5 @@ inline bool validatePhysicsConfig(const PhysicsConfig& p,const ValidationContext
 inline bool validatePhysicsConfig(const PhysicsConfig& p,std::string& error) {
     return validatePhysicsConfig(p,ValidationContext{},error);
 }
-} // namespace chmt
+}
 #endif

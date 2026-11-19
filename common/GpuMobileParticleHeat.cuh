@@ -2,8 +2,8 @@
 #include "GpuParticleHeatMomentView.cuh"
 #include "GpuParticleGasHeatRelaxation.cuh"
 #include "GpuMaterialEnthalpyMoment.cuh"
-// Retain the published macro state of free particles, including its accepted
-// pressure closure. Subtract only represented contact particles from mixed cells.
+
+
 __global__ void prepareMobileParticleHeatMomentsKernel(DeviceState* sp)
 {
     DeviceState& s=*sp;const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=s.nCells)return;
@@ -14,8 +14,8 @@ __global__ void subtractContactParticleHeatMomentsKernel(DeviceState* sp)
 {
     DeviceState& s=*sp;const int n=clampRange(*s.particleCountDevice,0,s.particleCapacity);
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<n;i+=blockDim.x*gridDim.x) {
-        // Capture membership when the cell heat source is formed. A later
-        // collision may detach this parcel without putting it in that source.
+
+
         s.particleContactHeatEpoch[i]=s.pStatus[i]==1
             && s.pStuck[i]!=Foam::gpuThermal::particleWallMobile;
         if(!s.particleContactHeatEpoch[i])continue;
@@ -41,8 +41,8 @@ __device__ void relaxMobileParticleThermalState
     const double oldT=clampRange(particleEffectiveTemperatureDevice(s,i),double(s.TpMin),double(s.TpMax));
     const auto gasT=clampRange(finiteOr(s.couplingTgasOld[c],s.TgasMin),s.TgasMin,GPU_R(1e30));
     const auto rate=particleGasHeatRelaxationRate(s,c,gasT,reynolds,diameter,s.rhoSolid*law.specificHeat(oldT));
-    // Same exponential relaxation as gasUGKP, with a small-increment form for
-    // the existing caloric carry so sub-temperature-ulp heat is retained.
+
+
     const double delta=clampRange(-expm1(-clampMin(rate,GPU_R(0))*dt)*(double(gasT)-oldT),
         double(s.TpMin)-oldT,double(s.TpMax)-oldT);
     ugkwp::ParticleThermalCarry<GpuReal> state{s.pT[i],s.pThermalEnthalpyResidual[i]};

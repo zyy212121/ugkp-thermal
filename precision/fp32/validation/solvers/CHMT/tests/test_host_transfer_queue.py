@@ -45,22 +45,22 @@ int main(){
  int device=0,output=-1;
  {int source=17;assert(queue.upload(&device,&source,1));source=91;}
  assert(device==0);assert(queue.download(&output,&device,1));assert(output==-1);
- // An unrelated owner's work must remain pending at this completion point.
+
  int other=0,otherSource=32;pending.push_back({&other,&otherSource,sizeof(int),reinterpret_cast<void*>(2)});
  assert(queue.finish());assert(device==17&&output==17&&other==0&&waits==1);
  const int allocations=pinnedAllocations;
  int source=28;assert(queue.upload(&device,&source,1));assert(queue.download(&output,&device,1));
  assert(queue.finish());assert(output==28&&pinnedAllocations==allocations);
- // A failed submission drains earlier copies without publishing partial reads.
+
  output=-7;assert(queue.download(&output,&device,1));failCopy=1;
  assert(!queue.download(&output,&device,1));assert(!queue.finish());assert(output==-7);
  assert(queue.download(&output,&device,1));assert(queue.finish());assert(output==28);
- // Destructor completes DMA but never writes into an unwound destination.
+
  int untouched=-9;
  {chmt::HostTransferQueue abandoned(fault);abandoned.bindStream(expectedStream);
   assert(abandoned.download(&untouched,&device,1));}
  assert(untouched==-9&&other==0);
- // Explicit stream initialization and batched diagnostics snapshot consumption.
+
  ugkp::diagnostics::GpuOwner diagnostics;assert(diagnostics.initialise(expectedStream)==cudaSuccess);
  ugkp::diagnostics::DeviceContext snapshot{};
  assert(queue.download(&snapshot,diagnostics.device(),1));assert(queue.finish());
@@ -156,7 +156,7 @@ int main(){
   assert(queue.upload(device+1,source.data(),source.size()));
   source.assign(source.size(),99);
  }
- // Upload storage belongs to the queue even after the host source is released.
+
  assert(device[1]==-2&&device[2]==-2&&device[3]==-2);
  assert(queue.download(restored+1,device+1,3));
  assert(pending.size()==2&&pending[0].bytes==3*sizeof(float)&&pending[1].bytes==3*sizeof(float));
@@ -167,7 +167,7 @@ int main(){
   assert(restored[i+1]==static_cast<double>(static_cast<float>(expected[i])));
  }
  assert(device[0]==71&&device[4]==73&&restored[0]==81&&restored[4]==83);
- // Exercise the reverse conversion and source-element DMA width as well.
+
  const float reverseExpected[3]={.2f,-2.5f,4000.75f};
  double wideDevice[5]={91,-4,-4,-4,93};
  float narrowOutput[5]={101,-5,-5,-5,103};
@@ -185,7 +185,7 @@ int main(){
   assert(narrowOutput[i+1]==reverseExpected[i]);
  }
  assert(wideDevice[0]==91&&wideDevice[4]==93&&narrowOutput[0]==101&&narrowOutput[4]==103);
- // Reuse the widened staging and keep the existing same-type path unchanged.
+
  const int allocations=pinnedAllocations;
  int sameDevice[3]={0,0,0},sameOutput[3]={-1,-1,-1};
  {int source[3]={7,8,9};assert(queue.upload(sameDevice,source,3));}
@@ -193,7 +193,7 @@ int main(){
  assert(sameOutput[0]==-1&&sameOutput[1]==-1&&sameOutput[2]==-1);
  assert(queue.finish()&&pinnedAllocations==allocations);
  for(int i=0;i<3;++i)assert(sameDevice[i]==7+i&&sameOutput[i]==7+i);
- // Failure and destruction drain DMA but never publish converted readbacks.
+
  double untouched[3]={-7,-8,-9};
  assert(queue.download(untouched,device+1,3));failCopy=1;
  assert(!queue.download(untouched,device+1,3));assert(!queue.finish());

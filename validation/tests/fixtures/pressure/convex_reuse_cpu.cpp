@@ -1,4 +1,4 @@
-// Execute the real production cell limiter with a host-only DeviceState scaffold.
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -88,8 +88,8 @@ int main(int argc,char** argv) {
             Face f{R(2)*scale,R(.25)*scale,R(.5)*scale,R(.75)*scale,R(4)*scale,R(.01)*scale,R(10*unit(gen)),
                 R(16*unit(gen)-8)*scale,R(16*unit(gen)-8)*scale,R(16*unit(gen)-8)*scale,R(16*unit(gen)-8)*scale};
             compare(f);
-            // Independent density/energy exponents exercise rho*h overflow and
-            // underflow even though each input and the initial state is valid.
+
+
             f.rho=exponentSample(gen);f.energy=exponentSample(gen);f.floor=0;
             f.px=f.py=f.pz=0;compare(f);
         }
@@ -106,8 +106,8 @@ int main(int argc,char** argv) {
             compare({rho,0,0,0,energy,0,1,delta,0,0,0});
             compare({rho,0,0,0,energy,0,1,0,0,0,-delta});
         }
-        // ULP neighbours of the exact kinetic floor, the identity endpoint,
-        // velocity cap and cancellation-safe quadratic/linear boundaries.
+
+
         for(R p:{R(0),R(1),R(-1)})for(R dp:{R(-2),R(-1),R(0),R(1),R(2)})
         for(R e:{std::nextafter(R(.5),R(0)),R(.5),std::nextafter(R(.5),R(1)),R(1)})
         for(R de:{R(0),R(-.5),R(-1),R(-1000000),tiny})
@@ -134,8 +134,8 @@ int main(int argc,char** argv) {
             }
             const R before=baselinePressureLocalConvexScale(s,0,.125),after=pressureLocalConvexScale(s,0,.125);
             check(same(before,after),"production prepared cell limiter differs bitwise from baseline");
-            // Both cells shorten a face by the shared minimum. Compare every
-            // retained contribution, including opposite owner orientations.
+
+
             for(int f=0;f<6;++f) {
                 const R neighbour=R(unit(gen));
                 check(same(std::min(before,neighbour)*s.solidPressurePhiMomX[f],std::min(after,neighbour)*s.solidPressurePhiMomX[f]),"neighbour-minimum face contribution differs");

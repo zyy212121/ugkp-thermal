@@ -3,28 +3,26 @@
 
 #include "core/HostState.H"
 #include "coupling/WindowTime.H"
+#include "coupling/CouplingWindow.H"
 #include "coupling/ExchangeLedger.H"
 #include <algorithm>
 #include <set>
 #include <map>
 #include <tuple>
 #include <utility>
+#include <functional>
+#include <stdexcept>
 
 namespace chmt {
-// Host-side, CUDA-runtime/OpenFOAM-independent contracts. All transfer amounts
-// are extensive. A history is provisional until a synchronized macro commit.
-struct IntervalIdentity { std::uint64_t sequence=0,epoch=0; };
-struct CouplingInterval { IntervalIdentity identity{}; Real begin=0,end=0; };
-struct CouplingControls {
-    Real interval=0,gasMaxDt=0,materialMaxSubstep=0;
-};
+
+
 struct WallFaceSample {
     Real temperature=0; Vec3 velocity{};
     ExchangeKind primaryKind=ExchangeKind::GasSolid;
     Real speciesRate[Ns]{},condensedRate[Nc]{},poreRate[Ns]{},poreSweepRate[Ns]{};
     Real radiationFlux=0,solidNormalVelocity=0,normalVelocity=0;
     Real materialEffusivity=0;
-}; // rates kg/(reference-surface m^2 s), radiation W/m^2; proposals, not transfers.
+};
 struct WallKnot {
     Real time=0; WindowTime localTime{-1}; std::vector<WallFaceSample> faces{};
     std::vector<Vec3> gasPoints{},solidPoints{};
@@ -33,7 +31,7 @@ struct MaterialReserveKnot {
     Real time=0; WindowTime localTime{-1};
     std::vector<SolidQ> cumulativeSolid{};
     std::vector<FilmQ> cumulativeFilm{};
-}; // signed cumulative INTERNAL component increments; never gas-facing packets.
+};
 struct MaterialDonorPlan { CouplingInterval interval{}; std::vector<MaterialReserveKnot> knots{}; };
 struct WallProgram { CouplingInterval interval{}; SurfaceMesh surface{}; std::vector<WallKnot> knots{}; MaterialDonorPlan donorPlan{}; };
 template<class Knot> inline WindowTime knotOffset(const CouplingInterval& interval,const Knot& knot){
@@ -41,23 +39,23 @@ template<class Knot> inline WindowTime knotOffset(const CouplingInterval& interv
 }
 inline WindowTime intervalDuration(const CouplingInterval& interval){return windowOffset(interval.begin,interval.end);}
 struct GasWallMatchingSample {
-    Real pressure=0,mechanicalPressure=0; // matching EOS p; same-stage local wall-force p.
+    Real pressure=0,mechanicalPressure=0;
     ugkwp::gaswall::WallMatchingState<Real,Ns> state{};
-}; // actual gas driving snapshot, never an inventory or chemical source.
+};
 struct GasIntervalRecord {
     std::uint64_t microSequence=0; Real begin=0,end=0,actualDt=0;
     WindowTime localBegin{-1},localEnd{-1};
-    Real gasTraceTime=-1; // one coherent representative gas stage; -1 for isolated legacy fixtures.
+    Real gasTraceTime=-1;
     std::uint64_t gasGeometry=0,solidGeometry=0;
     std::vector<ExchangePacket> packets{};
-    std::vector<GasPrimitive> gasTrace{}; // OWNER bulk at gasTraceTime, paired with gradient/traction/matching.
+    std::vector<GasPrimitive> gasTrace{};
     std::vector<GasGradient> gasGradient{};
     std::vector<Vec3> gasTraction{};
-    ugkp::SharedSnapshotVector<WallFaceSample> gasAcceptedWall{}; // instantaneous accepted rates at gasTraceTime, not integrated sources.
-    std::vector<GasWallMatchingSample> gasWallMatching{}; // populated only for boundaryLayer.
+    ugkp::SharedSnapshotVector<WallFaceSample> gasAcceptedWall{};
+    std::vector<GasWallMatchingSample> gasWallMatching{};
     std::vector<Real> radiationEnergy{};
     std::vector<unsigned> radiationReceiver{};
-}; // trace/traction/radiation have stable SurfaceMesh face order.
+};
 
 inline bool intervalFailure(std::string& error,const char* text){error=text;return false;}
 inline bool validCouplingInterval(const CouplingInterval& w){
@@ -68,7 +66,7 @@ inline unsigned intervalProducerMask(ExchangeKind kind){
     if(kind==ExchangeKind::ParticleGas)return ConsumeParticle|ConsumeGas;
     return ConsumeGas;
 }
-// Scale only physical integral fields; identity and consumer mask are untouched.
+
 CHMT_HD inline ExchangePacket scaledIntervalPacket(const ExchangePacket& p,Real scale){
     ExchangePacket q=p;
     q.mass*=scale;q.momentum=q.momentum*scale;q.energy*=scale;
@@ -96,20 +94,52 @@ CHMT_HD inline void addIntervalPacket(ExchangePacket& q,const ExchangePacket& p)
 }
 
 class IntervalCursor;
+
+
+struct IntervalRadiationDeviceView {
+    const Real* energy=nullptr;std::size_t faces=0;void* producerStream=nullptr;
+};
 class IntervalHistory {
     CouplingInterval interval_{};
     std::vector<GasIntervalRecord> records_{};
     bool started_=false;
     std::vector<Real> externalRadiationEnergy_;
+    IntervalRadiationDeviceView deviceRadiation_{};
+    std::function<void(std::size_t,GasIntervalRecord&)> payloadReader_;
+    AcceptedLedger::Reader ledgerReader_;
 public:
     bool begin(const CouplingInterval& w,std::string& error){
-        interval_=w;records_.clear();externalRadiationEnergy_.clear();started_=true;error.clear();return true;
+        interval_=w;records_.clear();externalRadiationEnergy_.clear();deviceRadiation_={};payloadReader_={};ledgerReader_={};started_=true;error.clear();return true;
     }
-    void setExternalRadiationEnergy(const std::vector<Real>& e){externalRadiationEnergy_=e;}
+    void setExternalRadiationEnergy(const std::vector<Real>& e){externalRadiationEnergy_=e;deviceRadiation_={};}
     const std::vector<Real>& externalRadiationEnergy()const{return externalRadiationEnergy_;}
+    void setExternalRadiationDevice(IntervalRadiationDeviceView value){externalRadiationEnergy_.clear();deviceRadiation_=value;}
+    IntervalRadiationDeviceView externalRadiationDevice()const{return deviceRadiation_;}
+
     const CouplingInterval& interval()const{return interval_;}
     const std::vector<GasIntervalRecord>& records()const{return records_;}
-    std::vector<GasIntervalRecord> releaseRecords(){return std::move(records_);}
+    bool externalPayload()const{return bool(payloadReader_);}
+    void setPayloadReader(std::function<void(std::size_t,GasIntervalRecord&)> reader,AcceptedLedger::Reader ledger={}){
+        payloadReader_=std::move(reader);
+        ledgerReader_=std::move(ledger);
+    }
+    AcceptedLedger::Reader releaseLedgerReader(){
+        if(ledgerReader_)return std::move(ledgerReader_);
+        return [history=std::move(*this)](const AcceptedLedger::ChunkVisitor& visit){
+            for(std::size_t i=0;i<history.records().size();++i){
+                auto record=history.readRecord(i);
+                for(auto& packet:record.packets)packet.consumerMask=requiredConsumers(packet.kind);
+                if(!record.packets.empty())visit(record.packets.data(),record.packets.size());
+            }
+        };
+    }
+    GasIntervalRecord readRecord(std::size_t index)const{
+        auto value=records_.at(index);if(payloadReader_)payloadReader_(index,value);return value;
+    }
+    std::vector<GasIntervalRecord> releaseRecords(){
+        if(payloadReader_)throw std::logic_error("stream external history payloads before releasing their owner");
+        return std::move(records_);
+    }
     Real end()const{return records_.empty()?interval_.begin:records_.back().end;}
     WindowTime localEnd()const{return records_.empty()?WindowTime{}:records_.back().localEnd;}
     bool complete()const{return started_&&!records_.empty()&&localEnd()==intervalDuration(interval_);}
@@ -125,14 +155,14 @@ public:
     bool sampleGasDriveLocal(WindowTime time,std::vector<GasPrimitive>& trace,std::vector<Vec3>& traction,std::string& error)const{
         if(records_.empty())return intervalFailure(error,"gas drive time outside recorded history");
         for(const auto& r:records_)if(time<r.localEnd||(&r==&records_.back()&&time==r.localEnd)){
-            trace=r.gasTrace;traction=r.gasTraction;error.clear();return true;}
+            const auto value=readRecord(&r-records_.data());trace=value.gasTrace;traction=value.gasTraction;error.clear();return true;}
         return intervalFailure(error,"gas driving history has a gap");
     }
     bool sampleGasDriveLocal(WindowTime time,std::vector<GasPrimitive>& trace,std::vector<GasGradient>& gradient,
         std::vector<Vec3>& traction,std::string& error)const{
         if(records_.empty())return intervalFailure(error,"gas drive time outside recorded history");
         for(const auto& r:records_)if(time<r.localEnd||(&r==&records_.back()&&time==r.localEnd)){
-            trace=r.gasTrace;traction=r.gasTraction;gradient=r.gasGradient;error.clear();return true;}
+            const auto value=readRecord(&r-records_.data());trace=value.gasTrace;traction=value.gasTraction;gradient=value.gasGradient;error.clear();return true;}
         return intervalFailure(error,"gas driving history has a gap");
     }
     bool sampleGasDrive(Real time,std::vector<GasPrimitive>& trace,std::vector<Vec3>& traction,std::string& error)const{return sampleGasDriveLocal(windowOffset(interval_.begin,time),trace,traction,error);}
@@ -149,8 +179,8 @@ struct IntervalSliceMetadata {
     Real externalFraction=0;bool externalLast=false;
 };
 
-// The history must outlive this cursor and must not be changed while it is in
-// use. Each interval consumer uses a fresh cursor; failed slice calls are atomic.
+
+
 class IntervalCursor {
     const IntervalHistory* history_=nullptr;
     WindowTime time_{};
@@ -169,7 +199,7 @@ public:
         IntervalSliceMetadata selected;selected.beginRecord=candidate.record_;
         while(candidate.time_<target){
             if(candidate.record_>=records.size())return intervalFailure(error,"material slice exceeds gas history");
-            const auto& r=records[candidate.record_];
+            const auto r=history_->readRecord(candidate.record_);
             if(candidate.used_.empty())candidate.used_.resize(r.packets.size());
             if(candidate.radiationUsed_.empty())candidate.radiationUsed_.assign(r.radiationEnergy.size(),0);
             if(rad.empty())rad.assign(r.radiationEnergy.size(),0);
@@ -187,6 +217,14 @@ public:
             }
             candidate.time_=stop;
             if(last){++candidate.record_;candidate.used_.clear();candidate.radiationUsed_.clear();}
+        }
+        const auto device=history_->externalRadiationDevice();
+        if(device.faces){
+            if(!metadata||!device.energy)return intervalFailure(error,"device radiation slice requires its material consumer");
+            if(rad.empty())rad.assign(device.faces,0);
+            if(rad.size()!=device.faces)return intervalFailure(error,"device radiation face layout mismatch");
+            selected.externalFraction=windowDuration(target,time_)/windowDuration(intervalDuration(history_->interval()),WindowTime{});
+            selected.externalLast=target==history_->localEnd();
         }
         const auto& extra=history_->externalRadiationEnergy();
         if(!extra.empty()){
@@ -338,16 +376,5 @@ public:
 
 };
 
-// Select the physical coupling interval once. There is no failed-window
-// shortening, replay epoch, or residual acceptance controller.
-class CouplingWindowController {
-    CouplingInterval interval_{};
-public:
-    const CouplingInterval& interval()const{return interval_;}
-    bool begin(Real time,Real target,std::uint64_t sequence,const CouplingControls& controls,std::string& error){
-        CouplingInterval next;next.identity.sequence=sequence;next.begin=time;next.end=std::min(target,time+controls.interval);
-        interval_=next;error.clear();return true;
-    }
-};
-} // namespace chmt
+}
 #endif

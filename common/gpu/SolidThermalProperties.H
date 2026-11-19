@@ -3,7 +3,7 @@
 #define UGKP_GPU_SOLID_THERMAL_PROPERTIES_H
 #include "SolidThermalMath.H"
 #include "ThermalInterfaceDeviceView.H"
-#include "ScaledThermalSum.H"
+#include "SolidThermalConvergence.H"
 #include "ExecutionGraph.H"
 #include <memory>
 #include <vector>
@@ -15,10 +15,7 @@ struct SolidThermalDeviceFields {
     void* readyStream=nullptr;
 };
 struct ThermalPropertyDiagnostic {int firstError=-1,firstExtrapolation=-1;ThermalPropertyStatus error,extrapolation;};
-struct SolidThermalConvergence {
-    ScaledThermalSum enthalpyChange,externalEnergy,interfaceEnergy;
-    double temperatureChange=0,surfaceChange=0,surfaceFluxChange=0;
-};
+using SolidThermalConvergence=SolidThermalConvergenceFields<double>;
 struct SolidThermalIterationControls {
     int maximumIterations=1;
     bool aitken=false;
@@ -39,7 +36,7 @@ public:
     ~SolidThermalProperties();
     SolidThermalProperties(const SolidThermalProperties&)=delete;
     SolidThermalProperties& operator=(const SolidThermalProperties&)=delete;
-    // Residual history belongs to this region; havePrevious=false starts a window.
+
     double relax(double* current,const double* previous,int count,bool havePrevious,
         double relaxation,double minimum,double maximum,double small);
     double relaxResident(double* deviceCurrent,const double* devicePrevious,int count,bool havePrevious,
@@ -57,8 +54,8 @@ public:
         void* ownerStream,std::vector<ThermalPropertyResult>& results,
         const double* deviceBoundaryTemperature=nullptr,const std::vector<int>* boundarySources=nullptr,bool download=true);
     SolidThermalDeviceFields deviceFields() const;
-    // Compile query layouts during initialization. All later temperatures,
-    // caloric anchors and fixed-point history are read directly on device.
+
+
     int prepareResidentEvaluation(const std::vector<ThermalPropertyQuery>& boundaryQueries,
         const std::vector<int>& boundarySources,int cells,unsigned fields,bool cellsFirst,int plan=-1);
     void enqueueResidentEvaluation(int plan,const double* temperature,const double* previous,
@@ -76,6 +73,10 @@ public:
     void enqueueResidentContact(const double* temperature,diagnostics::DeviceContext*,void* executionStream);
     ThermalSolidContactDeviceView contactState(const std::vector<int>& cells,const double* temperature,void* stream,
         std::vector<ThermalPropertyResult>& status);
+    ThermalInterfaceStateDeviceView prepareResidentInterface(const std::vector<int>& boundaryFaces,
+        const std::vector<int>& contactEnabled,bool includeEmissivity=false);
+    ThermalInterfaceStateDeviceView residentInterface()const;
+    void enqueueResidentInterface(const double* boundaryTemperature,diagnostics::DeviceContext*,void* stream);
     ThermalInterfaceStateDeviceView interfaceState(const std::vector<int>& boundaryFaces,
         const std::vector<int>& contactEnabled,const double* boundaryTemperature,void* ownerStream,
         std::vector<ThermalPropertyResult>& status,bool includeEmissivity=false,
@@ -92,8 +93,8 @@ struct SolidThermalResidentProblem {
     SolidThermalIterationControls controls;
     diagnostics::DeviceContext* diagnostics=nullptr;
 };
-// The prepared owners outlive this execution graph. Reconfiguration of their
-// topology, policies or buffer addresses requires rebuilding this graph.
+
+
 class SolidThermalIterationGraph {
     struct Implementation;std::unique_ptr<Implementation> data_;
 public:
@@ -113,6 +114,10 @@ public:
     ThermalSolidContactDeviceView contactState() const;
     void acceptExternalExecution(void* producerStream);
     diagnostics::DeviceContext* diagnosticsContext() const;
+
+
+
+
     const SolidThermalIteration* deviceReport()const;
     void* producerStream()const;
     SolidThermalIteration collect(diagnostics::DeviceContext* diagnosticOutput=nullptr);
@@ -148,6 +153,16 @@ public:
     SolidContactIterationGraph(SolidThermalIterationGraph& primary,SolidThermalIterationGraph& auxiliary,
         SolidThermalContact&,const SolidContactIterationControls&,double interval,const double* deviceInterval);
     ~SolidContactIterationGraph();
+
+
+    ExecutionGraphNode appendTo(ExecutionGraph,ExecutionGraphNode dependency=nullptr);
+    void resetContinuation(void* stream);
+    const int* continuationStage()const;
+    bool servicePendingCapacity();
+    void acceptExternalCompletion(const std::shared_future<void>&);
+    void acceptExternalExecution(void* producerStream);
+    const SolidContactIteration* deviceReport()const;
+    void* producerStream()const;
     void awaitCompletion()const;
     void enqueue(void* producerStream);
     SolidContactIteration collect();

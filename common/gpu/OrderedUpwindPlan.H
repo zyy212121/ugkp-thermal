@@ -4,15 +4,17 @@
 #include <algorithm>
 #include <vector>
 namespace ugkp { namespace gpu {
-// Dependency levels reproduce the existing cell-index Gauss-Seidel sweep.
-// Lower-index upstream cells use this sweep; higher indices use its snapshot.
-// Face order within each row is retained. No geometrical sweep approximation.
+
+
+
 struct OrderedUpwindPlan {
     int cells=0;
+    bool allUpstreamReady=false;
     std::vector<int> offsets,neighbour,subtract,face,residualOrder,levelOffsets,levelCells;
     std::vector<RadiationReal> flux;
     void build(int count,const std::vector<int>& owner,const std::vector<int>& adjacent,
-        const std::vector<int>& cellOffsets,const std::vector<int>& cellFaces,const std::vector<RadiationReal>& orientedFlux){
+        const std::vector<int>& cellOffsets,const std::vector<int>& cellFaces,const std::vector<RadiationReal>& orientedFlux,
+        bool orderByFlow=false){
         cells=count;offsets.assign(1,0);neighbour.clear();subtract.clear();face.clear();flux.clear();residualOrder.clear();
         std::vector<int> level(count,0);
         for(int cell=0;cell<count;++cell){
@@ -30,6 +32,34 @@ struct OrderedUpwindPlan {
             std::vector<int> order;for(int i=begin;i<end;++i)order.push_back(i);
             std::sort(order.begin(),order.end(),[&](int a,int b){return face[a]<face[b];});
             residualOrder.insert(residualOrder.end(),order.begin(),order.end());
+        }
+        allUpstreamReady=false;
+        if(orderByFlow){
+            std::vector<int> pending(count);
+            levelCells.clear();
+            levelOffsets.assign(1,0);
+            for(int cell=0;cell<count;++cell){
+                pending[cell]=offsets[cell+1]-offsets[cell];
+                if(!pending[cell])levelCells.push_back(cell);
+            }
+            for(int begin=0;begin<int(levelCells.size());){
+                const int end=levelCells.size();
+                levelOffsets.push_back(end);
+                for(int row=begin;row<end;++row){
+                    const int cell=levelCells[row];
+                    for(int i=cellOffsets[cell];i<cellOffsets[cell+1];++i){
+                        const int f=cellFaces[i];
+                        if(f>=int(adjacent.size()))continue;
+                        const bool sends=cell==owner[f]?orientedFlux[f]>0:orientedFlux[f]<0;
+                        if(!sends)continue;
+                        const int downstream=cell==owner[f]?adjacent[f]:owner[f];
+                        if(!--pending[downstream])levelCells.push_back(downstream);
+                    }
+                }
+                begin=end;
+            }
+            allUpstreamReady=int(levelCells.size())==count;
+            if(allUpstreamReady)return;
         }
         const int levels=count?*std::max_element(level.begin(),level.end())+1:0;
         std::vector<std::vector<int>> groups(levels);

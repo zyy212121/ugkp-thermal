@@ -4,8 +4,8 @@
 #include <type_traits>
 #include <utility>
 namespace ugkp { namespace gpu {
-// Only launch-time bindings belong to this key. Particle and cell inventories
-// remain in DeviceState and are loaded by the same kernels on every replay.
+
+
 struct ParticleDirectoryGraphKey {
     const void* state=nullptr;
     const void* temporary=nullptr;
@@ -27,7 +27,7 @@ struct ParticleDirectoryGraph {
     cudaGraphExec_t executable=nullptr;
 };
 struct ParticleDirectoryGraphs {
-    // Full pre-transport, full survivor, and split injection directories.
+
     ParticleDirectoryGraph entry[3]{};
 };
 inline cudaError_t releaseParticleDirectoryGraph(ParticleDirectoryGraph& entry) {

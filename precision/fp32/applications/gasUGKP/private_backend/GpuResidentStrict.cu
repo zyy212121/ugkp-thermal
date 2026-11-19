@@ -5,6 +5,7 @@
 #include "gasNumerics/GasScalarSolverControlsApi.H"
 #include "GpuParticlePhaseGraph.cuh"
 #include "ParticleResidentInterval.H"
+#include "gpu/AdvanceState.cuh"
 #include "GpuParticleExecutionContext.H"
 #include "GpuParticleDirectoryGraph.H"
 #include "GpuCsrConditionalGraph.H"
@@ -94,6 +95,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
+#include <type_traits>
 #include <vector>
 
 #ifdef UGKP_DEVELOPMENT_PROBES
@@ -140,6 +142,7 @@ struct CsrReductionTask
 #include "GpuPressureProjectionTypes.H"
 
 struct DeviceState;
+void releaseAdvanceSequence(DeviceState*);
 template<bool Capture> int launchBoundaryLayer(DeviceState*);
 struct DeviceState
 {
@@ -632,7 +635,7 @@ struct DeviceState
     GpuReal* poissonCellCollisionProbability = nullptr;
     PressureProjectionCell* pressureProjectionCache = nullptr;
     int trackingWorkGrid = 0;
-
+#include "gpu/AdvanceOwnerFields.inl"
 };
 #include "GpuContactAgeStorage.cuh"
 
@@ -847,100 +850,7 @@ void setLastErrorText(const char* text)
 
 #include "GpuCsrConditionalGraph.cuh"
 
-template<class T>
-int allocate(T*& ptr, const size_t n, const char* name)
-{
-    ptr = nullptr;
-    if (n == 0)
-    {
-        return 0;
-    }
-
-    const cudaError_t err =
-        cudaMalloc(reinterpret_cast<void**>(&ptr), n*sizeof(T));
-    if (err != cudaSuccess)
-    {
-        setLastError(name, err);
-        return 1;
-    }
-    return 0;
-}
-
-template<class T>
-void release(T*& ptr)
-{
-    if (ptr != nullptr)
-    {
-        cudaFree(ptr);
-        ptr = nullptr;
-    }
-}
-
-template<class T>
-int copyToDevice(T* dst, const T* src, const size_t n, const char* name)
-{
-    if (n == 0)
-    {
-        return 0;
-    }
-    const cudaError_t err =
-        cudaMemcpy(dst, src, n*sizeof(T), cudaMemcpyHostToDevice);
-    if (err != cudaSuccess)
-    {
-        setLastError(name, err);
-        return 1;
-    }
-    return 0;
-}
-
-template<class T>
-int copyToHost(T* dst, const T* src, const size_t n, const char* name)
-{
-    if (n == 0)
-    {
-        return 0;
-    }
-    const cudaError_t err =
-        cudaMemcpy(dst, src, n*sizeof(T), cudaMemcpyDeviceToHost);
-    if (err != cudaSuccess)
-    {
-        setLastError(name, err);
-        return 1;
-    }
-    return 0;
-}
-
-template<class D,class S,typename std::enable_if<!std::is_same<D,S>::value && std::is_arithmetic<D>::value && std::is_arithmetic<S>::value,int>::type = 0>
-int copyToDevice(D* dst,const S* src,const size_t n,const char* name)
-{
-    try
-    {
-        std::vector<D> staged(n);
-        for(size_t i=0;i<n;++i)staged[i]=static_cast<D>(src[i]);
-        return copyToDevice(dst,staged.data(),n,name);
-    }
-    catch(const std::exception& error)
-    {
-        std::snprintf(lastError,sizeof(lastError),"%s: %s",name,error.what());
-        return 1;
-    }
-}
-template<class D,class S,typename std::enable_if<!std::is_same<D,S>::value && std::is_arithmetic<D>::value && std::is_arithmetic<S>::value,int>::type = 0>
-int copyToHost(D* dst,const S* src,const size_t n,const char* name)
-{
-    try
-    {
-        std::vector<S> staged(n);
-        if(copyToHost(staged.data(),src,n,name))return 1;
-        for(size_t i=0;i<n;++i)dst[i]=static_cast<D>(staged[i]);
-        return 0;
-    }
-    catch(const std::exception& error)
-    {
-        std::snprintf(lastError,sizeof(lastError),"%s: %s",name,error.what());
-        return 1;
-    }
-}
+#include "gpu/ResidentStorage.cuh"
 
 int syncDeviceState(DeviceState* s, const char* name)
 {
@@ -1082,6 +992,7 @@ void releaseState(DeviceState* s,ugkp::diagnostics::Snapshot* finalDiagnostics=n
         return;
     }
 
+    releaseAdvanceSequence(s);
     releaseSharedGasTrialStorage(s->gasTrial);
     release(s->gasStatusFirstUnavailable);
     releaseBoundaryLayerStorage(*s);
@@ -4674,56 +4585,8 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
 }
 
 
-#include "../../../common/GpuGasCourantReduction.cuh"
-#include "../../../common/GpuGasCourant.cuh"
-extern "C" int ugkwpGpuResidentStrictComputeGasCourant
-(
-    void* handle, double dt, double scheduleTime, double* maxCo
-)
-{
-    DeviceState* s=asState(handle);
-    if(validateState(s,"compute gas Courant"))return 1;
-    if(!maxCo){setLastErrorText("null gas Courant output");return 1;}
-    if(
-#ifdef UGKWP_STEADY_APPLICATION
-        !s->gasSteadyBoundaryFrozen &&
-#endif
-        s->gasSpecies.mode==ugkwp::GasMode::SingleLegacy
-        && publishStartupWorkPlan(s,dt,scheduleTime))return 1;
-    GasCourantMaxima result;
-    const auto maximum=[](const GpuReal* acoustic,int count,cudaStream_t stream,double& value)
-    {
-        try
-        {
-            value=ugkwp::reduceGasAcousticCourant(acoustic,count,stream);
-        }
-        catch(const std::exception& e){setLastErrorText(e.what());return 1;}
-        const auto error=cudaGetLastError();
-        if(error!=cudaSuccess){setLastError("gas Courant maximum reduction",error);return 1;}
-        return 0;
-    };
-    if(computeGasCurrentCourant(s,dt,scheduleTime,
-        s->fixedCellBlockThreads,s->fixedFaceBlockThreads,s->gasCaptureStream,result,maximum))
-    {
-        if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)SharedGasTrialPolicy::complete(s);
-        return 1;
-    }
-    if(s->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy)
-    {
-
-        const int status=SharedGasTrialPolicy::validate(s);
-        const int completion=SharedGasTrialPolicy::complete(s);
-        if(status||completion)return 1;
-        *maxCo=result.maximum;
-        return 0;
-    }
-
-    const auto diagnosticReadback=s->diagnosticOwner->observeCompletedWork();
-    if(diagnosticReadback!=cudaSuccess) {setLastError("diagnostics at Courant readback",diagnosticReadback);return 1;}
-    if(s->diagnosticOwner->dispatchPending())return 1;
-    *maxCo=result.maximum;
-    return 0;
-}
+using ResidentCourantTrialPolicy=SharedGasTrialPolicy;
+#include "gasTransport/ResidentCourant.inl"
 
 extern "C" int ugkwpGpuResidentStrictAdvance
 (
@@ -5810,4 +5673,6 @@ extern "C" int ugkwpGpuResidentStrictSetDiagnosticOperation(void* handle,std::ui
 
 #ifdef UGKWP_STEADY_APPLICATION
 #include "../../gasUGKPSteady/private_backend/SteadyParticleDriver.cuh"
+#include "../../gasUGKPSteady/private_backend/SteadyAdvance.cuh"
 #endif
+#include "../../../common/GpuAdvanceSequence.cuh"

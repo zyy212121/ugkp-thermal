@@ -130,7 +130,7 @@ int main(){
 '''
 
 def compile_and_run(tmp_path, source, legacy=False):
-    # Explicitly emulate launches; no numerical expression or host branch changes.
+
     host = re.sub(r"<<<[\s\S]*?>>>", "", source)
     path = tmp_path / "host.cpp"
     (tmp_path / "gas_advance_emulated.hpp").write_text(host)
@@ -220,7 +220,7 @@ int main(){MixedHost h;Payload p;h.deviceState=&p;if(advanceGasTrial<Policy>(&h,
 int first=-1,last=-1,cfl=-1,flux=-1,n=0;for(int i=0;i<int(trace.size());++i){if(trace[i]=="half-chemistry"){if(n++==0)first=i;last=i;}if(trace[i]=="check-CFL")cfl=i;if(trace[i].find("face-flux")==0)flux=i;}
 if(n!=2||cfl!=-1||!(first<flux&&flux<last)||trace.back()!="commit")return 2;
 trace.clear();Policy::reject=1;if(advanceGasTrial<Policy>(&h,.1,2.)!=0||trace.back()!="commit")return 3;
-// The original direct trace remains above; execute strict bounds separately.
+
 trace.clear();Policy::reject=0;expectedNativeOwner=true;convectiveModeChecks=0;
 if(prepareGasTrialTransport<Policy>(&h,.1,2.,true)!=0||convectiveModeChecks!=1)return 4;
 }
@@ -259,7 +259,7 @@ auto position=[](const char*name){return std::find(trace.begin(),trace.end(),nam
 for(const auto& line:trace)std::puts(line.c_str());
 if(position("fresh-mass")!=trace.size()||position("sst-bound")!=trace.size())return 2;
 if(position("recoverGasPrimitivesKernel")==trace.size())return 3;
-// Strict post-source launches forward their actual owner/profile mode.
+
 trace.clear();expectedNativeOwner=true;convectiveModeChecks=0;
 if(prepareGasTrialTransport<Policy>(&h,.01,0.,true)!=0)return 4;
 if(position("fresh-mass")!=trace.size()||position("sst-bound")!=trace.size()

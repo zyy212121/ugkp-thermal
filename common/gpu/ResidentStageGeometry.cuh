@@ -1,4 +1,4 @@
-// Included inside ugkp::gpu::geometry after resident geometry primitives.
+
 namespace {
 struct StageWarning {unsigned int count=0;double observed=0,reference=0;};
 struct StageExecution {
@@ -80,8 +80,8 @@ __global__ void publishStageWarningCounts(int rows,const StageExecution* state,c
     const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if(!diagnostics||!state->active||c>=rows||c>stageWarningCutoff(*state,rows))return;
     const auto warning=warnings[c];const unsigned int already=c==state->firstWarning?1:0;
-    // The first sample has already been published in serial phase order. The
-    // shared context retains counts plus that sample, not a per-warning list.
+
+
     for(unsigned int k=already;k<warning.count;++k)
         ugkp::diagnostics::recordWarning(diagnostics,stageWarningRecord(warning,c,conservation,face));
 }
@@ -208,7 +208,7 @@ ResidentStageGeometry::ResidentStageGeometry(const Topology& topology,int pointC
     d.oldVolume.reserve(d.cells);d.newVolume.reserve(d.cells);d.sweptVolume.reserve(d.faces);
     d.partner.reserve(partner.size());if(!partner.empty())checked(cudaMemcpy(d.partner.pointer,partner.data(),partner.size()*sizeof(int),cudaMemcpyHostToDevice));
     d.status.reserve(1);d.execution.reserve(1);d.warnings.reserve(std::max(d.cells,d.faces));
-    checked(cudaStreamSynchronize(nullptr)); // Partner topology is ready before any nonblocking prepare stream.
+    checked(cudaStreamSynchronize(nullptr));
 }
 ResidentStageGeometry::~ResidentStageGeometry()=default;
 StageGeometryDeviceView ResidentStageGeometry::view()const{

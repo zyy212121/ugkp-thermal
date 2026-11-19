@@ -66,8 +66,8 @@ ALLOCATE_FIELDS
     s.gasBoundaryKind[1]=s.riemannBoundaryKind[1]=2;
     s.riemannBoundaryTFix[1]=1;s.riemannBoundaryT[1]=500;
     s.riemannBoundaryUFix[1]=1;
-    // 0: independent Pr, differing fixed Y; 1: same face mu, variable-mu control;
-    // 2: same Y; 3: zeroGradient; 4: legacy const transport; 5: variable mu, const Pr.
+
+
     g.compositionBoundaryFixed[1]=config!=3;
     g.boundaryMassFraction[1]=config==2?.9:.1;
     g.boundaryMassFraction[4]=config==2?.1:.9;

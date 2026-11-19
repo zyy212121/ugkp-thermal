@@ -1,4 +1,4 @@
-// Included inside ugkp::gpu::geometry after the shared allocation utilities.
+
 namespace {
 struct PeriodicGeometryFace {int face,partner,firstMatch;};
 struct PeriodicGeometryVertex {int vertex,face,partner;};
@@ -64,8 +64,8 @@ __global__ void checkEmptyTrajectory(int count,int axis,const int* mate,const Po
 __global__ void emptyCoordinateKeys(int count,int axis,const Point* points,EmptyCoordinateKey* keys){
     const int p=blockIdx.x*blockDim.x+threadIdx.x;if(p>=count)return;
     const auto q=points[p];
-    // Coordinate validity is diagnosed by the mesh owner before this policy.
-    // Keep sorting's comparison relation well-defined even in a rejected stage.
+
+
     keys[p]=finite(q)?EmptyCoordinateKey{boundaryDetail::coordinate(q,(axis+1)%3),
         boundaryDetail::coordinate(q,(axis+2)%3),boundaryDetail::coordinate(q,axis)}:EmptyCoordinateKey{};
 }
@@ -103,7 +103,7 @@ ResidentGeometryBoundary::ResidentGeometryBoundary(const Topology& topology,Topo
         checked(cub::DeviceMergeSort::SortKeys(nullptr,d.sortBytes,d.keys.pointer,d.points,EmptyCoordinateLess{}));
         d.sortScratch.reserve(d.sortBytes);
     }
-    checked(cudaStreamSynchronize(nullptr)); // Initialization must publish completed default-stream uploads.
+    checked(cudaStreamSynchronize(nullptr));
 }
 ResidentGeometryBoundary::~ResidentGeometryBoundary()=default;
 const GeometryBoundaryStatus* ResidentGeometryBoundary::periodicStatus()const{return data_->periodicResult.pointer;}

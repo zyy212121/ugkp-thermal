@@ -42,11 +42,11 @@ int main(){
  TerminalMaterialEnergyEvaluator tracked{evaluator};
  assert(tracked(451,energy,capacity)==ugkwp::ThermoStatus::Success&&tracked.available&&tracked.lastTemperature==451);
  Real T=99;assert(invertMaterialEnergy<true>(evaluator,nan,100,3000,p.tolerances,T));
- assert(T==100); // Common target refusal precedes evaluation; actual lower formula is then evaluated.
+ assert(T==100);
  p.species[0].model=static_cast<ugkwp::SpeciesThermoModel>(99);q.pore[0]=.1;
  assert(!materialCaloric<true>(q,p,c,error,&numerical)&&!numerical);
  assert(!recoverMaterial<true>(q,.001,p,out,nullptr,-1,&numerical)&&!numerical);
- // Current-width coefficient storage is truly absent, not numerically invalid.
+
  auto missing=adapter.view();missing.coefficients=nullptr;
  MaterialEnergyEvaluator absent{missing,mass,0,0,0};T=99;
  assert(!invertMaterialEnergy<true>(absent,1000,100,3000,p.tolerances,T)&&T==99);

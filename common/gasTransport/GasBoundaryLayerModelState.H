@@ -13,42 +13,42 @@
 
 namespace ugkwp
 {
-// Borrowed model input, geometry stencil and scratch. No independent inventory.
-// Geometry arrays are rebuilt only when the mesh geometry version changes.
+
+
 template<class Real,int Ns,int MaxNodes=48> struct GasBoundaryLayerModelState
 {
     gaswall::WallModelConfig<Real> config;
     ConservativeWallData conservative;
-    bool volumeSstClosure=false; // gas FV adapter; material/interface adapters retain their own closure
-    bool useSuppliedWallState=false; // material adapters own Tw, absolute velocity and total Js
+    bool volumeSstClosure=false;
+    bool useSuppliedWallState=false;
     gaswall::WallInput<Real,Ns>* input=nullptr;
     gaswall::WallResidentOutput<Real,Ns>* output=nullptr;
-    gaswall::WallOutput<Real,Ns>* evaluationOutput=nullptr; // bounded worker pool
-    Real* fluxProfile=nullptr; // three arrays of nodes+1, only for SST volume closure
+    gaswall::WallOutput<Real,Ns>* evaluationOutput=nullptr;
+    Real* fluxProfile=nullptr;
     void* workspace=nullptr;
-    int workspaceCapacity=MaxNodes; // allocated capacity bucket: 24, 48 or 128
+    int workspaceCapacity=MaxNodes;
     gaswall::WallStatus* status=nullptr;
-    Real* profile=nullptr; // enabled-at-startup rows: y,U[3],T,k,omega,Y[Ns]
+    Real* profile=nullptr;
     void* referenceScratch=nullptr;
-    // New operator selection is internal storage ownership, not an input gate.
-    // Legacy/no-storage routes retain the original solver and reconstruction.
+
+
     bool coherentEnabled=false;
-    void* coherentScratch=nullptr; // worker-indexed, capacity-bucketed
-    void* coherentState=nullptr; // wall-indexed numerical state and LU cache
+    void* coherentScratch=nullptr;
+    void* coherentState=nullptr;
     Real* acceptedHistory=nullptr;
     Real* candidateHistory=nullptr;
     gaswall::WallHistoryFrame<Ns>* acceptedFrame=nullptr;
     gaswall::WallHistoryFrame<Ns>* candidateFrame=nullptr;
     gaswall::WallReferenceStats* referenceStats=nullptr;
     gaswall::WallReferenceCounters* referenceCounters=nullptr;
-    int workspaceCount=0; // bounded pool, never one large scratch block per wall by default
+    int workspaceCount=0;
     const int* faces=nullptr;
     const int* matchingOffsets=nullptr;
     const int* matchingCells=nullptr;
     const Real* matchingWeights=nullptr;
 };
-// Route selection follows the owned coherent storage, never a new physical
-// validity condition. Uncovered columns and legacy callers retain their solver.
+
+
 template<class Real,int Ns,int MaxNodes>
 UGKWP_GAS_HD inline bool gasBoundaryLayerUsesCoherent(
     const GasBoundaryLayerModelState<Real,Ns,MaxNodes>& m,int slot) {
@@ -65,15 +65,15 @@ template<class State,class=void> struct GasBoundaryLayerModelCapability:std::fal
 template<class State> struct GasBoundaryLayerModelCapability<State,
     std::void_t<decltype(std::declval<State>().gasBoundaryLayerModel)>>:std::true_type{};
 
-// Keep the three large capacity specializations out of the sparse kernel's
-// inlining graph. Host callers retain ordinary inline semantics.
+
+
 #if defined(__CUDA_ARCH__)
 #define UGKWP_WALL_WORKSPACE_CALL __noinline__
 #else
 #define UGKWP_WALL_WORKSPACE_CALL inline
 #endif
-// Type dispatch keeps scalar and borrowed-precision entrypoints independent of
-// the cooperative FP64 implementation without adding a C++17-only branch.
+
+
 template<class Real,int Ns,int Capacity,class Team>
 UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerModelWithTeam(
     const gaswall::WallInput<Real,Ns>& input,const gaswall::WallModelConfig<Real>& config,
@@ -94,7 +94,7 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerModelWithTeam(
         return gaswall::evaluateReactingWallLayerImpl(input,config,workspace,output,status,team);
     if(config.model==gaswall::BoundaryLayerModel::EquilibriumOde)
         return gaswall::evaluateEquilibriumOdeWallLayerImpl(input,config,workspace,output,status,team);
-    // Preserve the central router for analytic, unsupported and future models.
+
     return evaluateGasBoundaryLayerModelWithTeam(input,config,workspace,output,status,team,std::true_type{});
 }
 template<bool Capture=false,class Real,int Ns,int Capacity,class Team>
@@ -142,13 +142,13 @@ UGKWP_GAS_HD UGKWP_WALL_WORKSPACE_CALL bool evaluateGasBoundaryLayerWorkspace(
                 Real* row=profile+node*(7+Ns);
                 row[0]=p.y;for(int d=0;d<3;++d)row[1+d]=p.velocity[d];
                 row[4]=p.temperature;
-                // This algebraic eddy-viscosity model has no local k/omega fields.
+
                 const bool hasSstProfile=config.model!=gaswall::BoundaryLayerModel::EquilibriumOde;
                 row[5]=hasSstProfile?p.k:std::numeric_limits<Real>::quiet_NaN();
                 row[6]=hasSstProfile?p.omega:std::numeric_limits<Real>::quiet_NaN();
                 for(int species=0;species<Ns;++species)row[7+species]=p.massFraction[species];
-                // Diagnostic decoding cannot veto a physical solve. Missing values
-                // remain explicitly unavailable instead of becoming invented zeros.
+
+
                 if(!decoded)for(int col=0;col<7+Ns;++col)row[col]=std::numeric_limits<Real>::quiet_NaN();
             }
         }
@@ -156,7 +156,7 @@ UGKWP_GAS_HD UGKWP_WALL_WORKSPACE_CALL bool evaluateGasBoundaryLayerWorkspace(
     team.sync();
     return evaluated;
 }
-// Preserve the original callable six-argument entrypoint, including function pointers.
+
 template<bool Capture=false,class Real,int Ns,int Capacity>
 UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerWorkspace(
     const gaswall::WallInput<Real,Ns>& input,const gaswall::WallModelConfig<Real>& config,
@@ -187,7 +187,7 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerHistory(State&state,int slot,in
    if(team.leader())m.candidateFrame[slot].valid=false;
    if(gaswall::compatibleHistory(m.acceptedFrame[slot],frame)){
      const Real*old=m.acceptedHistory+std::size_t(slot)*m.config.nodes*B;
-     // The trial array is free until initialization copies this history.
+
      for(int i=team.rank();i<m.config.nodes;i+=team.size())gaswall::transformHistoryRow(old+i*B,w.trial[i],m.acceptedFrame[slot],frame);
      team.sync();history=&w.trial[0][0];
    }
@@ -247,7 +247,7 @@ template<class State,class Real> UGKWP_GAS_HD inline bool prepareGasBoundaryLaye
         return fail(GasTransportCode::InvalidStorage);
     auto& in=model.input[slot];
     in.diagnostics=state.diagnostics;in.diagnosticEntity=face;
-    // The BVP replaces only the actual owner-volume normal SST operator.
+
     in.volumeSstClosure=model.volumeSstClosure&&model.config.enableSst&&model.config.model==gaswall::BoundaryLayerModel::ReactingSst;
     in.integrateOwnerKSource=in.volumeSstClosure;
     if(in.volumeSstClosure&&(!in.quadrature.distance||!in.quadrature.volumeWeight||in.quadrature.count<=0||in.quadrature.volume<=0))
@@ -377,7 +377,7 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int 
     return true;
 }
 
-// Keep the original scalar signature and defaults; cooperative calls are explicit.
+
 template<bool Capture=false,class State>
 UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int workspaceSlot=0)
 {

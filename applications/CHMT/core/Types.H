@@ -19,10 +19,12 @@
 
 namespace chmt {
 using Real = double;
+using PhysicalReal = Real;
+using EnergyReal = Real;
 constexpr int Ns=ugkwp::compiledGasSpecies, Nc=2, Nr=8, Ne=8;
-constexpr Real universalGasConstant=8.31446261815324; // J/(mol K)
-// Default labels exist only for synthetic component fixtures. The production
-// species identity is the immutable runtime model name/order hash.
+constexpr Real universalGasConstant=8.31446261815324;
+
+
 constexpr std::uint64_t defaultSpeciesNameHash() {
     std::uint64_t h=14695981039346656037ULL;
     for(int s=0;s<Ns;++s){
@@ -34,9 +36,9 @@ constexpr std::uint64_t defaultSpeciesNameHash() {
     return h;
 }
 constexpr std::uint64_t defaultSpeciesHash=defaultSpeciesNameHash();
-// Schema 10 appends complete common particle thermal/contact history.
-// Schemas 6--9 remain readable; absent history is explicitly uninitialized.
-// Borrowed shared-thermo views are rebuilt and never serialized.
+
+
+
 constexpr std::uint64_t checkpointSchema=15;
 
 CHMT_HD inline bool finite(Real x) { return x==x && x<=std::numeric_limits<Real>::max() && x>=-std::numeric_limits<Real>::max(); }
@@ -45,6 +47,7 @@ CHMT_HD inline Real minValue(Real a,Real b) { return a<b?a:b; }
 CHMT_HD inline Real maxValue(Real a,Real b) { return a>b?a:b; }
 CHMT_HD inline Real undefinedValue() { return std::numeric_limits<Real>::quiet_NaN(); }
 struct Vec3 { Real x=0,y=0,z=0; };
+using PhysicalVec3 = Vec3;
 CHMT_HD inline Vec3 operator+(Vec3 a,Vec3 b) { return {a.x+b.x,a.y+b.y,a.z+b.z}; }
 CHMT_HD inline Vec3 operator-(Vec3 a,Vec3 b) { return {a.x-b.x,a.y-b.y,a.z-b.z}; }
 CHMT_HD inline Vec3 operator-(Vec3 a) { return {-a.x,-a.y,-a.z}; }
@@ -61,8 +64,8 @@ CHMT_HD inline Vec3 normalized(Vec3 a) { const Real m=mag(a);return m>0&&finite(
 
 struct GasQ {
     Real mass=0; Vec3 momentum{}; Real energy=0; Real species[Ns]{};
-    // kg, kg m/s, J, kg; energy = thermal + resolved mean kinetic only.
-    // SST rho*k is separate and is never added/subtracted by gas EOS recovery.
+
+
 };
 CHMT_HD inline GasQ operator+(const GasQ& a,const GasQ& b) {
     GasQ q{};q.mass=a.mass+b.mass;q.momentum=a.momentum+b.momentum;q.energy=a.energy+b.energy;
@@ -84,23 +87,23 @@ CHMT_HD inline GasQ& operator+=(GasQ& a,const GasQ& b) { a=a+b;return a; }
 struct GasPrimitive { Real rho=0;Vec3 velocity{};Real temperature=0,pressure=0,soundSpeed=0;Real Y[Ns]{}; };
 struct GasGradient { Vec3 rho{},velocity[3]{},temperature{},pressure{},Y[Ns]{}; };
 struct SolidQ { Real condensed[Nc]{},progress[Nr]{},pore[Ns]{},energy=0,porosity=0; };
-struct FilmQ { Real mass=0,enthalpy=0,species[Ns]{}; }; // true H [J], not h_ref inventory.
+struct FilmQ { Real mass=0,enthalpy=0,species[Ns]{}; };
 struct FilmAux {
     Real pressure=0,thickness=0,temperature=0;
     Vec3 baseVelocity{},meanVelocity{},topVelocity{},normal{};
     Real area=0,normalVelocity=0,solidNormalVelocity=0,solidFront=0,gasFront=0;
-    // normalVelocity/solidNormalVelocity: physical outward m/s. Fronts: accumulated normal displacement m.
+
 };
 using ParticleQ=ugkp::thermal::ParticleState<Vec3>;
 
-struct SstQ { Real rhoK=0,rhoOmega=0; }; // cell integrals [J] and [kg/s].
+struct SstQ { Real rhoK=0,rhoOmega=0; };
 struct SstPrimitive {
     Real k=0,omega=0,eddyViscosity=0,blend1=0,blend2=0;
-    // k [m^2/s^2], omega [1/s], eddyViscosity=nut [m^2/s], blends dimensionless.
-    // Mean stress uses mu_t=rho*nut; modeled k does not enter GasQ.energy.
+
+
 };
 struct SpeciesThermo {
-    // Historical LinearCp fields retain their order and default meaning.
+
     Real R=0,cp0=0,cp1=0,e0=0,Tmin=0,Tmax=0,element[Ne]{};
     ugkwp::SpeciesThermoModel model=ugkwp::SpeciesThermoModel::LinearCp;
     Real Tmid=0,nasa7[14]{};
@@ -110,7 +113,7 @@ struct SpeciesThermo {
 struct CondensedThermo { Real rho=0,cp0=0,cp1=0,e0=0,conductivity=0,Tmin=0,Tmax=0,element[Ne]{}; };
 struct Reaction {
     Real A=0,temperaturePower=0,activationEnergy=0,condensedNu[Nc]{},gasNu[Ns]{},order[Nc]{};
-    // nu kg/mol extent; order acts on condensed kg/m^3, fixing A's units.
+
 };
 using BoundaryKind = ugkp::boundary::Kind;
 enum class ThermalBoundaryKind { ZeroGradient,FixedValue };
@@ -134,17 +137,17 @@ struct ExchangePacket {
     Real mass=0,species[Ns]{},condensed[Nc]{},pore[Ns]{},poreSweep[Ns]{};Vec3 momentum{};
     Real energy=0,conductive=0,advective=0,pressureWork=0,viscousWork=0,radiation=0,liquidKineticAdvection=0;
     unsigned consumerMask=0;
-    // poreSweep is the PoreGas geometric mass component [kg], NOT another inventory.
-    // Physical Darcy amount is pore-poreSweep; counterflow may exceed the net.
-    // Positive mass/species/channels leave condensed/pore/particle donor.
-    // Negative individual reaction channels are allowed; net mass must match.
-    // energy alone updates gas; decomposition is audit-only. Liquid k advection
-    // is signed OUTWARD from film, including a negative solid->film entry.
+
+
+
+
+
+
 };
 struct FilmPressureVolumeUpdate {
     std::uint64_t step=0,geometry=0,face=0;int stage=0,filmFace=-1;
     Real oldPV=0,newPV=0;bool consumed=false;
-    // Storage conversion [J], once per face/stage AFTER all physical packets.
+
 };
 struct Tolerances {
     ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
@@ -165,5 +168,5 @@ struct Budget {
     Real turbulenceInventory=0,turbulenceProduction=0,turbulenceDissipation=0,turbulenceBoundaryFlux=0;
     std::uint64_t consumedPackets=0;
 };
-} // namespace chmt
+}
 #endif

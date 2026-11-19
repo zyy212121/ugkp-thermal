@@ -3,9 +3,9 @@
 #include <memory>
 #include <string>
 namespace chmt {
-// Resource must provide a noexcept fault-pointer rebind. All fallible allocation,
-// transfer and validation happens under the candidate owner BEFORE this helper.
-// No accepted status or inventory changes when candidate preparation failed.
+
+
+
 template<class Resource,class Fault>
 bool publishResourceReplacement(std::unique_ptr<Resource>& active0,std::unique_ptr<Resource>& active1,
     std::unique_ptr<Resource>& active2,std::unique_ptr<Resource>& candidate0,

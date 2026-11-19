@@ -6,7 +6,6 @@ they do not claim CUDA runtime coverage.
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
 
 from pathlib import Path
-import re
 
 import pytest
 
@@ -14,14 +13,8 @@ from test_mixture_state import compile_probe
 
 
 def closure_fixture():
-    fields = re.findall(
-        r"    ([\w:]+\*) (\w+)\{\};",
-        ((VALIDATION_ROOT / 'tests/gas_transport/legacy_gas_fixture.hpp')).read_text(),
-    )
-    allocations = "\n".join(
-        f"s.{name}=new {kind[:-1]}[8]{{}};" for kind, name in fields
-    )
     return r'''
+#include "gas_field_storage.hpp"
 struct State:ugkwp::GasStateView<Real,Time,ugkwp::SstCoefficients>{ugkwp::GasSpeciesState<Real,3> gasSpecies;};
 void ck(bool good,const char*message){if(!good){std::fprintf(stderr,"%s\n",message);std::abort();}}
 bool sameBits(Real a,Real b){return std::memcmp(&a,&b,sizeof(Real))==0;}
@@ -33,7 +26,7 @@ void recover(State&s,int c){
     threadIdx.x=c;recoverGasPrimitivesKernel(&s);ck(s.gasSpecies.cellStatus[c]==0,"fixture recovery failed");
 }
 void initialise(State&s){
-ALLOCATE
+    allocateGasTestStorage(s,8);
     s.nCells=2;s.nFaces=3;s.nInternalFaces=1;s.gasFluxScheme=1;s.gasReconstruction=0;
     s.gasLimiter=0;s.gasMu=0;s.gasPrClamped=.7;s.gammaGas=1.4;s.Rgas=287;s.gasCp=1004.5;s.rhoMin=1e-12;s.TgasMin=1e-9;
     auto&g=s.gasSpecies;g.mode=ugkwp::GasMode::MixtureFrozen;
@@ -62,7 +55,7 @@ Real scalarFlux(const State&s,int k){
         ?ugkpriemann::hllConservativeComponentFlux(ul*l,ur*r,l,r,ul,ur,al,ar)
         :ugkpriemann::rusanovConservativeComponentFlux(ul*l,ur*r,l,r,std::max(std::abs(ul)+al,std::abs(ur)+ar));
 }
-'''.replace("ALLOCATE", allocations)
+'''
 
 
 @pytest.mark.parametrize("scheme", [1, 2])

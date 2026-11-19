@@ -1,5 +1,5 @@
 #pragma once
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<bool StuckPath>
 __device__ void finalizeOneThermalizedParticlePath
 (

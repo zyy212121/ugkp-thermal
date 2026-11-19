@@ -24,7 +24,7 @@ for name in ['impermeable','uniform','nonuniform']:
  assert maximum['massFluxError']<1e-13 and maximum['speciesFluxError']<1e-14
  assert maximum['heatBalanceAbsolute']<1e-7 and maximum['viscosityRelativeError']<1e-13
  report['wall'][name]=dict(maximum,traceCO2Range=[min(traces),max(traces)])
-# Additional independent configurations use fresh native processes.
+
 def clone(name,source='nonuniform'):
  c=root/name;c.mkdir();src=root/source
  for part in ['0','constant','system']:shutil.copytree(src/part,c/part)
@@ -38,10 +38,10 @@ restart=clone('restart');shutil.copytree(root/'nonuniform/1',restart/'1');m.entr
 report['restartRelativeErrors']=m.compare_fields(root/'nonuniform/2',restart/'2',restart=True)
 changed=clone('changed-D');shutil.copytree(root/'nonuniform/1',changed/'1');m.entry(changed/'system/controlDict','startTime',1)
 p=changed/'constant/gasTransportProperties';p.write_text(p.read_text().replace('temperatureExponent 1.81','temperatureExponent 1.82'));run(changed,reject=True);report['changedDCoefficientRejectedOnRestart']=True
-# No constant diffusion allocation is needed when a power law is configured.
+
 none=clone('diffusion-none');p=none/'constant/gasModelProperties';p.write_text(p.read_text().replace('model constant; coefficients (0 0);','model none;'));run(none)
 report['diffusionNoneParity']=m.compare_fields(root/'nonuniform/2',none/'2')
-# Both representations of a constant wall field have identical production results.
+
 uniform=clone('uniform-fields','uniform');p=uniform/'constant/gasWallProperties';p.write_text(p.read_text().replace('speciesFlux (0 .1);','speciesFluxFields { Air uniform 0; CO2 uniform .1; }'));run(uniform)
 report['uniformEncodingParity']=m.compare_fields(root/'uniform/2',uniform/'2')
 (root/'verification.json').write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))

@@ -56,8 +56,8 @@ def main():
                 spec=json.loads((case/'verification.json').read_text());spec.update(gas_cells=a.grid**3,material_cells=a.grid**3,interface_faces=a.grid**2)
                 (case/'verification.json').write_text(json.dumps(spec))
             if name=='dry':
-                # Calibrated mass-concentration first-order bulk reaction; all
-                # generated gas species use the production shared calorics.
+
+
                 text=props.read_text();text+='''
 enableReactions true;
 permeability 1e-14; poreViscosity 1e-5; poreEffectiveDiffusivity (0.0001 0.0002);
@@ -76,8 +76,8 @@ material { enablePoreOutflow true; }
             if a.memcheck:command=['compute-sanitizer','--tool','memcheck','--error-exitcode','99']+command
             elapsed=run(command,case/'run.log',env)
             result=dict(scenario=name,repeat=repeat,elapsed_seconds=elapsed,case=str(case),**inventory(case))
-            # External contact-conductance oracle fixes cell distances at .25 m.
-            # Other grids retain independent inventory checks and baseline parity.
+
+
             if name in ('thermal','single','diffusion') and a.grid==2:
                 checker=a.source_root/'validation/openfoam10_dry/native/check_coupled.py'
                 run(['python3',checker,case],case/'independent-check.json',env)

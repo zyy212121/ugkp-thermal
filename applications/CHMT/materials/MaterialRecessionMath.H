@@ -2,8 +2,8 @@
 #include "materials/Reaction.H"
 namespace chmt {
 enum class MaterialRecessionError : int {None,DonorEos,Constituent};
-// Recession is fixed by accepted condensed transfer, never by the next wall
-// constitutive proposal. Keep constituent order and the original EOS call.
+
+
 CHMT_HD inline MaterialRecessionError addMaterialRecessionTarget(
     const Real* condensed,const SolidQ& donor,Real volume,const PhysicsConfig& physics,Real& target){
     MaterialPrimitive material;

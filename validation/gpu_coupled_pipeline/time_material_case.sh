@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Durable complete-process timing. Numerical auditing is a separate command;
-# its failure cannot discard an already saved solver exit code or wall time.
+
+
 set -euo pipefail
 if [[ $# != 5 ]]; then echo 'usage: time_material_case.sh INPUT BASELINE CANDIDATE OUT REPEATS' >&2; exit 2; fi
 input=$(realpath "$1"); baseline=$(realpath "$2"); candidate=$(realpath "$3"); out=$(realpath -m "$4"); repeats=$5
@@ -19,7 +19,7 @@ for ((repeat=0;repeat<=repeats;repeat++)); do
         cp -a "$input/0" "$input/constant" "$input/system" "$case_dir/"
         printf '%s\t%s\t%s\n' "$kind" "$repeat" "$name" >> "$out/order.tsv"
         binary=$baseline; if [[ $kind == candidate ]]; then binary=$candidate; fi
-        # A solver failure stops the cohort. There are no automatic reruns.
+
         /usr/bin/time -f '%e\n%x' -o "$case_dir/timing.txt" "$binary" -case "$case_dir" > "$case_dir/run.log" 2>&1
         printf '%s ' "$name"; head -1 "$case_dir/timing.txt"
     done

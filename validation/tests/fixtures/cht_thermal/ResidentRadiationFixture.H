@@ -9,8 +9,8 @@
 #include <memory>
 #include <vector>
 namespace Foam {
-// Test-only owner of the same fixed physical snapshot used by the former host
-// fixture. Production radiation still runs unchanged CUDA operators.
+
+
 struct ResidentRadiationFixture {
     double* storage=nullptr;std::size_t capacity=0;scalarField mean;
     double* interfaceStorage=nullptr;std::size_t interfaceCapacity=0;

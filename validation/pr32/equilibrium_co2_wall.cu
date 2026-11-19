@@ -26,8 +26,8 @@ void check(int index,const Fixture& f,const WallModelConfig<double>& c,const Wor
  assert(detail::intervalFlux(f.in,c,ctx,w.state[0],w.state[1],w.y[0],w.y[1],first));
  double energyActivity=std::max(1.,std::abs(first.energy));
  for(int d=0;d<3;++d)energyActivity+=std::abs(out.traction[d]*f.in.matching.velocity[d]);
- // Check dimensional equation balances along the profile, independently of
- // the nonlinear solver's normalization and published balance residual.
+
+
  for(int i=1;i<c.nodes-1;++i){
   detail::LayerFlux<double,2> flux;assert(detail::intervalFlux(f.in,c,ctx,w.state[i],w.state[i+1],w.y[i],w.y[i+1],flux));
   assert(std::abs(flux.energy-first.energy)<=2e-7*energyActivity);

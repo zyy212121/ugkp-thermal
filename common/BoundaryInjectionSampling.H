@@ -10,15 +10,15 @@
 #endif
 
 namespace ugkwp {
-// A face-local cumulative area and an affine triangle, in physical 3D space.
+
 struct BoundaryInjectionTriangle {
     double a[3], ab[3], ac[3], cumulativeArea;
 };
 
 
-// Scratch contains face-local indices. Both output arrays have vertexCount
-// capacity. Geometry is built once on the same Sf/Cf plane used by tracking;
-// ear clipping, collinearity, areas and sampled positions all use that plane.
+
+
+
 UGKP_INJECTION_HD inline ugkp::gpu::geometry::Point injectionPlanePoint(
     ugkp::gpu::geometry::Point point,ugkp::gpu::geometry::Point centre,
     ugkp::gpu::geometry::Point normal)
@@ -50,7 +50,7 @@ UGKP_INJECTION_HD inline int buildBoundaryInjectionTriangles(
         const double d=dot(a,a);if(d>scale2)scale2=d;
     }
     if(!(::fabs(signedArea)>0)||!std::isfinite(signedArea))return 0;
-    // Vertex ordering may be opposite the owner-side tracking normal.
+
     if(signedArea<0)normal=normal*(-1);
     const double tolerance=32*2.2204460492503130808472633361816e-16*scale2;
     int remaining=vertexCount,count=0;
@@ -63,7 +63,7 @@ UGKP_INJECTION_HD inline int buildBoundaryInjectionTriangles(
             const Point b=injectionPlanePoint(points[vertexIds[scratch[i]]],faceCentre,normal);
             const Point c=injectionPlanePoint(points[vertexIds[scratch[after]]],faceCentre,normal);
             const double turn=dot(cross(b-a,c-a),normal);
-            // Collinearity and the between-neighbours test use projected points.
+
             if(::fabs(turn)<=tolerance && dot(b-a,b-c)<=tolerance){
                 for(int k=i;k+1<remaining;++k)scratch[k]=scratch[k+1];
                 --remaining;removed=true;break;
@@ -92,7 +92,7 @@ UGKP_INJECTION_HD inline int buildBoundaryInjectionTriangles(
             for(int k=i;k+1<remaining;++k)scratch[k]=scratch[k+1];
             --remaining;removed=true;break;
         }
-        // Unusable geometry leaves the established point-source fallback.
+
         if(!removed)return 0;
     }
     return count;
@@ -105,8 +105,8 @@ UGKP_INJECTION_HD inline unsigned long long injectionMix(unsigned long long x) {
     return x ^ (x >> 31);
 }
 
-// Position draws do not consume the diameter/thermal RNG, depend on atomic
-// particle-slot allocation, or require new checkpoint state.
+
+
 UGKP_INJECTION_HD inline unsigned long long injectionPositionSeed
 (unsigned long long seed, int face, double time, int ordinal) {
     unsigned long long bits;
@@ -128,8 +128,8 @@ UGKP_INJECTION_HD inline double injectionUniform(unsigned long long& rng) {
 UGKP_INJECTION_HD inline bool sampleBoundaryInjection
 (const BoundaryInjectionTriangle* triangles, int begin, int end,
  unsigned long long rng, double& x, double& y, double& z) {
-    // Callers without a polygon (including existing point-source API users)
-    // retain their previous source position. No particle or mass is rejected.
+
+
     if (!triangles || begin == end) return false;
     const double target = injectionUniform(rng)*triangles[end - 1].cumulativeArea;
     int lo = begin, hi = end - 1;

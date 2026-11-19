@@ -29,8 +29,8 @@ int main(){try{
  b.knots[1].gasPoints[0].x+=2e-6;check(compareWallPrograms(a,b,volumeTolerance,difference,e)&&difference.geometryError>1,"face-area displacement tolerance too loose");
  b=a;b.knots.back().faces[0].primaryKind=ExchangeKind::GasFilm;
  check(compareWallPrograms(a,b,p.tolerances,difference,e)&&!difference.regimeMatches,"uncertified endpoint owner change accepted");
- // A located terminal phase event keeps the executed owner in THIS interval's
- // program; the next interval predictor derives its new owner from FilmQ.
+
+
  b.knots.back().faces[0].primaryKind=a.knots.back().faces[0].primaryKind;
  check(compareWallPrograms(a,b,p.tolerances,difference,e)&&difference.regimeMatches,"half-open executed-owner program rejected");
 

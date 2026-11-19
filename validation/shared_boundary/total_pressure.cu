@@ -29,7 +29,7 @@ int main() {
     Primitive h[12];assert(cudaMemcpy(h,device,sizeof(h),cudaMemcpyDeviceToHost)==cudaSuccess);
     for(int i=0;i<12;++i) {
         const auto& q=h[i];
-        // Independent native OpenFOAM comparison is performed by the Python driver.
+
         printf("DEVICE %d %.17g %.17g %.17g %.17g %.17g\n",i,q.ux,q.uy,q.uz,q.p,q.T);
     }
     assert(std::abs(h[1].p-94219.31412188)<1e-7);

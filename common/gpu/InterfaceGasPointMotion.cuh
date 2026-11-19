@@ -1,4 +1,4 @@
-// Included by PolyhedralGeometry.cu; owns no application-specific constitutive law.
+
 #include "InterfaceGasPointMotion.H"
 #include "ExecutionGraph.cuh"
 namespace ugkp { namespace gpu { namespace geometry { namespace {
@@ -99,8 +99,8 @@ ExecutionGraphNode InterfaceGasPointMotion::appendTo(ExecutionGraph graph,Execut
         acceptInterfaceGasMotion<<<1,1,0,d.stream>>>(result.status,d.motion->constraints().control,d.status.pointer);
     });(void)moved;
     return appendCaptured(graph,{previous},d.stream,[&]{
-        // The selected harmonic result has a stable owner address even when
-        // this replay took the unchanged branch and did not execute the solve.
+
+
         if(d.points)publishInterfaceGasMotion<<<(d.points-1)/workPlan().faceBlockThreads+1,workPlan().faceBlockThreads,0,d.stream>>>(d.points,input,d.status.pointer,
             d.motion->deviceView().points,d.result.pointer);
     });

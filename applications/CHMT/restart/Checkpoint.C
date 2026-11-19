@@ -1,5 +1,6 @@
 #include "../../../common/gasBoundary/Wire.H"
 #include "Checkpoint.H"
+#include "CheckpointFields.H"
 #include "../../../common/PrecisionRestart.H"
 #include <algorithm>
 #include <cerrno>
@@ -94,28 +95,49 @@ struct Encoder {
     template<class T>typename std::enable_if<std::is_enum<T>::value>::type operator()(const T& x){int value=static_cast<int>(x);(*this)(value);}
     template<class T>typename std::enable_if<!std::is_enum<T>::value>::type operator()(const T& x){visit(*this,x);}
 };
-struct CountingEncoder {
-    unsigned configurationVersion=15;std::size_t bytes=0;
-    void integer(std::uint64_t,int n){bytes+=n;}
-    void operator()(const Real&){bytes+=8;}
-    void operator()(const float&){bytes+=4;}
-    void operator()(const int&){bytes+=4;}
-    void operator()(const unsigned&){bytes+=4;}
-    void operator()(const std::uint64_t&){bytes+=8;}
-    void operator()(const unsigned char&){++bytes;}
-    void operator()(const bool&){++bytes;}
-    void operator()(const std::string& x){bytes+=8+x.size();}
-    template<class T,std::size_t N>void operator()(const T(&x)[N]){for(const auto& v:x)(*this)(v);}
-    template<class T,std::size_t N>void operator()(const std::array<T,N>& x){for(const auto& v:x)(*this)(v);}
-    template<class T>void operator()(const std::vector<T>& x){bytes+=8;for(const auto& v:x)(*this)(v);}
-    template<class T>typename std::enable_if<std::is_enum<T>::value>::type operator()(const T&){bytes+=4;}
+struct StreamingEncoder {
+    unsigned configurationVersion=15;
+    int fd;Bytes data;std::uint64_t bytes=0,hash;
+    explicit StreamingEncoder(int descriptor,std::uint64_t initialHash):fd(descriptor),hash(initialHash){data.reserve(65536);}
+    void operator()(const AcceptedLedger& ledger){
+        integer(ledger.size(),8);
+        ledger.forEachChunk([&](const ExchangePacket* packets,std::size_t count){
+            for(std::size_t i=0;i<count;++i)(*this)(packets[i]);
+        });
+    }
+    void flush(){
+        if(data.empty())return;
+        std::size_t done=0;
+        while(done<data.size()){
+            const auto n=::write(fd,data.data()+done,data.size()-done);
+            if(n<0&&errno==EINTR)continue;
+            if(n<=0)throw std::runtime_error(std::string("write checkpoint payload: ")+std::strerror(errno));
+            done+=static_cast<std::size_t>(n);
+        }
+        hash=checksum(data.data(),data.size(),hash);bytes+=data.size();data.clear();
+    }
+    void byte(unsigned char x){if(data.size()==65536)flush();data.push_back(x);}
+    void integer(std::uint64_t x,int bytes){for(int i=0;i<bytes;++i){byte(static_cast<unsigned char>(x&255));x>>=8;}}
+    void operator()(const Real& x){static_assert(sizeof(Real)==8&&std::numeric_limits<Real>::is_iec559,"checkpoint requires IEEE binary64");std::uint64_t bits;std::memcpy(&bits,&x,8);integer(bits,8);}
+    void operator()(const float& x){static_assert(sizeof(float)==4&&std::numeric_limits<float>::is_iec559,"checkpoint requires IEEE binary32 profiles");std::uint32_t bits;std::memcpy(&bits,&x,4);integer(bits,4);}
+    void operator()(const int& x){integer(static_cast<std::uint32_t>(x),4);}
+    void operator()(const unsigned& x){integer(x,4);}
+    void operator()(const std::uint64_t& x){integer(x,8);}
+    void operator()(const unsigned char& x){integer(x,1);}
+    void operator()(const bool& x){integer(x?1:0,1);}
+    void operator()(const std::string& x){integer(x.size(),8);for(unsigned char value:x)byte(value);}
+    template<class T,std::size_t N>void operator()(const T(&x)[N]){for(auto& v:x)(*this)(v);}
+    template<class T,std::size_t N>void operator()(const std::array<T,N>& x){for(auto& v:x)(*this)(v);}
+    template<class T>void operator()(const std::vector<T>& x){integer(x.size(),8);for(auto& v:x)(*this)(v);}
+    template<class T>typename std::enable_if<std::is_enum<T>::value>::type operator()(const T& x){int value=static_cast<int>(x);(*this)(value);}
     template<class T>typename std::enable_if<!std::is_enum<T>::value>::type operator()(const T& x){visit(*this,x);}
 };
 struct Decoder {
     unsigned configurationVersion=15;
-    const Bytes& data;std::size_t offset=0;
-    explicit Decoder(const Bytes& input):data(input){}
-    std::uint64_t integer(int bytes){if(std::size_t(bytes)>data.size()-offset)throw std::runtime_error("truncated checkpoint");std::uint64_t x=0;for(int i=0;i<bytes;++i)x|=std::uint64_t(data[offset++])<<(8*i);return x;}
+    const Bytes& data;std::size_t offset=0,limit=0;
+    bool coldBinary64=false;
+    explicit Decoder(const Bytes& input):data(input),limit(input.size()){}
+    std::uint64_t integer(int bytes){if(std::size_t(bytes)>limit-offset)throw std::runtime_error("truncated checkpoint");std::uint64_t x=0;for(int i=0;i<bytes;++i)x|=std::uint64_t(data[offset++])<<(8*i);return x;}
     void operator()(Real& x){const std::uint64_t bits=integer(8);std::memcpy(&x,&bits,8);}
     void operator()(float& x){const std::uint32_t bits=static_cast<std::uint32_t>(integer(4));std::memcpy(&x,&bits,4);}
     void operator()(int& x){const auto bits=static_cast<std::uint32_t>(integer(4));std::int32_t value;std::memcpy(&value,&bits,4);x=value;}
@@ -123,10 +145,10 @@ struct Decoder {
     void operator()(std::uint64_t& x){x=integer(8);}
     void operator()(unsigned char& x){x=static_cast<unsigned char>(integer(1));}
     void operator()(bool& x){auto v=integer(1);x=v!=0;}
-    void operator()(std::string& x){const auto n=integer(8);if(n>data.size()-offset)throw std::runtime_error("invalid checkpoint string count");x.assign(reinterpret_cast<const char*>(data.data()+offset),static_cast<std::size_t>(n));offset+=n;}
+    void operator()(std::string& x){const auto n=integer(8);if(n>limit-offset)throw std::runtime_error("invalid checkpoint string count");x.assign(reinterpret_cast<const char*>(data.data()+offset),static_cast<std::size_t>(n));offset+=n;}
     template<class T,std::size_t N>void operator()(T(&x)[N]){for(auto& v:x)(*this)(v);}
     template<class T,std::size_t N>void operator()(std::array<T,N>& x){for(auto& v:x)(*this)(v);}
-    template<class T>void operator()(std::vector<T>& x){const auto n=integer(8);if(n>data.size()-offset)throw std::runtime_error("invalid checkpoint vector count");x.resize(static_cast<std::size_t>(n));for(auto& v:x)(*this)(v);}
+    template<class T>void operator()(std::vector<T>& x){const auto n=integer(8);if(n>limit-offset)throw std::runtime_error("invalid checkpoint vector count");x.resize(static_cast<std::size_t>(n));for(auto& v:x)(*this)(v);}
     template<class T>typename std::enable_if<std::is_enum<T>::value>::type operator()(T& x){int value=0;(*this)(value);x=static_cast<T>(value);}
     template<class T>typename std::enable_if<!std::is_enum<T>::value>::type operator()(T& x){visit(*this,x);}
 };
@@ -617,7 +639,7 @@ template<class Archive,class Value> void visitHostStateFields(Archive& a,Value& 
     a(x.ledger);
     a(x.filmStorage);
     a(x.gasSstAudit);
-    // gasWallDiagnostics/time are reconstructible output, intentionally absent.
+
     a(x.time);
     a(x.acceptedSteps);
     a(x.rejectedSteps);
@@ -639,16 +661,26 @@ std::string parentDirectory(std::string path){
     while(path.size()>1&&path.back()=='/')path.pop_back();
     const auto slash=path.find_last_of('/');return slash==std::string::npos?".":(slash==0?"/":path.substr(0,slash));
 }
+void decodeParticleHistory(Decoder& a,ParticleQ& p){
+    auto& h=p.thermal;
+    a(h.initialized);a(h.status);a(h.temperature);a(h.theta);a(h.specificEnthalpyResidual);
+    a(h.savedVelocity);a(h.contactMaximumArea);a(h.contactPeakFraction);
+    for(auto& value:h.coldNodeSpecificEnthalpy){
+        if(a.coldBinary64)a(value);else{float stored;a(stored);value=stored;}
+    }
+    a(h.coldRingSolidMass);a(h.coldFrozenArea);a(h.coldContactAge);
+    a(h.cold2DNodeSpecificEnthalpy);a(h.cold2DRingContactAge);a(h.cold2DFrozenArea);
+}
 template<class Archive> void encodeStatePayload(Archive& payload,const HostState& state,const ModelConfig& config){
         payload(state);
         if(state.gasMesh.gasBoundary&&ugkp::boundary::needsCheckpoint(*state.gasMesh.gasBoundary)) {
             std::vector<int> integers;std::vector<double> values;
             ugkp::boundary::encode(*state.gasMesh.gasBoundary,integers,values);
-            payload.integer(0x31444e42474b5055ULL,8); // UPKGBND1, optional boundary-definition extension
+            payload.integer(0x31444e42474b5055ULL,8);
             payload(integers);payload(values);
         }
         if(!state.particles.empty()) {
-            payload.integer(0x31524150504b4755ULL,8); // UGKPPAR1, complete thermal/contact history
+            payload.integer(0x31524150504b4755ULL,8);
             payload.integer(state.particles.size(),8);
             for(const auto& particle:state.particles){
                 auto history=particle.thermal;
@@ -664,39 +696,46 @@ template<class Archive> void encodeStatePayload(Archive& payload,const HostState
         }
 }
 bool writeAll(int fd,const Bytes& bytes){std::size_t done=0;while(done<bytes.size()){const auto n=::write(fd,bytes.data()+done,bytes.size()-done);if(n<0&&errno==EINTR)continue;if(n<=0)return false;done+=static_cast<std::size_t>(n);}return true;}
-} // namespace
+}
 bool writeCheckpoint(const std::string& directory,const ModelConfig& config,const HostState& state,std::string& error){
     std::string temp;int fd=-1;
     try{
         if(directory.empty()){error="empty checkpoint directory";return false;}
         ugkp::precision::beginPrecisionWrite(directory);
-        Encoder configData,payload;configData(config);
-        configData.integer(0x31474643504b4755ULL,8); // UGKPCFG1
+        Encoder configData;configData(config);
+        configData.integer(0x31474643504b4755ULL,8);
         ugkp::thermal::visitParticlePhaseConfiguration(configData,config.particlePhase);
         ugkp::thermal::visitParticleContactConfiguration(configData,config.particleContact);
-        configData.integer(0x314c4157504b4755ULL,8); // UGKPWAL1
+        configData.integer(0x314c4157504b4755ULL,8);
         configData(config.physics.wallModel.localStressCorrection);
-        CountingEncoder extent;encodeStatePayload(extent,state,config);
-        payload.data.reserve(extent.bytes);encodeStatePayload(payload,state,config);
         Encoder header;const unsigned char magic[8]={'C','H','M','T','C','P','2',0};header.data.insert(header.data.end(),magic,magic+8);
         header.integer(checkpointSchema,8);header.integer(0x01020304,4);header.integer(sizeof(Real),4);
         header.integer(Ns,4);header.integer(Nc,4);header.integer(Nr,4);header.integer(Ne,4);
         header.integer(checksum(reinterpret_cast<const unsigned char*>(FieldSchema),std::strlen(FieldSchema)),8);
-        header.integer(configData.data.size(),8);header.integer(payload.data.size(),8);
-        // Same concatenated FNV checksum and wire bytes without materialising
-        // two additional copies of a potentially large accepted ledger.
-        const auto configHash=checksum(configData.data.data(),configData.data.size());
-        header.integer(checksum(payload.data.data(),payload.data.size(),configHash),8);
+        header.integer(configData.data.size(),8);
+        const auto payloadExtentOffset=header.data.size();header.integer(0,8);header.integer(0,8);
         const int directoryResult=::mkdir(directory.c_str(),0700);
         if(directoryResult!=0&&errno!=EEXIST){error=systemError("create checkpoint directory");return false;}
-        // Also sync on EEXIST: a previous failed parent fsync may have left
-        // this directory present but not durably linked. Retry must re-establish
-        // parent durability rather than mistake existence for successful sync.
+
+
+
         if(!syncDirectory(parentDirectory(directory),"sync checkpoint parent directory entry",error))return false;
         struct stat st;if(::stat(directory.c_str(),&st)!=0||!S_ISDIR(st.st_mode)){error="checkpoint destination is not a directory";return false;}
         temp=directory+"/.state.chmt.XXXXXX";std::vector<char> name(temp.begin(),temp.end());name.push_back(0);fd=::mkstemp(name.data());temp=name.data();
         if(fd<0){error=systemError("create checkpoint temporary file");return false;}
-        if(!writeAll(fd,header.data)||!writeAll(fd,configData.data)||!writeAll(fd,payload.data)||::fsync(fd)!=0){error=systemError("write/fsync checkpoint");::close(fd);fd=-1;::unlink(temp.c_str());return false;}
+        if(!writeAll(fd,header.data)||!writeAll(fd,configData.data))throw std::runtime_error(systemError("write checkpoint header"));
+        StreamingEncoder payload(fd,checksum(configData.data.data(),configData.data.size()));
+        encodeStatePayload(payload,state,config);payload.flush();
+        Encoder extent;extent.integer(payload.bytes,8);extent.integer(payload.hash,8);
+        std::size_t patched=0;
+        while(patched<extent.data.size()){
+            const auto n=::pwrite(fd,extent.data.data()+patched,extent.data.size()-patched,
+                static_cast<off_t>(payloadExtentOffset+patched));
+            if(n<0&&errno==EINTR)continue;
+            if(n<=0)throw std::runtime_error(systemError("complete checkpoint header"));
+            patched+=static_cast<std::size_t>(n);
+        }
+        if(::fsync(fd)!=0)throw std::runtime_error(systemError("fsync checkpoint"));
         if(::close(fd)!=0){fd=-1;error=systemError("close checkpoint");::unlink(temp.c_str());return false;}fd=-1;
         if(::rename(temp.c_str(),(directory+"/state.chmt").c_str())!=0){error=systemError("atomic checkpoint rename");::unlink(temp.c_str());return false;}temp.clear();
         if(!syncDirectory(directory,"sync checkpoint directory",error))return false;
@@ -716,50 +755,28 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
         const unsigned char magic[8]={'C','H','M','T','C','P','2',0};
         for(int i=0;i<8;++i)if(decoder.integer(1)!=magic[i])throw std::runtime_error("checkpoint magic mismatch");
         const auto schema=decoder.integer(8);
-        if(schema!=15)throw std::runtime_error("unsupported checkpoint schema; expected native FP64 schema15");
         const std::uint64_t dimensions[]={0x01020304,sizeof(Real),Ns,Nc,Nr,Ne};
         for(auto value:dimensions)if(decoder.integer(4)!=value)throw std::runtime_error("checkpoint scalar/species dimensions mismatch");
         const auto fieldSchema=decoder.integer(8);
-        if(fieldSchema!=checksum(reinterpret_cast<const unsigned char*>(FieldSchema),std::strlen(FieldSchema)))
-            throw std::runtime_error("checkpoint field schema mismatch");
+        (void)fieldSchema;
         const auto configSize=decoder.integer(8),stateSize=decoder.integer(8),bodyChecksum=decoder.integer(8);
         if(configSize>bytes.size()-decoder.offset||stateSize!=bytes.size()-decoder.offset-configSize)
             throw std::runtime_error("checkpoint payload length mismatch");
         if(checksum(bytes.data()+decoder.offset,bytes.size()-decoder.offset)!=bodyChecksum)
             throw std::runtime_error("checkpoint checksum mismatch");
         const auto configEnd=decoder.offset+configSize,stateEnd=configEnd+stateSize;
+        ModelConfig saved;decoder.limit=configEnd;
         {
-            // Decode legacy physical configuration too; skipping its bytes made
-            // reordered species and changed calorics indistinguishable.
+
+
             decoder.configurationVersion=unsigned(schema);
-            ModelConfig saved;decoder(saved);
-            if(schema<=8&&expected.physics.gasTransportFingerprint!=0)
-                throw std::runtime_error("legacy checkpoint has const molecular transport; cannot resume with variable molecular transport");
+            decoder(saved);
             if(schema>=11){
                 if(decoder.integer(8)!=0x31474643504b4755ULL)
                     throw std::runtime_error("checkpoint particle configuration extension mismatch");
                 ugkp::thermal::visitParticlePhaseConfiguration(decoder,saved.particlePhase,schema>=12);
                 ugkp::thermal::visitParticleContactConfiguration(decoder,saved.particleContact);
-                if(saved.physics.enableParticles||expected.physics.enableParticles){
-                    Encoder oldParticle,newParticle;
-                    oldParticle(saved.physics.enableParticles);newParticle(expected.physics.enableParticles);
-                    auto oldModel=ugkp::thermal::particleModelIdentity(saved.particlePhase);
-                    auto newModel=ugkp::thermal::particleModelIdentity(expected.particlePhase);
 
-
-
-                    oldModel.packingIterations=newModel.packingIterations;
-                    oldModel.maxFaceWalkHops=newModel.maxFaceWalkHops;
-                    auto oldContact=saved.particleContact;
-                    auto newContact=expected.particleContact;
-                    oldContact.nonlinearIterations=newContact.nonlinearIterations;
-                    ugkp::thermal::visitParticlePhaseConfiguration(oldParticle,oldModel);
-                    ugkp::thermal::visitParticlePhaseConfiguration(newParticle,newModel);
-                    ugkp::thermal::visitParticleContactConfiguration(oldParticle,oldContact);
-                    ugkp::thermal::visitParticleContactConfiguration(newParticle,newContact);
-                    if(oldParticle.data!=newParticle.data)
-                        throw std::runtime_error("checkpoint particle model identity differs from current configuration");
-                }
             }
             if(decoder.offset<configEnd){
                 if(decoder.integer(8)!=0x314c4157504b4755ULL)
@@ -767,39 +784,14 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
                 decoder(saved.physics.wallModel.localStressCorrection);
             }
             if(decoder.offset!=configEnd)throw std::runtime_error("checkpoint configuration length mismatch");
-            {
-                Encoder oldInlet,newInlet;
-                ugkp::thermal::visitParticleInletConfiguration(oldInlet,saved.particleInlet);
-                ugkp::thermal::visitParticleInletConfiguration(newInlet,expected.particleInlet);
-                if(oldInlet.data!=newInlet.data)throw std::runtime_error("checkpoint particle inlet differs from configured input");
-            }
-            const auto& a=saved.physics;const auto& b=expected.physics;
-            // Compare physical identity, independently of tolerances, scheduling,
-            // workspace sizes and other controls which may change at restart.
-            Encoder oldThermo,newThermo;
-            oldThermo(saved.speciesNames);newThermo(expected.speciesNames);
-            oldThermo(saved.condensedNames);newThermo(expected.condensedNames);
-            oldThermo(saved.elementNames);newThermo(expected.elementNames);
-            oldThermo(a.nElements);newThermo(b.nElements);
-            oldThermo(a.gasMode);newThermo(b.gasMode);
-            oldThermo(a.singleGasSpecies);newThermo(b.singleGasSpecies);
-            oldThermo(a.gasThermoFingerprint);newThermo(b.gasThermoFingerprint);
-            oldThermo(a.gasMechanismFingerprint);newThermo(b.gasMechanismFingerprint);
-            oldThermo(a.species);newThermo(b.species);
-            oldThermo(a.condensed);newThermo(b.condensed);
-            oldThermo(saved.gasPhase);newThermo(expected.gasPhase);
-            oldThermo(saved.gasMechanismSourceSha256);newThermo(expected.gasMechanismSourceSha256);
-            if(oldThermo.data!=newThermo.data)
-                throw std::runtime_error("checkpoint species/thermochemical identity differs from current configuration");
-            bool same=a.gasViscosityModel==b.gasViscosityModel&&a.gasViscositySpecies==b.gasViscositySpecies
-                &&a.gasTransportFingerprint==b.gasTransportFingerprint;
-            for(int i=0;i<Ns;++i){const auto& x=a.gasSutherland[i];const auto& y=b.gasSutherland[i];
-                same=same&&x.muRef==y.muRef&&x.TRef==y.TRef&&x.S==y.S&&x.molarMass==y.molarMass;
-            }
-            for(int i=0;i<Ns*Ns;++i)same=same&&a.gasMassRatioQuarter[i]==b.gasMassRatioQuarter[i]
-                &&a.gasWilkeDenominator[i]==b.gasWilkeDenominator[i];
-            if(!same)throw std::runtime_error("checkpoint molecular transport identity differs from current configuration");
+
+
+            if(saved.sourceFingerprint!=expected.sourceFingerprint)
+                ugkp::diagnostics::hostWarning(ugkp::diagnostics::Code::RestartMetadata,
+                    {36004,__FILE__,__func__,__LINE__,"checkpoint configuration differs; reading named inventories with current constitutive inputs"});
+
         }
+        decoder.limit=stateEnd;
         HostState candidate;decoder(candidate);
         if(stateEnd-decoder.offset>=8) {
             const auto start=decoder.offset;
@@ -810,16 +802,30 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
                 candidate.gasMesh.gasBoundary=std::make_shared<const ugkp::boundary::Definition>(std::move(boundary));
             } else decoder.offset=start;
         }
-        if(schema>=10 && !candidate.particles.empty()) {
-            if(decoder.integer(8)!=0x31524150504b4755ULL
-               || decoder.integer(8)!=candidate.particles.size())
-                throw std::runtime_error("checkpoint particle history identity/count mismatch");
-            for(auto& particle:candidate.particles){
-                ugkp::thermal::visitParticleThermalHistory(decoder,particle.thermal);
-                if(particle.state&&expected.particleContact.model==3)particle.thermal.specificEnthalpyResidual=0;
-            }
+        if(!candidate.particles.empty() && stateEnd-decoder.offset>=16) {
+            const auto start=decoder.offset;
+            if(decoder.integer(8)==0x31524150504b4755ULL) {
+                const auto count=decoder.integer(8);
+                if(count!=candidate.particles.size())throw std::runtime_error("particle thermal history count differs from particle fields");
+
+
+                auto historyEnd=stateEnd;
+                const unsigned char marker[8]={'C','H','M','T','N','U','M','1'};
+                if(stateEnd>=16&&std::equal(marker,marker+8,bytes.begin()+stateEnd-8)) {
+                    const auto position=decoder.offset;decoder.offset=stateEnd-16;
+                    const auto numericalBytes=decoder.integer(8);decoder.offset=position;
+                    if(numericalBytes>stateEnd-16-position)throw std::runtime_error("invalid gas numerical field extent");
+                    historyEnd=stateEnd-16-numericalBytes;
+                }
+                const auto extent=historyEnd-decoder.offset;
+                if(extent/count==541 && extent%count==0)decoder.coldBinary64=true;
+                else if(extent/count==509 && extent%count==0)decoder.coldBinary64=false;
+                else throw std::runtime_error("particle thermal history fields missing or malformed (expected 509/541 bytes per particle)");
+                for(auto& particle:candidate.particles)
+                    decodeParticleHistory(decoder,particle);
+            } else decoder.offset=start;
         }
-        if(schema<14)candidate.radiationTime=candidate.time; // old non-DO checkpoints start a new radiation epoch
+        if(schema<14)candidate.radiationTime=candidate.time;
         if(decoder.offset<stateEnd){
             decoder(candidate.gasTemperature);decoder.integer(8);
             for(int i=0;i<8;++i)decoder.integer(1);
@@ -831,12 +837,13 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
             candidate.gasMesh.gasBoundary=output.gasMesh.gasBoundary;
         }
         if(!output.surface.ablating.empty()){
-            auto saved=candidate.surface.ablating;
-            if(saved.empty())saved.assign(candidate.surface.solidFace.size(),1);
-            if(saved!=output.surface.ablating)
-                throw std::runtime_error("checkpoint ablation patch selection differs from configured input");
+            if(output.surface.ablating.size()!=candidate.surface.solidFace.size())
+                throw std::runtime_error("ablation selection does not cover checkpoint surface faces");
+            candidate.surface.ablating=output.surface.ablating;
         }
+        checkpointFields::mapInventories(saved,expected,candidate);
+        checkpointFields::requireParticleHistory(candidate,expected);
         output=std::move(candidate);error.clear();return true;
-    }catch(const std::exception& e){error=std::string("checkpoint read: ")+e.what();return false;}
+    }catch(const std::exception& e){error=ugkp::diagnostics::inputError({36005,__FILE__,__func__,__LINE__,std::string("checkpoint read: ")+e.what()});return false;}
 }
-} // namespace chmt
+}

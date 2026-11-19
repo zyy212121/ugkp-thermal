@@ -16,11 +16,11 @@ struct Extrusion {
 inline bool reject(std::string& error,const char* message) {
     error=std::string("unsupported/invalid Empty extrusion: ")+message;return false;
 }
-// The first supported representation has two fixed axis-aligned layers. Pairing
-// is exact and reconstructed from authoritative points/topology, never nearest
-// neighbour tolerance or an independently persisted cache. These equalities
-// define the implemented zero-normal-flux operator; they are not accuracy
-// admission tolerances. Arbitrary warped/rotated layers need a different operator.
+
+
+
+
+
 
 
 struct CoordinateLess {

@@ -1,9 +1,9 @@
 #ifndef CHMT_ABLATION_INTERFACECOMPOSITION_H
 #define CHMT_ABLATION_INTERFACECOMPOSITION_H
-// Included inside namespace chmt, after compositionResidual.
-// On the composition simplex the nonlinear equations are equivalent to the
-// real eigenvectors of a diagonal plus rank-two matrix. Use real-root and
-// critical-point isolation, then certify the original equations, not P alone.
+
+
+
+
 namespace composition_detail {
 
     struct Poly {
@@ -54,9 +54,9 @@ namespace composition_detail {
 
     CHMT_HD inline Poly polynomial(Real left,Real right,const Real* d,
     const Real* u,const Real* v,const Real* r) {
-        // Rank-two determinant recurrence, O(Ns^2), entirely in the local Bernstein
-        // basis. P is the diagonal product; A,B,C,D are its one-factor removals and
-        // Q its rank-two minors. No monomial expansion or eigensystem is formed.
+
+
+
         Real uScale=1;
         for(int i=0;i<Ns;++i)uScale=maxValue(uScale,absValue(u[i]));
         Poly P,A,B,C,D,Q;
@@ -174,12 +174,12 @@ namespace composition_detail {
         for(int j=0;j<count;++j)if(points[j]==value)return;
         if(count<ScalarCandidateCapacity)points[count++]=value;
     }
-    // A multiple real root is a stationary point. A rounded polynomial may have
-    // a tiny complex conjugate pair instead, so a sign-only root finder loses it.
-    // The derivative hierarchy supplies all critical points without sampling:
-    // roots of each derivative partition the next polynomial into monotone pieces.
-    // Keep lower-level critical points as well, which covers higher multiplicity.
-    // These are only mathematical candidates; the original equations certify them.
+
+
+
+
+
+
 
     CHMT_HD inline int criticalPoints(Poly original,Real* points,int maximumIterations=80) {
         Poly hierarchy[Ns];
@@ -226,7 +226,7 @@ namespace composition_detail {
     CHMT_HD inline int roots(Poly p,Info& info,Real* output,bool* genuine=nullptr,int bisectionIterations=80,int isolatedIterations=80){
         int count=0;if(genuine)for(int i=0;i<ScalarCandidateCapacity;++i)genuine[i]=false;
         if(Ns==2){
-            // A quadratic is the complete scalar problem for two species.
+
             const Real A=(p.c[0]-p.c[1])+(p.c[2]-p.c[1]);
             const Real B=2*(p.c[1]-p.c[0]),C=p.c[0];
             if(A==0){
@@ -275,9 +275,9 @@ namespace composition_detail {
             int v=variations(a.p);
             if(!v)continue;
             if(v==1){
-                // The interval already isolates one root. Safeguarded Newton
-                // refines that same root; a step outside the bracket uses its
-                // midpoint. No physical state, time or target is retried.
+
+
+
                 Real lo=0,hi=1,t=.5;
                 Real sign=0;for(int k=0;k<=Ns;++k)if(a.p.c[k]!=0){sign=a.p.c[k];break;}
                 bool settled=false;
@@ -367,8 +367,8 @@ namespace composition_detail {
             if(!finite(Y[i])||Y[i]<0||Y[i]>1)return false;
             sum+=Y[i];
         }
-        // This bound describes only floating-point normalization error, never a
-        // physical acceptance tolerance.  No normalization/clipping repairs a root.
+
+
         const Real roundoff=Ns*2.22044604925031308085e-16/(1-Ns*2.22044604925031308085e-16);
         if(absValue(sum-1)>roundoff*2)return false;
         const PhysicsConfig& p=supplied;
@@ -397,7 +397,7 @@ namespace composition_detail {
     CHMT_HD inline void refine(Real* Y,const Real* bulk,const Real* Js,Real pressure,
     Real T,Real distance,const PhysicsConfig& supplied,Info& info,const CompositionResidualInputs* prepared=nullptr) {
         const PhysicsConfig& p=supplied;
-        for(int it=0;it<p.numerics.surface.refinementIterations;++it){
+        for(int it=0;it<p.numerics.surface.refinementIterations&&info.refine<p.numerics.surface.refinementIterations;++it){
             Real f[Ns]{},jac[Ns*Ns]{};
             if(!compositionResidualPolicy<false>(Y,bulk,Js,pressure,T,distance,p,f,jac,prepared))return;
             ++info.refine;
@@ -442,9 +442,9 @@ namespace composition_detail {
         }
         return true;
     }
-    // Euclidean projection onto a prescribed mass simplex.  Subtract the largest
-    // level before summation; only active levels are added, so no large common
-    // multiplier can overflow this audit-free mathematical calculation.
+
+
+
 
     CHMT_HD inline void projectMass(const Real* bulk,const Real* r,const int* index,
     int count,Real mass,Real multiplier,Real* Y) {
@@ -481,8 +481,8 @@ namespace composition_detail {
         for(int j=0;j<count;++j)value+=r[j]*Y[index[j]];
         return value;
     }
-    // KKT gives y=max(b-lambda-mu*r,0).  The projected moment is continuous and
-    // nonincreasing in mu; bracket and bisect this monotone scalar equation.
+
+
 
     CHMT_HD inline void simplexCandidate(const Real* raw,Real* Y) {
         Real centered[Ns]{},zero[Ns]{};int index[Ns]{};Real maximum=raw[0];
@@ -512,7 +512,7 @@ namespace composition_detail {
             projectMass(bulk,zero,index,count,mass,0,Y);
             return true;
         }
-        // Exact endpoint means permit mass only in its corresponding equal-R group.
+
         if(moment==rmin*mass || moment==rmax*mass){
             Real endpoint=moment==rmin*mass?rmin:rmax;
             int group[Ns]{},n=0;
@@ -540,7 +540,7 @@ namespace composition_detail {
             step*=2;
         }
         if(lo==hi)return false;
-        // Full binary exponent range plus mantissa bits bounds adjacent-double work.
+
         for(int iteration=0;iteration<2200;++iteration){
             Real mid=lo+(hi-lo)/2;
             if(mid==lo||mid==hi)break;
@@ -554,7 +554,7 @@ namespace composition_detail {
     }
 
     CHMT_HD inline bool boundLinear(Real coefficient,Real rhs,Real& lo,Real& hi) {
-        // coefficient*r <= rhs
+
         Real ratio=0;
         if(coefficient!=0&&!quotientFinite(rhs,coefficient,ratio)){
             bool positive=(rhs>0)==(coefficient>0);
@@ -620,9 +620,9 @@ namespace composition_detail {
             gmin=minValue(gmin,r[index[j]]);
             gmax=maxValue(gmax,r[index[j]]);
         }
-        // A common positive scale preserves each affine constraint, including its
-        // solution ratio. In a pole eigenspace individual coefficients can approach
-        // MAX even though the feasible R interval is small and representable.
+
+
+
         Real coefficientScale=maxValue(Real(1),maxValue(absValue(A),maxValue(absValue(B),maxValue(absValue(AR),absValue(BR)))));
         Real scaledA=A/coefficientScale,scaledB=B/coefficientScale;
         Real scaledAR=AR/coefficientScale,scaledBR=BR/coefficientScale,one=1/coefficientScale;
@@ -643,10 +643,10 @@ namespace composition_detail {
         if(!boundLinear(scaledA,massBound,lo,hi)
         || !boundLinear(-minCoefficient,-minRhs,lo,hi)
         || !boundLinear(maxCoefficient,maxRhs,lo,hi))return false;
-        // With no nonzero group flux R remains free.  The feasible interval above is
-        // convex, and squared distance to its affine simplex slice is convex in R.
-        // Golden-section minimization selects the same nearest-bulk policy as simple
-        // roots; it changes no physical time or imposed flux.
+
+
+
+
         Real left=lo,right=hi,x1=right-(right-left)*Real(.6180339887498948482);
         Real x2=left+(right-left)*Real(.6180339887498948482),f1=0,f2=0,y1[Ns]{},y2[Ns]{};
         bool v1=poleProfile(x1,index,count,r,bulk,a,b,A,B,AR,BR,y1,f1);
@@ -679,9 +679,9 @@ namespace composition_detail {
         Real* out,Info& info,Info* suppliedInfo) {
         if(suppliedInfo)*suppliedInfo=info;
         if(!best.certified)return false;
-        // Selection owns the exact state and original-equation residual certified
-        // together in this invocation. Publishing changes neither state nor inputs;
-        // private certification suppresses only failures, with no success side effect.
+
+
+
         const Real finalResidual=best.residual;
         info.state=finalResidual<=tolerance?SolveState::Converged:SolveState::AdmissibleApproximation;
         info.actualResidual=finalResidual;
@@ -696,8 +696,8 @@ namespace composition_detail {
         const Real* r,const Real* bulk,const Real* Js,Real pressure,Real T,Real distance,
         const PhysicsConfig& trial,Real tolerance,Real a,Real b,Real rmin,Real rmax,Selection& best,
         const CompositionResidualInputs* prepared) {
-        // Pole eigenvalues are genuine possibilities (zero/repeated diffusion), not
-        // removable singularities. Their normalized eigenspace is a convex slice.
+
+
         for(int i=0;i<Ns;++i){
             bool duplicate=false;
             for(int j=0;j<i;++j)duplicate=duplicate||d[j]==d[i];
@@ -706,7 +706,7 @@ namespace composition_detail {
             if(recoverPole(d[i],d,u,v,r,bulk,rmin,rmax,Y,trial.numerics.surface.poleSearchIterations))
             certify(Y,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false,prepared);
         }
-        // The closed admissible interval can contain a pure-species boundary root.
+
         for(int endpoint=0;endpoint<2;++endpoint){
             Real Y[Ns]{};
             if(recoverRoot(endpoint?b:a,d,u,v,r,Y)){
@@ -717,9 +717,9 @@ namespace composition_detail {
         }
     }
 
-    // In scalarSolve's normalized domain all off-diagonal arithmetic is
-    // representable. Its strict margin is minimized at one excluding-self
-    // r extremum: minimum for u>=0, maximum for u<0.
+
+
+
     CHMT_HD inline bool uniquePositiveMatrix(const Real* u,const Real* v,
         const Real* r,const Real* bulk,Real gamma) {
         Real lo=HUGE_VAL,secondLo=HUGE_VAL,hi=-HUGE_VAL,secondHi=-HUGE_VAL;
@@ -740,8 +740,8 @@ namespace composition_detail {
     }
 
     CHMT_HD inline bool twoByTwo(Real a,Real b,Real e,Real c,Real d,Real f,Real& x,Real& y) {
-        // Pivoted two-row elimination. Safe operations also cover remote scalar
-        // iterates; a singular representation simply needs root isolation.
+
+
         if(absValue(c)>absValue(a)){Real t=a;a=c;c=t;t=b;b=d;d=t;t=e;e=f;f=t;}
         Real factor=0,term=0;
         if(!quotientFinite(c,a,factor)||!productFinite(factor,b,term)||!sumFinite(d,-term,d)
@@ -750,10 +750,10 @@ namespace composition_detail {
         return true;
     }
 
-    // For a 2x2 irreducible Metzler matrix, the positive Perron vector
-    // follows directly from its quadratic eigenvalue. Choose the sign branch
-    // with an addition rather than a subtractive cancellation. sqrt(b)*sqrt(c)
-    // avoids underflow of b*c. The original physical equations still certify it.
+
+
+
+
     CHMT_HD inline bool uniqueTwoSpecies(const Real* d,const Real* u,const Real* v,
         const Real* r,const Real* bulk,const Real* Js,Real pressure,Real T,
         Real distance,const PhysicsConfig& p,Real tolerance,Selection& best,
@@ -765,15 +765,15 @@ namespace composition_detail {
         if(half>=0){one=root+half;two=c;}else{one=b;two=root-half;}
         const Real sum=one+two;
         if(!quotientFinite(one,sum,Y[0])||!quotientFinite(two,sum,Y[1]))return false;
-        bool solved=false;certify(Y,bulk,Js,pressure,T,distance,p,tolerance,best,&solved,false,prepared);
+        bool solved=false;certify(Y,bulk,Js,pressure,T,distance,p,tolerance,best,&solved,true,prepared);
         return solved;
     }
 
-    // Newton for (z+d_i)Y_i-u_i(r.Y)-v_i=0, sum(Y)=1.
-    // Its bordered diagonal/rank-one linearization eliminates to two scalars,
-    // delta(r.Y) and delta(z), with O(Ns) work. The mixture density is variable.
-    // Only a proved unique case may return early; all other roots retain the
-    // established isolation/nearest-bulk selection policy below.
+
+
+
+
+
     CHMT_HD inline bool uniqueNewton(const Real* d,const Real* u,const Real* v,
         const Real* r,Real J,Real Db,const Real* bulk,const Real* Js,Real pressure,
         Real T,Real distance,const PhysicsConfig& p,Real tolerance,Selection& best,Info& info,
@@ -810,7 +810,7 @@ namespace composition_detail {
             changed=changed||next[dependent]!=Y[dependent];
             ++info.structuredIterations;
             bool solved=false;
-            certify(next,bulk,Js,pressure,T,distance,p,tolerance,best,&solved,false,prepared);
+            certify(next,bulk,Js,pressure,T,distance,p,tolerance,best,&solved,true,prepared);
             if(solved)return true;
             if(!changed)return false;
             for(int i=0;i<Ns;++i)Y[i]=next[i];
@@ -832,7 +832,7 @@ namespace composition_detail {
         if(certify(initialY,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,true,prepared)&&best.converged){
             return publishSelection(best,p,tolerance,out,info,suppliedInfo);
         }
-        best={};
+        const Selection initial=best;best={};
         Real d[Ns]{},u[Ns]{},v[Ns]{},r[Ns]{},J=0,Db=0;
         Real Rref=0,scale=0,rmin=1,rmax=0,dmin=1.7976931348623157e308,dmax=0;
         for(int i=0;i<Ns;++i)Rref=maxValue(Rref,prepared->gasR[i]);
@@ -856,9 +856,9 @@ namespace composition_detail {
         }
         Real a=minValue(J*rmin,J*rmax)+Db-dmax;
         Real b=maxValue(J*rmin,J*rmax)+Db-dmin;
-        // Forward-error bounds for the signed sum J, positive sum Db and
-        // endpoint expressions. gamma_n is an operation-count bound, not a
-        // case tolerance. Bounds describe the represented matrix coefficients.
+
+
+
         const Real epsilon=2.22044604925031308085e-16;
         Real absU=0,absV=0;for(int i=0;i<Ns;++i){absU+=absValue(u[i]);absV+=absValue(v[i]);}
         const Real gamma=(2*Ns+8)*epsilon/(1-(2*Ns+8)*epsilon);
@@ -870,10 +870,10 @@ namespace composition_detail {
         b/=intervalScale;
         for(int i=0;i<Ns;++i)if(!quotientFinite(d[i],intervalScale,d[i])
         ||!quotientFinite(u[i],intervalScale,u[i])||!quotientFinite(v[i],intervalScale,v[i]))return false;
-        // Strictly positive off-diagonals make M irreducible Metzler. Its only
-        // nonnegative normalized eigenvector is the Perron vector. Collatz bounds
-        // from the positive bulk vector narrow this SAME scalar isolation problem;
-        // they are not an alternate implementation or a physical empirical switch.
+
+
+
+
         Real sumBulk=0,rBulk=0;
         const Real matrixGamma=3*epsilon/(1-3*epsilon);
         const bool positive=uniquePositiveMatrix(u,v,r,bulk,matrixGamma);info.unique=positive;
@@ -883,29 +883,14 @@ namespace composition_detail {
             const bool solved=Ns==2
                 ?uniqueTwoSpecies(d,u,v,r,bulk,Js,pressure,T,distance,p,tolerance,best,prepared)
                 :uniqueNewton(d,u,v,r,scaledJ,scaledDb,bulk,Js,pressure,T,distance,p,tolerance,best,info,prepared);
-            if(solved)return publishSelection(best,p,tolerance,out,info,suppliedInfo);
+            (void)solved;
+
+
+            if(!best.certified)best=initial;
+            return publishSelection(best,p,tolerance,out,info,suppliedInfo);
         }
-        if(positive){Real lower=1.7976931348623157e308,upper=-lower;bool bounded=true;
-            const Real rowGamma=(4*Ns+16)*epsilon/(1-(4*Ns+16)*epsilon);
-            for(int i=0;i<Ns;++i){Real one=0,two=0,three=0,numerator=0,magnitude=0,ratio=0,error=0;
-                // Use v_i as represented; do not silently assume v_i=d_i*b_i
-                // has no multiplication rounding error.
-                if(!productFinite(u[i],rBulk,one)||!productFinite(v[i],sumBulk,two)
-                    ||!productFinite(d[i],bulk[i],three)||!sumFinite(one,two,numerator)
-                    ||!sumFinite(numerator,-three,numerator)||!quotientFinite(numerator,bulk[i],ratio)
-                    ||!sumFinite(absValue(one),absValue(two),magnitude)||!sumFinite(magnitude,absValue(three),magnitude)
-                    ||!productFinite(rowGamma,magnitude,error)||!quotientFinite(error,bulk[i],error)){
-                    bounded=false;break;
-                }
-                Real lowEdge=0,highEdge=0;
-                if(!sumFinite(ratio,-error,lowEdge)||!sumFinite(ratio,error,highEdge)){bounded=false;break;}
-                lower=minValue(lower,::nextafter(lowEdge,-HUGE_VAL));
-                upper=maxValue(upper,::nextafter(highEdge,HUGE_VAL));
-            }
-            if(bounded){Real narrowedA=maxValue(a,lower),narrowedB=minValue(b,upper);
-                if(narrowedA<=narrowedB){a=narrowedA;b=narrowedB;}
-            }
-        }
+
+
         Real cuts[Ns+2]{};
         int cutCount=2;
         cuts[0]=a;
@@ -926,7 +911,7 @@ namespace composition_detail {
         int uniqueCount=0;
         for(int i=0;i<cutCount;++i)if(!uniqueCount||cuts[i]!=cuts[uniqueCount-1])cuts[uniqueCount++]=cuts[i];
         cutCount=uniqueCount;
-        // Preserve pole/endpoint ordering when multiple roots can compete.
+
         if(!positive)boundaryCandidates(d,u,v,r,bulk,Js,pressure,T,distance,trial,tolerance,a,b,rmin,rmax,best,prepared);
         for(int segment=1;segment<cutCount;++segment){
             Real left=cuts[segment-1],right=cuts[segment];
@@ -945,9 +930,9 @@ namespace composition_detail {
                 if(!solved){
                 Real projected[Ns]{};simplexCandidate(Y,projected);Selection projectedResult;
                 certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,projectedResult,&projectedSolved,true,prepared);
-                // Projection is only a mathematical candidate. A remote
-                // nonphysical eigenvector may not become a published finite
-                // approximation merely by projecting it into the simplex.
+
+
+
                 if(projectedSolved)certify(projected,bulk,Js,pressure,T,distance,trial,tolerance,best,nullptr,false,prepared);
                 if(!solved&&!projectedSolved){
                     refine(Y,bulk,Js,pressure,T,distance,trial,info,prepared);
@@ -977,8 +962,8 @@ namespace composition_detail {
             for(int i=0;i<Ns;++i){
                 Real difference=0,delta=0;
                 if(!sumFinite(Js[i],-Js[peak],difference)||!quotientFinite(difference,J,delta))delta=-1;
-                // A level at least one below the highest cannot be active in a mass-one
-                // simplex projection. This is an exact bound, not a physical limiter.
+
+
                 centered[i]=maxValue(Real(-1),delta);
             }
         }

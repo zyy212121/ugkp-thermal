@@ -1,17 +1,17 @@
 #ifndef CHMT_ABLATION_INTERFACECOMPOSITIONARITHMETIC_H
 #define CHMT_ABLATION_INTERFACECOMPOSITIONARITHMETIC_H
 namespace composition_detail {
-    // These arithmetic guards preserve the original operation when representable.
-    // Trial equations never execute a host overflow/divide-by-zero before returning
-    // a typed mathematical failure; the caller owns final error publication.
+
+
+
 
     CHMT_HD inline bool productFinite(Real a,Real b,Real& result) {
         if(!finite(a)||!finite(b))return false;
         const Real aa=absValue(a),bb=absValue(b),safe=6.7039039649712985e153;
         if(aa<=1||bb<=1||(aa<=safe&&bb<=safe)){result=a*b;return true;}
-        // Same binary scaling as auditProduct. Scaling an already rounded
-        // mantissa preserves a result that rounds to finite MAX, and never
-        // executes the overflowing unscaled operation.
+
+
+
         int ea=0,eb=0,em=0;
         const Real mantissa=::frexp(aa,&ea)*::frexp(bb,&eb);
         (void)::frexp(mantissa,&em);
@@ -33,8 +33,8 @@ namespace composition_detail {
         const Real magnitude=exponent==1024?::ldexp(mantissa,ea-eb):aa/bb;
         result=(a<0)!=(b<0)?-magnitude:magnitude;return true;
     }
-    // The factorization avoids an overflowing intermediate in C*D/Rref.  frexp
-    // mantissas stay bounded; the final scalbn is preceded by a range check.
+
+
 
     CHMT_HD inline bool diffusionScale(Real pressure,Real D,Real T,Real distance,
     Real Rref,Real& result) {
@@ -58,8 +58,8 @@ namespace composition_detail {
         return finite(result);
     }
 
-    // R varies with each candidate. Share its EOS division across species while
-    // preserving diffusionScale's operation order and guarded extreme-range path.
+
+
     struct DiffusionState {
         Real pressure,T,distance,R,rho=0;
         bool attempted=false,ready=false;

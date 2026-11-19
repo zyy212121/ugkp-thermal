@@ -11,9 +11,9 @@ import subprocess
 SOURCE_DIRS = {"applications", "common", "gpu", "legacy", "tool", "third_party", "validation"}
 SOURCE_FILES = {"Allwmake", "env.sh", ".gitignore"}
 
-# The archive scanner mirrors the generated-output rules in the root .gitignore.
-# It deliberately does not exclude arbitrary "build" directories: validation/build
-# contains source, and an archive may contain extensionless scripts or .inc files.
+
+
+
 GENERATED_DIRS = {
     ".build", "__pycache__", ".pytest_cache", ".validation-build",
     ".validation-bin", ".generated", "VTK", "build_logs", "run_logs",
@@ -86,8 +86,8 @@ def git(root: Path, *arguments: str, check: bool = True) -> subprocess.Completed
 
 def source_identity(root: Path) -> tuple[str, str | None]:
     marker = root / ".git"
-    # A source archive inside somebody else's checkout is still an archive.
-    # No Git executable is required unless this root declares its own metadata.
+
+
     if not (marker.exists() or marker.is_symlink()):
         return "archive", None
     top = Path(os.fsdecode(git(root, "rev-parse", "--show-toplevel").stdout).strip()).resolve()
@@ -96,8 +96,8 @@ def source_identity(root: Path) -> tuple[str, str | None]:
     head = git(root, "rev-parse", "--verify", "--quiet", "HEAD^{commit}", check=False)
     if head.returncode == 0:
         return "git", os.fsdecode(head.stdout).strip()
-    # An unborn branch is legitimate. Other Git/metadata failures must not be
-    # silently reclassified as archives or reported as a known commit.
+
+
     branch = git(root, "symbolic-ref", "--quiet", "HEAD", check=False)
     if head.returncode == 1 and branch.returncode == 0:
         ref = git(root, "show-ref", "--verify", "--quiet",
@@ -139,8 +139,8 @@ def overlay_inputs(root: Path, source_kind: str) -> list[Path]:
         source = overlay / rel
         if rel.parts[0] not in SOURCE_DIRS and str(rel) not in SOURCE_FILES:
             continue
-        # Preserve intentionally tracked overlay source, even when its name
-        # matches an ignore pattern. Filter only untracked generated outputs.
+
+
         if item not in tracked and generated(rel, directory=source.is_dir()):
             continue
         if source.is_file() or source.is_symlink():

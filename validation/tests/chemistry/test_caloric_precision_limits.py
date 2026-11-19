@@ -26,9 +26,9 @@ int main(){
  }return e;};
  double savedMasses[3],savedCoefficients[9];std::memcpy(savedMasses,masses,sizeof masses);std::memcpy(savedCoefficients,coefficients,sizeof coefficients);
  ThermoInversionControls<double> tight;tight.relativeEnergyTolerance=1e-12;tight.absoluteTemperatureTolerance=1e-11;tight.relativeTemperatureTolerance=1e-12;
- // These double literals preserve the exact promoted historical binary32 inputs.
- // Original cancellation target plus range endpoints, each with five neighbors
- // around the independently solved root. No representable-lattice sweep.
+
+
+
  for(double target:{-17978.841796875,double(reference(100.1)),double(reference(1000.)),double(reference(2999.))}){
    long double lowerRoot=100,upperRoot=3000;
    for(int iteration=0;iteration<96;++iteration){const long double mid=(lowerRoot+upperRoot)/2;

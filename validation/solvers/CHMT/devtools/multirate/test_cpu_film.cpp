@@ -173,7 +173,7 @@ void secondOrderAndPeriodicOffsets() {
     for(std::size_t f=0;f<h.film.size();++f){mass+=c.film[f].mass;expected+=h.film[f].mass;}
     require(near(mass,expected),"limited-linear mass conservation");
     require(near(energy(c,p),energy(h,p)),"limited-linear energy conservation");
-    // Centres are intentionally wrong: periodic image offsets, not wrapped centre differences, own the stencil.
+
     for(auto& centre:h.surface.centre)centre={999,999,999};
     auto other=advance(h,p,.02);
     for(std::size_t f=0;f<h.film.size();++f)require(other.film[f].mass==c.film[f].mass,"periodic image edge offsets used");

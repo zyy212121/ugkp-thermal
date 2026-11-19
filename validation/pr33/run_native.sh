@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Run from an OpenFOAM 10 shell, after this checkout's Allwmake.
-# Requires CUDA, g++, Python 3, NumPy, and a new evidence output directory.
+
+
 set -eu
 R=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 O=${1:?usage: run_native.sh NEW_OUTPUT_DIRECTORY}

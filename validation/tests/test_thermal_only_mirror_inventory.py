@@ -38,9 +38,9 @@ def test_thermal_helper_has_only_thermal_inventory_ownership(relative):
 
 @pytest.fixture
 def pair(tmp_path):
-    # Retain the real classification of the six helpers and a genuinely shared
-    # control, without copying repositories or hiding failure behind unrelated
-    # historical version skew between their other common implementations.
+
+
+
     data = manifest()
     selected = set(THERMAL_ONLY) | {SHARED}
     data["mirrors"] = [entry for entry in data["mirrors"]

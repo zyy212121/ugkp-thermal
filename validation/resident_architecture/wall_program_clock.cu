@@ -30,7 +30,7 @@ int main(){
         cudaGraph_t graph;cudaGraphExec_t executable;check(cudaStreamBeginCapture(stream,cudaStreamCaptureModeThreadLocal));
         queuedIntervals<<<1,1,0,stream>>>(clock,td,int(times.size()),dt,n,out);
         check(cudaStreamEndCapture(stream,&graph));check(cudaGraphInstantiate(&executable,graph,0));
-        // Replay resets only its local clock; all 4096 decisions remain on device.
+
         for(int replay=0;replay<2;++replay)check(cudaGraphLaunch(executable,stream));
         std::vector<CoupledGasInterval> result(n);check(cudaMemcpyAsync(result.data(),out,n*sizeof(*out),cudaMemcpyDeviceToHost,stream));check(cudaStreamSynchronize(stream));
         for(int i=0;i<n;++i){const auto& got=result[i];if(got.sequence!=std::uint64_t(i+1)||got.geometry!=17)++failures;
@@ -47,9 +47,9 @@ int main(){
                 if(actual.lower!=expected.lower||actual.upper!=expected.upper||difference>8*std::numeric_limits<double>::epsilon()){
                     if(failures<8)std::printf("mismatch config=%d step=%d stage=%d expected=%d/%d %.17g actual=%d/%d %.17g\n",configuration,i,stage,expected.lower,expected.upper,expected.alpha,actual.lower,actual.upper,actual.alpha);++failures;}
                 if(stage<3){const double expectedStamp=windowAbsolute(program.interval.begin,time),actualStamp=got.time[stage];
-                    // The old x87 sum rounds to extended precision before its
-                    // FP64 cast. A directly rounded FP64 pair can differ by one
-                    // ULP at this publication boundary, without moving a knot.
+
+
+
                     if(actualStamp!=expectedStamp){++roundedStamps;
                         if(actualStamp!=std::nextafter(expectedStamp,actualStamp))++failures;}}
                 ++comparisons;

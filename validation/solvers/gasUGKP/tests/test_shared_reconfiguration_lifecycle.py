@@ -16,7 +16,7 @@ def test_native_model_reconfigure_retains_species_and_invalidates_old_captures(t
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),nullptr)==0);
  assert(state.gasSpecies.rho==inventory&&device.gasSpecies.rho==inventory&&inventory[0]==987);
  assert(std::isnan(state.gasGraphDt)&&!state.gasTrial.trial.valid&&!state.gasTrial.interval.valid);
- inventory[0]=0; // Restore the zero initial fixture for the subsequent upload/error tests.
+ inventory[0]=0;
  double density[]='''
     assert point in source
     source=source.replace(point,replacement)
@@ -61,7 +61,7 @@ def test_actual_graph_protocol_rebuilds_after_configuration_and_retains_errors(t
 int main(){IndependentHost s;Payload device;s.deviceState=&device;expectedDevice=&device;expectedTime=2;
  assert(advancePureGasGraph(&s,.25,2)==0&&graphs==1&&launches==1&&destroys==0);
  assert(advancePureGasGraph(&s,.25,2)==0&&graphs==1&&launches==2&&destroys==0);
- invalidateSharedGasConfiguration(&s,false); // pointer-only publication is deviceState-indirect
+ invalidateSharedGasConfiguration(&s,false);
  assert(advancePureGasGraph(&s,.25,2)==0&&graphs==1&&launches==3&&destroys==0);
  s.hostTurbulenceModel=3;s.hostGasTimeIntegrator=3;invalidateSharedGasConfiguration(&s);
  assert(advancePureGasGraph(&s,.25,2)==0&&graphs==2&&launches==4&&destroys==1);

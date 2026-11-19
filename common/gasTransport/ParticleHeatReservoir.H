@@ -1,9 +1,9 @@
 #pragma once
 #include "GasStateView.H"
 namespace ugkwp {
-// The common contact model keeps its finite-bath time integration. These
-// property adapters select the actual gas calorics without changing the legacy
-// expression/order or interpreting an energy datum as a positive inventory.
+
+
+
 template<class State,class Real>
 UGKWP_GAS_HD inline Real particleGasHeatCapacity(const State& s,int cell,Real volume,Real legacy) {
     if constexpr(GasStateTraits<State>::speciesCount>0)

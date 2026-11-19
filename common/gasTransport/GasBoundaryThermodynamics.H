@@ -5,8 +5,8 @@
 #define UGKP_BOUNDARY_THERMO_HD
 #endif
 namespace ugkwp {
-// Constraint precedence shared by mixture face flux and wave-pressure speed.
-// The caller validates the resulting EOS state with its existing diagnostics.
+
+
 template<class Real> struct BoundaryThermodynamics {Real rho,pressure,temperature;};
 template<class Real>
 UGKP_BOUNDARY_THERMO_HD inline BoundaryThermodynamics<Real> mixtureBoundaryThermodynamics(

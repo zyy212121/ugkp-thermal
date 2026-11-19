@@ -1,8 +1,8 @@
 #ifndef UGKWP_GAS_MODEL_IO_H
 #define UGKWP_GAS_MODEL_IO_H
 
-// Host-only constant/gasModelProperties parser, shared by all application shells.
-// This owning object is never passed to a kernel or serialized as a raw struct.
+
+
 #include "GasModel.H"
 #include "MixtureThermo.H"
 #include "../chemistry/ChemistryTypes.H"
@@ -34,7 +34,7 @@ struct GasModelConfiguration
     std::vector<std::string> elementNames;
     std::vector<double> elementComposition;
     GasDiffusionModel diffusionModel = GasDiffusionModel::None;
-    std::vector<double> diffusionCoefficients; // m2/s, in the exact species order
+    std::vector<double> diffusionCoefficients;
     double turbulentSchmidt = 0.7;
     ChemistryControls<double> chemistryControls;
     std::string mechanism;
@@ -290,8 +290,8 @@ inline void hashWord(std::uint64_t& hash, const std::string& value)
 }
 inline void hashScalar(std::uint64_t& hash, double value)
 {
-    // Canonical IEEE-754 little-endian byte order, independent of host endian.
-    // Signed zero has the same physical identity.
+
+
     if (value == 0) value = 0;
     std::uint64_t bits = 0;
     static_assert(sizeof(bits) == sizeof(value), "gas model requires binary64 doubles");
@@ -324,7 +324,7 @@ inline void identities(GasModelConfiguration& model)
     for (const auto& name : model.elementNames) hashWord(model.thermoHash, name);
     for (double count : model.elementComposition) hashScalar(model.thermoHash, count);
 }
-} // namespace gasModelIoDetail
+}
 
 inline GasModelConfiguration parseGasModelProperties(const std::string& text, bool present = true)
 {
@@ -436,5 +436,5 @@ inline GasModelConfiguration readGasModelProperties(const std::string& path)
     return parseGasModelProperties(text);
 }
 
-} // namespace ugkwp
+}
 #endif

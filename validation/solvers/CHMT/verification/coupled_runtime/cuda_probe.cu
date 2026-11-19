@@ -1,4 +1,4 @@
-// Real CUDA execution prerequisite. This is not a CHMT physics validation.
+
 #include <cuda_runtime.h>
 #include <iostream>
 __global__ void identifyNativeDevice(int* value){*value=42;}

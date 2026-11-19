@@ -1,4 +1,4 @@
-// Reuse the existing dimensional mass/species/momentum/energy checks.
+
 #define main originalEquilibriumRegression
 #include "../pr32/equilibrium_co2_wall.cu"
 #undef main
@@ -31,7 +31,7 @@ __global__ void correctedTeamDevice(int index,Workspace* w,WallOutput<double,2>*
 
 #endif
 int main(){
- // Independent local constitutive value: the prefactor changes, damping does not.
+
  for(double j:{-.002,0.,.002,.2}){
   double rho=1.2,wall=2.,u=300.,y=.0004,mu=1.8e-5,kappa=.41,A=17.;
   double local=std::abs(wall+j*u),d=-std::expm1(-y*std::sqrt(rho*wall)/(mu*A));

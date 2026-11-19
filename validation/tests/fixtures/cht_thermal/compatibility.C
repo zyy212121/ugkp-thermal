@@ -1,4 +1,4 @@
-// Real OpenFOAM thermal owners; only the native resident/device boundary records calls.
+
 #include "fvCFD.H"
 #include "GpuSolidThermalCoupler.H"
 #include "GpuThermalExchangeState.H"

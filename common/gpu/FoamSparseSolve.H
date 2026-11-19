@@ -1,6 +1,7 @@
 #ifndef UGKP_GPU_FOAM_SPARSE_SOLVE_H
 #define UGKP_GPU_FOAM_SPARSE_SOLVE_H
 #include "SparseConjugateGradient.H"
+#include "../DiagnosticsFoam.H"
 #include "fvMatrices.H"
 #include "cyclicFvPatchFields.H"
 #include "jumpCyclicFvPatchFields.H"
@@ -10,9 +11,9 @@
 #include <vector>
 #include <algorithm>
 namespace ugkp { namespace gpu {
-// Bridge the native FV boundary contract to the shared CUDA sparse solver.
-// This bridge is also the independent assembly reference while cell/face
-// assembly is migrated. It never dispatches to a CPU linear solver.
+
+
+
 template<class Operation> inline auto withFoamScalarMatrix(
     Foam::fvScalarMatrix& equation,Operation operation) {
     using namespace Foam;
@@ -32,10 +33,10 @@ template<class Operation> inline auto withFoamScalarMatrix(
             adjacent=&refCast<const cyclicFvPatch>(temperature.mesh().boundary()[patch]).neighbFvPatch().faceCells();
             interfaces.set(patch,nullptr);
         }
-        // jumpCyclic applies its affine term only to the original solution
-        // field, never to Krylov vectors. Transfer that term explicitly before
-        // removing this native interface; copying psi into a callback loses
-        // the field-identity test used by OpenFOAM's jump implementation.
+
+
+
+
         tmp<scalarField> jump;scalar jumpSign=1;
         const auto& field=temperature.boundaryField()[patch];
         if(localCyclic && isA<jumpCyclicFvPatchScalarField>(field)){
@@ -93,6 +94,14 @@ inline Foam::solverPerformance solveFoamScalarMatrix(
         return resident?solver.solveResidentLdu(matrix,*resident,deviceSolution,controls,communication)
             :solver.solveLdu(matrix,temperature.primitiveFieldRef().begin(),controls,communication);
     });
+    if(report.preconditionerFallbackBlocks>0){
+        using namespace ugkp::diagnostics;
+        const auto record=withOperation(makeRecord(Code::MethodFallback,36010,0,0,EntityKind::None,-1,-1,
+            report.preconditionerFallbackBlocks,0,0,Quantity::LinearSystem),0,
+            temperature.time().timeIndex(),temperature.time().value());
+        reportFoamDiagnostic(record,{36010,__FILE__,__func__,__LINE__,
+            "AMG construction used diagonal Jacobi; region="+std::string(temperature.mesh().name().c_str())});
+    }
     solverPerformance performance("CudaPCG",temperature.name(),report.initialResidual,
         report.finalResidual,report.iterations,report.converged,report.singular);
     if(!resident)temperature.correctBoundaryConditions();

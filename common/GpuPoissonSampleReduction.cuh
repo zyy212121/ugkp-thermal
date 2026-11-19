@@ -1,7 +1,7 @@
 #pragma once
 #include "CsrPersistentQueue.cuh"
-// Sampling still consumes the same two Gaussian pairs per selected parcel.
-// Only the ownership and reduction of its four weighted moments changes.
+
+
 __device__ __forceinline__ void publishPoissonSampleMoments
 (DeviceState& s,int c,const GPU_OPERATOR_REAL* q) {
     s.poolThermalSumUx[c]=q[0];s.poolThermalSumUy[c]=q[1];
@@ -80,8 +80,8 @@ int launchPoissonPoolSampling(DeviceState* s,int block,int particleGrid,int dire
                 error=cudaGetLastError();
             }
         } else {
-            // Light CSR rows have little atomic contention. Keep the parcel
-            // dispatch; the heavy-row branch above amortizes its task reduction.
+
+
             samplePoissonPoolParticlesKernel<<<particleGrid,s->particleBlockThreads,0,queue>>>(s->deviceState,0);
             error=cudaGetLastError();
         }

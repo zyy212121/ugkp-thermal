@@ -104,8 +104,8 @@ int main(){
   ck(s.rhoE[0]>=pairedGasEnergyFloor(s,0),"gas floor violated");
   printf("dt=%.9g gas_delta=%.17g budget_error=%.17Lg p0=%.17g carry0=%.17g\n",dt,s.rhoE[0]-gas,error,double(s.pT[0]),s.pThermalEnthalpyResidual[0]);
  }
- // Independent coupled caloric ODE reference, with refreshed gas cache at
- // each whole physical step; mechanical fields and geometry are constant.
+
+
  long double ref[3]={3200,2800,3400};reference(.02,ref);
  double previous=1e300;
  for(int steps:{2,4,8,16,32}){
@@ -118,15 +118,15 @@ int main(){
   ck(error<previous*.75,"paired heat failed first-order step refinement");previous=error;
   printf("refinement_steps=%d temperature_L1_error=%.17g\n",steps,error);
  }
- // Actual production order, not the earlier gas-first mathematical prototype.
+
  DeviceState cumulative;const long double initial=inventory(cumulative);
  long double roundingBound=0.,absoluteExchange=0.;
  for(int n=0;n<100000;++n){
   const double gas0=cumulative.rhoE[0],volume=pairedGasPhysicalVolume(cumulative,0);
   double base[2],carry[2];for(int i=0;i<2;++i){base[i]=particleMaterialEnthalpyBaseDevice(cumulative,i);carry[i]=cumulative.pThermalEnthalpyResidual[i];}
   advance(cumulative,1e-8);
-  // Derived publication bound: final double gas subtraction, divide and
-  // reduction rounding, plus compensated particle-component arithmetic.
+
+
   const double eps=std::numeric_limits<double>::epsilon();
   roundingBound+=.5L*(std::nextafter(gas0,INFINITY)-gas0)*volume;
   roundingBound+=4.L*eps*std::abs(cumulative.Q[0]);
@@ -142,8 +142,8 @@ int main(){
  ck(std::abs(error)<roundingBound,"production-order error exceeds summed local publication roundoff");
  ck(cumulative.pT[0]!=GpuReal(2800),"cumulative stored temperature never changed");
  printf("production_order_100000_budget_error=%.17Lg bound=%.17Lg absolute_exchange=%.17Lg relative_exchange_error=%.17Lg\n",error,roundingBound,absoluteExchange,error/absoluteExchange);
- // Stiff unequal masses/diameters, with the cache refreshed in the real step
- // order. Compare final equilibrium from an independent conserved-H solve.
+
+
  DeviceState stiff;stiff.pm[0]=1;stiff.pm[1]=1000;stiff.pd[0]=GpuReal(.00001);
  stiff.pT[0]=1000;stiff.pT[1]=5000;stiff.couplingTgasOld[0]=3000;
  const double cv=double(stiff.Rgas)/(double(stiff.gammaGas)-1.),vol=pairedGasPhysicalVolume(stiff,0);
@@ -183,7 +183,7 @@ int main(){
   if(mode==1){s.Rgas=GPU_R(287);s.rhoMin=GPU_R(1.e-6);}
   if(mode==2){s.rho[0]=GPU_R(1.3);s.rhoUx[0]=GPU_R(1.17);s.rhoUy[0]=GPU_R(-.31);}
   if(mode==3)s.gammaGas=std::nextafter(GpuReal(1),GpuReal(2));
-  if(mode==4)s.gammaGas=GPU_R(1); // Scalar clamp contract only: zero gamma-1 has no positive-pressure EOS state.
+  if(mode==4)s.gammaGas=GPU_R(1);
   const double density=double(s.rho[0]);
   const double x=double(s.rhoUx[0])/density,y=double(s.rhoUy[0])/density,z=double(s.rhoUz[0])/density;
   const double kinetic=.5*density*(x*x+y*y+z*z);

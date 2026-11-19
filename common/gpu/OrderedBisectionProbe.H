@@ -2,10 +2,10 @@
 #include <limits>
 #include "gasTransport/GasModel.H"
 namespace ugkp { namespace gpu {
-// The midpoint and every possible midpoint in the next Depth-1 rounds.
-// A collective evaluator may
-// evaluate these independent probes together; consumption still follows the
-// original bisection decisions, including invalid states and early stopping.
+
+
+
+
 template<class Real,int Depth=2> struct OrderedBisectionProbe {
     static_assert(Depth>0&&Depth<std::numeric_limits<unsigned>::digits-1,"dyadic index must fit int");
     static constexpr int count=(1<<Depth)-1;

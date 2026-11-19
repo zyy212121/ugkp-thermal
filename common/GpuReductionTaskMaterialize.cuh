@@ -9,16 +9,16 @@ __global__ void materializeCsrReductionTasksKernel
     const int total=s.csrCellTaskOffset[s.nCells];
     const int thread=blockIdx.x*blockDim.x+threadIdx.x,stride=blockDim.x*gridDim.x;
     if(thread==0)*s.csrHeavyTaskCount=total;
-    // The cell list is metadata, independent of descriptor production. Count
-    // and scan already completed; readiness is still published by the caller.
+
+
     for(int c=thread;c<s.nCells;c+=stride)if(s.csrCellTaskCount[c]>1){
         const int index=atomicAdd(s.csrHeavyCellCount,1);
         if(index<0||index>=s.nCells)asm("trap;");
         s.csrMultiTaskCellList[index]=c;
     }
-    // Distribute descriptors rather than assigning a concentrated cell's
-    // complete directory to one lane. Upper-bound lookup also handles empty
-    // cells/repeated offsets without a host download of the scan total.
+
+
+
     for(int task=thread;task<total;task+=stride){
         int lo=0,hi=s.nCells;
         while(lo+1<hi){const int mid=lo+(hi-lo)/2;

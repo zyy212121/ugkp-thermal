@@ -19,8 +19,8 @@ def test_new_plate_keeps_box_distinct_and_preserves_material_and_endpoint(tmp_pa
     assert 'wall_corner_geometry' in cases()['chmt_laminar_reacting_wall']['known_limitation']
 
 def test_plate_default_matches_admissible_validated_wall_resolution(tmp_path):
-    # The retained N24 counterexample has a negative discrete reactant profile.
-    # N48 is the resolution used by the accepted native coupled windows.
+
+
     prepare('chmt_laminar_reacting_plate',tmp_path/'default')
     prepare('chmt_laminar_reacting_plate',tmp_path/'counterexample',{'wall_nodes':24})
     prepare('chmt_laminar_reacting_wall',tmp_path/'original_box')

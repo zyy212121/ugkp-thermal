@@ -17,7 +17,7 @@ int main(int argc, char** argv) {
         auto warningOnly=snapshot;warningOnly.hasFatal=false;dispatch(warningOnly,sink);
         if(!Foam::Pstream::master()) {
             Foam::FatalError.throwExceptions();
-            dispatch(snapshot,sink); // MPI must terminate even in exception mode.
+            dispatch(snapshot,sink);
             return 98;
         }
         std::this_thread::sleep_for(std::chrono::seconds(10));return 97;

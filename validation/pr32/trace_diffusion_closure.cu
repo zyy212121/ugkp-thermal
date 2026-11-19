@@ -18,7 +18,7 @@ UGKWP_GAS_HD bool probe(int index,double& traceFlux,double& expected){
  ugkwp::SpeciesThermoView<double,2> thermo;thermo.species=sp;thermo.coefficients=coef;thermo.coefficientCount=6;
  bool evaluated=false;
  bool ok=ugkwp::correctedSpeciesDiffusion(y,g,1.,d,0.,1.,300.,thermo,f,energy,false,&evaluated);
- // Compute the trace channel directly, before any carrier cancellation.
+
  const double rawTrace=-d[trace]*g[trace],rawCarrier=-d[carrier]*g[carrier];
  expected=rawTrace-y[trace]*(rawCarrier+rawTrace);traceFlux=f[trace];
  const double expectedEnergy=(coef[3*trace]-coef[3*carrier])*300.*expected;

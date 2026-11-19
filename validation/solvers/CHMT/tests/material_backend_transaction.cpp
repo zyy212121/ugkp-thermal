@@ -55,7 +55,7 @@ int main(){
         require(advanceResidentMaterialSources(*b,h.solidMesh,h.surface,{good},{},{},.001,controls,true,shadow,donor,error,numerical),error);
         equal(shadow,expected);std::vector<SolidQ> zero(2);
         for(int c=0;c<2;++c){zero[c]=addSolid(expected[c],h.solid[c],-1);if(!c)zero[c]=addSolid(zero[c],packetDelta(good).solid,-1);}
-        equal(donor,zero); // Neither rejected nor uncommitted calls accumulate transfers.
+        equal(donor,zero);
     }
     commitResidentMaterialStep(*b,.001);
     std::vector<SolidQ> expectedSecond;require(applyMaterialPacketBatch(expected,{good},expectedSecond,error,&numerical),error);
@@ -84,8 +84,8 @@ int main(){
             for(int k=0;k<Ns;++k)require(a.gasSpecies[k]==v.gasSpecies[k]&&a.poreSpecies[k]==v.poreSpecies[k],"history species");
         }
     }
-    // Conduction consumes the committed source inventory but anchors its
-    // caloric secant at the beginning of the material window.
+
+
     for(int variant=0;variant<3;++variant){
         PhysicsConfig thermalPhysics;auto initial=fixture(thermalPhysics);
         if(variant){for(auto& t:thermalPhysics.condensed)t.cp1=.17;

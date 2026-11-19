@@ -86,7 +86,7 @@ def one_cell(d,mass,diameter,steps=1,cp_slope=0,velocity=0):
   f=d/'constant/gasModelProperties';f.write_text(f.read_text().replace('(1000 0 0)',f'(1000 {cp_slope} 0)'))
  if velocity:
   p=d/'0/gpuResidentStrictParticles.dat';b=bytearray(p.read_bytes());start=b.index(b'\n')+1+4;struct.pack_into('<d',b,start+3*8,velocity);p.write_bytes(b)
- # Suppress boundary heat/momentum flux: periodic uniform one-cell state.
+
  f=d/'system/blockMeshDict';t=f.read_text().replace('left { type patch;','left { type cyclic; neighbourPatch right;').replace('right { type patch;','right { type cyclic; neighbourPatch left;');f.write_text(t)
  for f in (d/'0').iterdir():
   if f.suffix=='.dat':continue
@@ -107,9 +107,9 @@ def main():
  def save(): (out/'results.json').write_text(json.dumps(report,indent=2)+'\n')
  def execute(label,key,d,mesh=False,expected=0):
   row=run(binaries[key],d,mesh);row.update(label=label,binary=key,expected_exit=expected);report['runs'].append(row);save();print(label,row['exit'],round(row['seconds'],3),flush=True);assert (row['exit']==0)==(expected==0),(label,row);return row
- # Old transient frontend rejects the same valid mixture/particle input.
+
  d=out/'before-rejected';one_cell(d,1e-6,.001);execute(d.name,'before',d,True,1);assert 'Unsupported shared gas model' in (d/'run.log').read_text()
- # Final physical step reports the real heat failure, not a next-step error.
+
  d=out/'heat-failure';one_cell(d,1.,1e-6);execute(d.name,'candidate',d,True,1);assert len(dirs(d))==1 and 'detailCode=4' in (d/'run.log').read_text() and 'site=30700' in (d/'run.log').read_text()
  for name,mass,diam,steps,slope,velocity in [('hot_constant',1e-6,.001,1,0,0),('hot_nonlinear',1e-6,.001,1,-.22,0),('closed_drag_heat',.001,.001,100,0,2)]:
   d=out/name;one_cell(d,mass,diam,steps,slope,velocity);execute(name,'candidate',d,True)
@@ -118,7 +118,7 @@ def main():
   ps=parcel(final/'gpuResidentStrictParticles.dat');assert ps and ps[0][6]<10000 and ps[0][6]>100
   ya=fields.internal(final/'rhoY_A',1)[0][0];yb=fields.internal(final/'rhoY_B',1)[0][0];rho=fields.internal(final/'rho',1)[0][0];assert abs(ya+yb-rho)<1e-12
   report['comparisons'].append({'name':name,'initial_budget':b0,'final_budget':b1,'absolute_mass_momentum_energy_error':err,'parcel_temperature':ps[0][6]});save()
- # All three generic parcel directory modes, plus heterogeneous transport/SST.
+
  specs=[('mixture_L0','mixture_particles','L0',False),('mixture_L1','mixture_particles','L1',False),('mixture_L2_wilke','mixture_particles','L2',True),('mixture_sst','mixture_particles','L1',False)]
  for name,fixture,level,wilke in specs:
   prototype=ROOT/'validation/steady_cuda/evidence/cases'/fixture
@@ -135,10 +135,10 @@ def main():
    for aa,bb in zip(ref,actual):
     if key=='candidate':assert abs(float(bb.name)-float(aa.name)*2e-5)<1e-12
     row=compare(aa,bb,32);row.update(name=name,reference_time=aa.name,actual_time=bb.name,binary=key);report['comparisons'].append(row)
-  # Species must evolve and be saved, not remain equal to initialization.
+
   final=dirs(cases['candidate'])[-1];initial=fields.internal(cases['candidate']/'0/Y_A',32);actual=fields.internal(final/'Y_A',32)
   assert max(abs(x[0]-y[0]) for x,y in zip(initial,actual))>1e-6
-  # Restart halfway through physical time, preserving parcel RNG and weights.
+
   restart=out/(name+'-restart');copy_inputs(cases['candidate'],restart)
   mid=next(p for p in dirs(cases['candidate']) if abs(float(p.name)-.002)<1e-12);shutil.copytree(mid,restart/mid.name)
   set_entry(restart/'system/controlDict','startFrom','latestTime');execute(restart.name,'candidate',restart)

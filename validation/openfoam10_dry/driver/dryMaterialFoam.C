@@ -35,7 +35,7 @@ int main(int argc,char**argv) {
   const bool threeD=mode=="conduction3d" || mode=="diffusion3d";
   const bool diff=mode=="diffusion" || mode=="diffusion3d";
   scalar storage=diff?0.35:1.0, alpha=diff?0.003:0.01;
-  // Thermal alpha comes from the SAME production caloric/mixture primitive.
+
   dry::MaterialState<1,1> q; q.condensedMass[0]=500;
   std::array<dry::CondensedThermo,1> solid{};solid[0].density=1000;solid[0].cp0=1000;solid[0].conductivity=10000;
   if(!diff) alpha=dry::primitive(q,1,300,solid,gas,0).conductivity/dry::caloricState(q,solid,gas,300).capacity;

@@ -3,6 +3,7 @@
 #include "AnchoredRadiationDerivatives.H"
 #include "AnchoredRadiationLinearization.H"
 #include "RadiationMaximum.cuh"
+#include "../Diagnostics.H"
 namespace ugkp { namespace gpu { namespace {
 struct AnchorCp {RadiationReal cp;__host__ __device__ RadiationReal enthalpy(RadiationReal t)const{return cp*t;}__host__ __device__ RadiationReal temperature(RadiationReal h)const{return h/cp;}__host__ __device__ RadiationReal enthalpyDerivative(RadiationReal)const{return cp;}};
 
@@ -12,18 +13,23 @@ struct AnchorArrays {RadiationReal *request,*actual,*temperature,*B0,*slope,*plu
 };
 __global__ void anchorAggregate(RadiationParticleDeviceView p,int n,const RadiationReal* volume,RadiationReal* mass,RadiationReal* t,RadiationReal* diameter,RadiationReal* eps,MieOpticalTableView table,RadiationReal cutoff){int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=n)return;const auto m=p.mass[c];mass[c]=m;t[c]=m>0?p.temperatureMass[c]/m:p.minimumTemperature;diameter[c]=m>0?p.diameterMass[c]/m:0;eps[c]=volume[c]>0&&p.materialDensity>0?m/(volume[c]*p.materialDensity):0;if(eps[c]>cutoff&&diameter[c]>0&&std::isfinite(diameter[c]))diameter[c]=fmin(table.diameter[table.diameters-1],fmax(table.diameter[0],diameter[c]));}
 __global__ void anchorDirectory(ParticleRadiationResponseView borrowed,int cells,const int* fallback,int* offsets){auto v=resolveParticleRadiationResponse(borrowed);int c=blockIdx.x*blockDim.x+threadIdx.x;if(c<=cells)offsets[c]=v.cellOffsets?v.cellOffsets[c]:fallback[c];}
-__global__ void anchorCapture(ParticleRadiationResponseView borrowed,const int* offsets,const int* indices,int cells,RadiationEntryParticle<GpuReal>* entries,int* mapping){auto v=resolveParticleRadiationResponse(borrowed);for(int slot=blockIdx.x*blockDim.x+threadIdx.x;slot<offsets[cells];slot+=blockDim.x*gridDim.x){int i=v.cellOffsets?slot:indices[slot];RadiationEntryParticle<GpuReal> a{};a.mass=v.mass[i];a.thermal.temperature=v.temperature[i];anchoredSnapshotDetail::copyCarry(a.thermal,v,i,0);a.eligible=v.status[i]==1&&v.wallState[i]==0;entries[slot]=a;mapping[slot]=i;}}
 __global__ void anchorLumped(int n,const RadiationReal* mass,const RadiationReal* t,int* offsets,RadiationEntryParticle<GpuReal>* entries){int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>n)return;offsets[c]=c;if(c==n)return;RadiationEntryParticle<GpuReal> a{};a.mass=mass[c];a.thermal.temperature=t[c];a.eligible=mass[c]>0;entries[c]=a;}
 __device__ RadiationReal anchorKappa(MieOpticalTableView table,RadiationReal eps,RadiationReal d,RadiationReal t,RadiationReal cutoff){if(!(eps>cutoff)||!(d>0))return 0;return RadiationReal(3)*eps*mieBilinear(table.absorption,table.temperatures,mieLogBracket(table.diameter,table.diameters,d),mieLinearBracket(table.temperature,table.temperatures,t))/(RadiationReal(2)*d);}
-template<class Law> __device__ void anchorInitCell(int c,Law law,const RadiationEntryParticle<GpuReal>* entries,const int* offsets,RadiationReal lo,RadiationReal hi,RadiationReal dt,MieOpticalTableView table,RadiationDeviceView v,AnchorArrays a){
- AnchoredParticleRadiationResponse<RadiationReal,Law> r{entries+offsets[c],offsets[c+1]-offsets[c],lo,hi,law};auto domain=r.domain();a.domain[c]=domain;const auto t=domain.mass>0?domain.entryTemperature:v.temperature[c];a.temperature[c]=a.searchTemperature[c]=t;a.request[c]=a.actual[c]=a.fraction[c]=a.searchRequest[c]=a.searchActual[c]=0;
+template<class Law,class Entries> __device__ void anchorInitCell(int c,Law law,Entries entries,int count,RadiationReal lo,RadiationReal hi,RadiationReal dt,MieOpticalTableView table,RadiationDeviceView v,AnchorArrays a){
+ AnchoredParticleRadiationResponse<RadiationReal,Law,Entries> r{entries,count,lo,hi,law};auto domain=r.domain();a.domain[c]=domain;const auto t=domain.mass>0?domain.entryTemperature:v.temperature[c];a.temperature[c]=a.searchTemperature[c]=t;a.request[c]=a.actual[c]=a.fraction[c]=a.searchRequest[c]=a.searchActual[c]=0;
  auto plus=bandEmissionDerivative(table.temperature,table.band,table.temperatures,t,true),minus=bandEmissionDerivative(table.temperature,table.band,table.temperatures,t,false);auto dp=anchoredTemperatureDerivative(r,true),dm=anchoredTemperatureDerivative(r,false);
  a.B0[c]=plus.B;a.plus[c]=dp.available?plus.derivative*dp.derivative:0;a.minus[c]=dm.available?minus.derivative*dm.derivative:0;a.slope[c]=a.plus[c];auto l=linearizeAnchoredRadiation(RadiationReal(0),plus.B,plus.B,a.slope[c],dt,v.volume[c]*anchorKappa(table,v.epsilon[c],v.diameter[c],t,a.cutoff));a.emission[c]=l.linearizedEmission;a.feedback[c]=l.thermalFeedback;a.residual[c]=a.relative[c]=0;a.valid[c]=l.valid;a.inDomain[c]=1;
  const auto initial=r.evaluate(RadiationReal(0),domain);a.temperatureGrid[c]=initial.temperatureGridAllowance;a.effectiveRelative[c]=a.allowedResidual[c]=0;a.usedTemperatureGrid[c]=0;
 }
-__global__ void anchorInitialize(int n,bool parcels,RadiationReal cp,const RadiationEntryParticle<GpuReal>* entries,const int* offsets,RadiationReal lo,RadiationReal hi,RadiationReal dt,MieOpticalTableView table,RadiationDeviceView v,AnchorArrays a){int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=n)return;if(parcels)anchorInitCell(c,ugkwp::ParticleCaloric{},entries,offsets,lo,hi,dt,table,v,a);else anchorInitCell(c,AnchorCp{cp},entries,offsets,lo,hi,dt,table,v,a);}
-template<class Law> __device__ void anchorUpdateCell(int c,Law law,const RadiationEntryParticle<GpuReal>* entries,const int* offsets,RadiationReal lo,RadiationReal hi,RadiationReal dt,MieOpticalTableView table,RadiationThermalIterationDeviceView v,AnchorArrays a){
- AnchoredParticleRadiationResponse<RadiationReal,Law> r{entries+offsets[c],offsets[c+1]-offsets[c],lo,hi,law};
+__global__ void anchorInitialize(int n,bool parcels,RadiationReal cp,const RadiationEntryParticle<GpuReal>* entries,
+ const int* offsets,RadiationReal lo,RadiationReal hi,RadiationReal dt,MieOpticalTableView table,RadiationDeviceView v,AnchorArrays a){
+ const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=n)return;
+ const int count=offsets[c+1]-offsets[c];entries+=offsets[c];
+ if(parcels)anchorInitCell(c,ugkwp::ParticleCaloric{},entries,count,lo,hi,dt,table,v,a);
+ else anchorInitCell(c,AnchorCp{cp},entries,count,lo,hi,dt,table,v,a);
+}
+template<class Law,class Entries> __device__ void anchorUpdateCell(int c,Law law,Entries entries,int count,RadiationReal lo,RadiationReal hi,RadiationReal dt,MieOpticalTableView table,RadiationThermalIterationDeviceView v,AnchorArrays a,diagnostics::DeviceContext* context){
+ AnchoredParticleRadiationResponse<RadiationReal,Law,Entries> r{entries,count,lo,hi,law};
  const auto domain=a.domain[c];const auto oldQ=a.searchRequest[c];
  const auto oldT=a.searchTemperature[c],G=v.incident[c];
  const auto slope=G>=a.B0[c]?a.plus[c]:a.minus[c];
@@ -41,7 +47,7 @@ template<class Law> __device__ void anchorUpdateCell(int c,Law law,const Radiati
   q=oldQ+alpha*delta;if(!domain.contains(q))q=alpha<1?(delta>0?domain.upper:domain.lower):oldQ;
  }
  const auto sample=r.evaluate(q,domain);
- const bool candidateValid=l.valid&&searchResidual.valid&&sample.withinDomain&&sample.publicationValid;
+ bool candidateValid=l.valid&&searchResidual.valid&&sample.withinDomain&&sample.publicationValid;
  if(candidateValid&&domain.mass>0){
   a.searchRequest[c]=q;a.searchActual[c]=sample.actualEnergy;a.searchTemperature[c]=sample.temperature;
   const auto candidateB=bandEmissionDerivative(table.temperature,table.band,table.temperatures,sample.temperature,G>=a.B0[c]);
@@ -49,10 +55,10 @@ template<class Law> __device__ void anchorUpdateCell(int c,Law law,const Radiati
   const auto candidateResidual=materialRadiationResidual(sample.actualEnergy,candidateB.B,candidateK,v.volume[c],G,dt,RadiationReal(0));
 
 
-  const auto retainedB=bandEmissionDerivative(table.temperature,table.band,table.temperatures,a.temperature[c],G>=a.B0[c]);
-  const auto retainedK=anchorKappa(table,v.epsilon[c],v.diameter[c],a.temperature[c],a.cutoff);
-  const auto retainedResidual=materialRadiationResidual(a.actual[c],retainedB.B,retainedK,v.volume[c],G,dt,RadiationReal(0));
-  if(candidateResidual.valid&&(!a.valid[c]||!retainedResidual.valid||candidateResidual.normalized<=retainedResidual.normalized)){
+
+
+  candidateValid=candidateResidual.valid;
+  if(candidateValid){
    a.request[c]=q;a.actual[c]=sample.actualEnergy;a.temperature[c]=sample.temperature;a.fraction[c]=sample.fraction;a.temperatureGrid[c]=sample.temperatureGridAllowance;
   }
  }
@@ -70,7 +76,15 @@ template<class Law> __device__ void anchorUpdateCell(int c,Law law,const Radiati
  a.effectiveRelative[c]=assessment.valid&&residual.valid&&a.valid[c]?assessment.effectiveNormalized:RadiationReal(INFINITY);
  const auto next=linearizeAnchoredRadiation(a.actual[c],B.B,a.B0[c],slope,dt,k*v.volume[c]);
  a.slope[c]=next.b;a.emission[c]=next.linearizedEmission;a.feedback[c]=next.thermalFeedback;
- if(!next.valid)a.relative[c]=a.effectiveRelative[c]=RadiationReal(INFINITY);
+ if(!next.valid)a.valid[c]=0;
+ if(!a.valid[c]||!residual.valid||!next.valid){
+  using namespace diagnostics;
+  const bool finite=std::isfinite(predicted)&&std::isfinite(sample.temperature)&&std::isfinite(sample.actualEnergy)
+   &&std::isfinite(residual.residual)&&std::isfinite(next.linearizedEmission)&&std::isfinite(next.thermalFeedback);
+  recordFatal(context,makeRecord(finite?Code::InvalidPhysicalState:Code::NonFinite,37001,0,0,
+   EntityKind::Cell,c,-1,residual.residual,0,0,Quantity::InternalEnergy));
+  a.relative[c]=a.effectiveRelative[c]=RadiationReal(INFINITY);
+ }
 }
 struct AnchorWindowDescriptor {
  int cells=0;bool parcels=false;
@@ -79,12 +93,43 @@ struct AnchorWindowDescriptor {
  const int* offsets=nullptr;
  MieOpticalTableView table{};
  AnchorArrays arrays{};
+ const double* deviceElapsed=nullptr;
+ diagnostics::DeviceContext* diagnostics=nullptr;
+ ParticleRadiationResponseView residentEntries{};
+ const int* residentIndices=nullptr;
 };
+struct ResidentAnchorEntries {
+ ParticleRadiationResponseView view;
+ const int* indices;
+ int begin;
+ __host__ __device__ RadiationEntryParticle<GpuReal> operator[](int i)const{
+     const int slot=begin+i;
+     return readRadiationEntry(view,indices?indices[slot]:slot);
+ }
+};
+__device__ ResidentAnchorEntries residentAnchorEntries(const AnchorWindowDescriptor& w,int begin){
+ const auto view=resolveParticleRadiationResponse(w.residentEntries);
+ return {view,view.cellOffsets?nullptr:w.residentIndices,begin};
+}
+__global__ void anchorInitializeWindow(const AnchorWindowDescriptor* window,RadiationDeviceView v){
+ const auto& w=*window;const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=w.cells)return;
+ const RadiationReal dt=w.deviceElapsed?RadiationReal(*w.deviceElapsed):w.dt;
+ const int begin=w.offsets[c],count=w.offsets[c+1]-begin;
+ if(w.residentEntries.enabled)
+     anchorInitCell(c,ugkwp::ParticleCaloric{},residentAnchorEntries(w,begin),count,w.minimum,w.maximum,dt,w.table,v,w.arrays);
+ else
+     anchorInitCell(c,AnchorCp{w.cp},w.entries+begin,count,w.minimum,w.maximum,dt,w.table,v,w.arrays);
+}
 __global__ void anchorUpdate(const AnchorWindowDescriptor* window,RadiationThermalIterationDeviceView v){
  const auto& w=*window;const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=w.cells)return;
- if(w.parcels)anchorUpdateCell(c,ugkwp::ParticleCaloric{},w.entries,w.offsets,w.minimum,w.maximum,w.dt,w.table,v,w.arrays);
- else anchorUpdateCell(c,AnchorCp{w.cp},w.entries,w.offsets,w.minimum,w.maximum,w.dt,w.table,v,w.arrays);
+ const RadiationReal dt=w.deviceElapsed?RadiationReal(*w.deviceElapsed):w.dt;
+ const int begin=w.offsets[c],count=w.offsets[c+1]-begin;
+ if(w.residentEntries.enabled)
+     anchorUpdateCell(c,ugkwp::ParticleCaloric{},residentAnchorEntries(w,begin),count,w.minimum,w.maximum,dt,w.table,v,w.arrays,w.diagnostics);
+ else if(w.parcels)
+     anchorUpdateCell(c,ugkwp::ParticleCaloric{},w.entries+begin,count,w.minimum,w.maximum,dt,w.table,v,w.arrays,w.diagnostics);
+ else
+     anchorUpdateCell(c,AnchorCp{w.cp},w.entries+begin,count,w.minimum,w.maximum,dt,w.table,v,w.arrays,w.diagnostics);
 }
-__global__ void anchorResidualMaximum(const RadiationMaximum* reduced,RadiationReal* maximum){if(!threadIdx.x&&!blockIdx.x)*maximum=reduced?applyRadiationMaximum(RadiationReal(0),*reduced):RadiationReal(0);}
 
 }}}

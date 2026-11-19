@@ -1,5 +1,5 @@
-// The separately selected frozen Geometry.C supplies the native Jacobi,
-// sweep/planarity derivatives and pivoted twice-reorthogonalized QR oracle.
+
+
 #include "gpu/HarmonicSweepCorrection.H"
 #include "mesh/Geometry.C"
 #include <random>

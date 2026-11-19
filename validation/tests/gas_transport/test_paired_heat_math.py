@@ -27,8 +27,8 @@ int main(){
   const double beta=ugkwp::pairedHeatBathFraction(a,C,Cg);
   ck(std::isfinite(beta)&&beta>=0&&beta<=1,"extreme capacity bath invalid");
  }
- // Stable exact branch increments, including intervals smaller than a
- // temperature ULP and phase/ordinary piecewise crossings.
+
+
  for(bool cold:{false,true}){
   h.phaseChange=cold;h.solidCp=1200;h.latentHeat=1e6;
   for(double t:{1000.,2317.,2327.,2337.,2800.,4000.,5000.}){
@@ -41,21 +41,21 @@ int main(){
  }
  ck(std::abs(h.enthalpyIncrement(h.solidus(),-1e-13)/(-1e-13)-h.solidCp)<1e-8,"tiny reverse phase boundary used wrong branch");
  h=ugkwp::ParticleCaloric{};
- // Gas convexity regression: old-Cp weights gave Tg_new=2786.395K.
+
  for(double ti:{1000.,2310.,2800.,4000.,5000.})for(double tg:{1200.,2327.,4000.,5500.}){
   if(ti==tg)continue;const double dh=h.enthalpyIncrement(ti,tg-ti),secant=dh/(tg-ti);
   const double beta=ugkwp::pairedHeatBathFraction(1.,secant,1.);
   const double nextGas=tg-beta*dh;
   ck(nextGas>=std::min(ti,tg)-1e-9&&nextGas<=std::max(ti,tg)+1e-9,"secant gas temperature left convex interval");
  }
- // Reviewer counterexample: Cp-old cooling would overshoot the cold bath by14K.
+
  const double ti=4000,tau=2801.8647,old=h.enthalpy(ti);
  const double q=ugkwp::boundedParticleSpecificHeat(h,old,ti,tau,h.specificHeat(ti),1.,1.,6000.);
  ck(h.temperature(old+q)>=tau-1e-10,"variable Cp cooled below bath");
- // Opposite particle exchanges survive a zero cell-net energy change.
+
  const double bath=ugkwp::pairedHeatBath(2.,2.*3000.,4.,1.,3000.);
  ck(bath==3000&&1.*(bath-2900)>0&&1.*(bath-3100)<0,"cancellation disabled physical relaxation");
- // Joint gas acceptance, including cancellation, uses bounded candidate sum.
+
  ck(ugkwp::pairedHeatAcceptanceScale(100.,20.)==.2,"gas floor acceptance wrong");
  ck(ugkwp::pairedHeatAcceptanceScale(-100.,20.)==1.,"gas heating was limited");
  ck(ugkwp::pairedHeatAcceptanceScale(0.,0.)==1.,"zero net heat disables exchange");

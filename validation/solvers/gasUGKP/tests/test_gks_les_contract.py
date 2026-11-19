@@ -263,6 +263,7 @@ class SourceContractTests(unittest.TestCase):
             + "\n"
             + read_source(ROOT.parents[1] / "common/gasTransport/GasNumericsIO.H")
             + "\n"
+            + read_source(ROOT.parents[1] / "common/FoamGasTurbulenceControls.H")
             + read("createFields.H")
         )
         required = (

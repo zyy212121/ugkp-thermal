@@ -1,6 +1,6 @@
 #pragma once
 #include "GpuCollisionPoolParticle.cuh"
-// Compatibility name; all particle accumulation lives in one shared operation.
+
 template<bool PoissonMode>
 __device__ __forceinline__ void accumulateCsrSplitLogicalPoolParticle
 (

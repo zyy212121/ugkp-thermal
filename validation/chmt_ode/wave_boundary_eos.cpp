@@ -1,7 +1,7 @@
-// Regression derived from the independent CHMT-2EB-R01 production-function probe.
-// Serial execution of actual shared kernels, checked against the independently
-// rearranged implicit wave-pressure equation. Full CUDA coverage is the CHMT run.
-// Runs unchanged production device functions serially on a host. Not CUDA execution.
+
+
+
+
 #include <cmath>
 using std::isfinite;
 #include <cstdio>
@@ -28,7 +28,7 @@ using Time=double;
 #define __global__
 #define __device__
 #define __forceinline__ inline
-// PTX traps are represented by process failure in this serial host emulator.
+
 #define asm(...) std::abort()
 struct ThreadIndex { int x=0; } blockIdx, threadIdx, blockDim;
 constexpr Real OfSmall=GPU_R(2.22044604925031308085e-16);
@@ -74,7 +74,7 @@ int main(){
    fixed[0]=fixedY;gasBoundaryP[0]=riemannBoundaryP[0]=150000;
    const double ys[2]={fixedY?.2:.75,fixedY?.8:.25};
    const double R=ugkwp::mixtureGasConstant(ys,s.gasSpecies.thermo);
-   gasBoundaryT[0]=riemannBoundaryT[0]=900; // stale value must be replaced by actual mirror operators
+   gasBoundaryT[0]=riemannBoundaryT[0]=900;
    updateLegacyGasBoundaryMirrorKernel(&s,0.);
    updateRiemannBoundaryMirrorKernel(&s,0.);
    if(gasBoundaryT[0]!=600 || riemannBoundaryT[0]!=600)return 4;

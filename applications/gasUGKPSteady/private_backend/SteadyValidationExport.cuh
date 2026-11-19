@@ -1,8 +1,8 @@
 #pragma once
 #include <fstream>
 #include <iomanip>
-// Optional observations only: copy existing raw residuals/face fluxes after
-// their production evaluation. No operator, state update, or stop criterion.
+
+
 void exportSteadyValidationSnapshot(DeviceState* s)
 {
     const char* directory=std::getenv("GAS_UGKP_STEADY_DIAGNOSTICS_DIR");

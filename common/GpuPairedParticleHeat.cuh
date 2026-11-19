@@ -1,8 +1,8 @@
 #pragma once
 #include "gasTransport/ParticleHeatReservoir.H"
-// Contact/profile heat transaction. Membership is captured with the macro
-// source; coefficients use the corrected post-collision state, including a
-// parcel that has detached since it was excluded from the mobile source.
+
+
+
 __device__ __forceinline__ bool pairedParticleHeatMember(const DeviceState& s,int i)
 {
  if(!s.particleStuckModelConfigured)return false;
@@ -36,11 +36,11 @@ __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandida
  const double rate=conductancePerMass/cp;
  const double a=-::expm1(-(rate>0.?rate:0.)*double(dt));
  if(count==64){
-  // The2D model applies gas power to its top surface during explicit
-  // conduction substeps. Reserve a positive upper budget; actual signed work
-  // is recorded by that existing solver, not replaced by a uniform source.
-  // Existing phase-changing substeps guarantee positive H/T but not a
-  // local temperature maximum principle across a sharp Cp transition.
+
+
+
+
+
   const double storageEpsilon=0x1p-52;
   const double roundoffGuard=1.+64.*storageEpsilon;
   const double upper=conductancePerMass*double(dt)*(Tg>0.?Tg:0.)*roundoffGuard;
@@ -53,11 +53,11 @@ __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandida
  const double upper=upperT>0.?upperT:0.;
  if(deltaT<lower)deltaT=lower;
  if(deltaT>upper)deltaT=upper;
- // Evaluate the small component last, so residual heat is consumed rather than
- // being rounded away in a large H+carry subtraction.
+
+
  double dh=law.enthalpyIncrement(Ti,deltaT);
- // Secant weights make Q = A*(Tg-weighted Ti) exactly in the unclipped
- // interval, preventing nonlinear-Cp gas-temperature overshoot.
+
+
  double effectiveA=a;
  if(Tg!=Ti)effectiveA=deltaT/(Tg-Ti);
  if(deltaT!=0.)cp=dh/deltaT;
@@ -72,14 +72,14 @@ __device__ __forceinline__ PairedParticleHeatCandidate pairedParticleHeatCandida
  const double capacity=double(s.pm[i])*cp;
  return {capacity,capacity*effectiveA,dh};
 }
-// Called from the existing post-RK collision-pool clear, before any candidate.
+
 __device__ __forceinline__ void clearPairedParticleHeatCell(DeviceState& s,int c)
 {
  if(s.particleHeatCoefficient==nullptr||s.particleHeatBudget==nullptr)return;
  s.particleHeatCoefficient[c]=0.;s.particleHeatBudget[c]=0.;s.rhoENext[c]=0.;
 }
-// Each receiver reaches this helper exactly once after its final collision
-// correction. The selected-stuck partition is owned by the correction kernels.
+
+
 __device__ __forceinline__ void accumulatePairedParticleHeatCandidate
 (DeviceState& s,int i,GpuTime dt)
 {
@@ -99,8 +99,8 @@ __device__ __forceinline__ double pairedGasEnergyFloor(const DeviceState&s,int c
 {
  const GpuReal rhoSafe=clampMin(finiteOr(s.rho[c],s.rhoMin),s.rhoMin);
  const bool repairDensity=!finiteDevice(s.rho[c]) || s.rho[c]<s.rhoMin;
- // Match the actual conserved candidates and arithmetic order used by EOS
- // recovery, rather than the algebraically equivalent momentum-square form.
+
+
  const GpuReal mx=repairDensity||!finiteDevice(s.rhoUx[c]/rhoSafe)?rhoSafe*finiteOr(s.rhoUx[c]/rhoSafe,GPU_R(0)):s.rhoUx[c];
  const GpuReal my=repairDensity||!finiteDevice(s.rhoUy[c]/rhoSafe)?rhoSafe*finiteOr(s.rhoUy[c]/rhoSafe,GPU_R(0)):s.rhoUy[c];
  const GpuReal mz=repairDensity||!finiteDevice(s.rhoUz[c]/rhoSafe)?rhoSafe*finiteOr(s.rhoUz[c]/rhoSafe,GPU_R(0)):s.rhoUz[c];
@@ -118,8 +118,8 @@ __global__ void acceptPairedParticleHeatKernel(DeviceState*sp)
  const double volume=pairedGasPhysicalVolume(s,c);
  double Cg=volume*double(clampMin(finiteOr(s.rho[c],s.rhoMin),s.rhoMin))*double(s.Rgas)
   /ugkwp::gasLegacyCaloricDenominator(double(s.gammaGas),double(OfSmall));
- // Retain the existing finite-bath exponential and candidate/settlement
- // organization. Its gas capacity is the actual local caloric derivative.
+
+
  Cg=ugkwp::particleGasHeatCapacity(s,c,volume,Cg);
  double scale=C>0.?ugkwp::pairedHeatBathFraction(A/C,C,Cg):0.;
  const double available=(s.rhoE[c]-pairedGasEnergyFloor(s,c))*volume;
@@ -152,8 +152,8 @@ __global__ void settlePairedParticleHeatKernel(DeviceState*sp)
 {
  DeviceState&s=*sp;int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=s.nCells)return;
  const double q=s.particleHeatBudget[c];if(q==0.)return;
- // Actual represented particle change, with the unavoidable final double
- // subtraction roundoff left visible in the physical budget tests.
+
+
  s.rhoE[c]-=q/pairedGasPhysicalVolume(s,c);
  recoverGasPrimitiveCell(s,c);
 }

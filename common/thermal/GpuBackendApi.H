@@ -80,7 +80,7 @@ extern "C" int ugkwpGpuResidentStrictUploadParticleWallEffusivityPatch
     const double* wallEffusivity
 );
 
-// Optional global particle-source velocity; unspecified follows gas boundaries.
+
 extern "C" int ugkwpGpuResidentStrictConfigureParticleInjectionVelocity
 (void* handle, int specified, double ux, double uy, double uz);
 

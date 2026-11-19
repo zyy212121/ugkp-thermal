@@ -25,7 +25,7 @@ int main(){
  s.nut[0]=0;s.gasMu=R(.02);computeSstFaceFluxKernel(&s);
  check("inflow convection and diffusion share flux sign",s.sstPhiRhoK[0],R(-4.38));
  R cd=ugkwp::sstCrossDiffusion(s.omega[0],s.gradKX[0]*s.gradOmegaX[0],s.sstCoefficients);
- // Recompute gradients after changing molecular viscosity: F1 must follow them.
+
  computeSstGradientsKernel(&s);
  check("F1 is refreshed with SST gradients",s.sstF1[0],ugkwp::sstF1(s.k[0],s.omega[0],s.gasMu/s.rho[0],s.sstWallDistance[0],cd,s.sstCoefficients));
  s.gasPhiRho[0]=2;s.Ux[0]=-3;check("inletOutlet follows positive flux despite negative U",sstBoundaryValue(s,0,0,false),R(.1));
@@ -35,24 +35,24 @@ int main(){
  R cap=s.sstCoefficients.c1*s.sstCoefficients.betaStar*s.k[0]*s.omega[0];
  check("cap final wall averaged production",sstKProductionForCell(s,0,1),cap);
  s.cellPlaneCount[0]=1;check("cap single wall production",sstKProductionForCell(s,0,1),cap);
- // Mixed viscous/log corner: average uncapped G first, then apply Pk.
+
  s=DeviceState();s.sstWallTreatment=1;s.riemannBoundaryKind[0]=s.riemannBoundaryKind[1]=2;s.boundaryRho[0]=R(.0001);s.boundaryRho[1]=4;s.Ux[0]=0;s.nut[0]=1;
  cap=s.sstCoefficients.c1*s.sstCoefficients.betaStar*s.k[0]*s.omega[0];
  check("mixed wall average precedes final Pk cap",sstKProductionForCell(s,0,100),cap);
- // Zero strain trace but nonzero finite-volume divergence; boundary density differs from owner.
+
  s=DeviceState();s.gasMu=0;s.nut[0]=s.nut[1]=0;s.gasPhiRho[0]=4;s.gasPhiRho[1]=-2;
- R div=R(.25); // (4/4-2/4)/V
+ R div=R(.25);
  R dt=R(.001),sk=s.rho[0]*(-R(2)/3*div*s.k[0]-s.sstCoefficients.betaStar*s.k[0]*s.omega[0]);
  R so=ugkwp::sstOmegaSource(s.rho[0],s.k[0],s.omega[0],div,0,0,s.sstF1[0],s.sstF2[0],0,s.sstCoefficients);
  R oldK=s.rhoK[0],oldO=s.rhoOmega[0];
  applySstFluxAndSourceKernel(&s,dt);check("k source uses face-flux divergence",s.rhoK[0],oldK+dt*sk);check("omega source uses face-flux divergence",s.rhoOmega[0],oldO+dt*so);
- // Internal rho interpolation uses owner-oriented face weight, also for neighbor cell.
+
  s=DeviceState();s.gasMu=0;s.nut[0]=s.nut[1]=0;s.nInternalFaces=1;s.faceNeighbour[0]=1;s.cellPlaneCount[0]=1;s.gasPhiRho[0]=13;
  div=1;oldK=s.rhoK[0];sk=s.rho[0]*(-R(2)/3*div*s.k[0]-s.sstCoefficients.betaStar*s.k[0]*s.omega[0]);applySstFluxAndSourceKernel(&s,dt);check("weighted internal rho divU",s.rhoK[0],oldK+dt*sk);
- // Neighbor orientation uses the identical owner-oriented density.
+
  s=DeviceState();s.gasMu=0;s.nut[0]=s.nut[1]=0;s.nInternalFaces=1;s.faceNeighbour[0]=1;s.cellPlaneStart[1]=0;s.cellPlaneCount[1]=1;s.gasPhiRho[0]=13;threadIdx.x=1;
  div=-1;oldK=s.rhoK[1];sk=s.rho[1]*(-R(2)/3*div*s.k[1]-s.sstCoefficients.betaStar*s.k[1]*s.omega[1]);applySstFluxAndSourceKernel(&s,dt);check("neighbor signed divergence uses same rho face",s.rhoK[1],oldK+dt*sk);threadIdx.x=0;
- // Physical volume source conserves primitive turbulence in unconstrained cells.
+
  for(R eps:{R(.1),R(.3)}){s=DeviceState();s.epsSolid[0]=s.epsSolid[1]=eps;R k=s.k[0],o=s.omega[0];applyGasVolumeFractionSourceKernel(&s,R(.01));check("epsG k primitive coherence",s.rhoK[0]/s.rho[0],k);check("epsG omega primitive coherence",s.rhoOmega[0]/s.rho[0],o);}
  s=DeviceState();s.sstConfigured=0;oldK=s.rhoK[0];oldO=s.rhoOmega[0];applyGasVolumeFractionSourceKernel(&s,R(.01));check("disabled SST k untouched",s.rhoK[0],oldK);check("disabled SST omega untouched",s.rhoOmega[0],oldO);
  return fails?1:0;
@@ -92,8 +92,8 @@ int main(){
  s=DeviceState();s.rhoK=s.rhoKBacking;s.rhoOmega=s.rhoOmegaBacking;
  s.rhoK[0]=INFINITY;R rho=s.rho[0],mom=s.rhoUx[0],energy=s.rhoE[0],omega=s.rhoOmega[0];bool caught=false;
  try{applyGasVolumeFractionSourceKernel(&s,R(.01));}catch(int){caught=true;}
- // Base 63263fca already propagates nonfinite SST inventory; this source is
- // not a preflight/rollback gate. Keep that behavior and phase scaling visible.
+
+
  R scale=s.rho[0]/rho;
  if(caught||!std::isinf(s.rhoK[0])||!std::isfinite(scale)||scale==R(1)
     ||s.rhoUx[0]!=mom*scale||s.rhoOmega[0]!=omega*scale)return 2;

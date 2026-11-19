@@ -1,7 +1,7 @@
 #ifndef UGKP_DIAGNOSTICS_FOAM_H
 #define UGKP_DIAGNOSTICS_FOAM_H
-// This adapter belongs exclusively in the OpenFOAM host frontend. CUDA helpers
-// exchange DiagnosticsCodec.H envelopes and do not link OpenFOAM.
+
+
 #include "DiagnosticsHost.H"
 #include "error.H"
 #include "Pstream.H"
@@ -19,9 +19,9 @@ inline void foamWarning(void*, const WarningSummary& warning, const SourceDescri
         << " new occurrences=" << warning.count;
     if(warning.overflow)message << " (counter saturated; additional occurrences were not counted)";
     if (!Foam::Pstream::master()) {
-        // Foam::Warning filters non-master ranks. Use OpenFOAM's rank-prefixed
-        // local output stream with the same warning title instead of adding a
-        // collective or delaying the warning indefinitely.
+
+
+
         Foam::Pout << Foam::Warning.title().c_str() << message.str().c_str() << Foam::endl;
         return;
     }
@@ -38,5 +38,12 @@ inline bool environmentWarningsEnabled() {
 inline HostSink makeFoamSink(bool warningsEnabled = environmentWarningsEnabled()) {
     return HostSink{nullptr,foamFatal,foamWarning,warningsEnabled};
 }
-}} // namespace ugkp::diagnostics
+
+
+inline void reportFoamDiagnostic(const Record& record,const SourceDescriptor& source) {
+    if(isWarning(record.code)) {
+        if(environmentWarningsEnabled())foamWarning(nullptr,{record,1,false},&source);
+    } else foamFatal(nullptr,record,&source);
+}
+}}
 #endif

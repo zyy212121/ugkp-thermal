@@ -1,13 +1,13 @@
 #pragma once
 #include <cstdint>
 namespace ugkp { namespace thermal {
-// Complete physical thermal/contact history, independent of the application
-// mesh vector type. Per-step reduction/candidate scratch is deliberately absent.
+
+
 struct ParticleThermalHistory {
     bool initialized=false;
     int status=1;
     double temperature=0,theta=0,specificEnthalpyResidual=0;
-    double savedVelocity[3]{}; // Exact lab-frame pre-step/deferred rebound velocity.
+    double savedVelocity[3]{};
     double contactMaximumArea=0,contactPeakFraction=0;
     double coldNodeSpecificEnthalpy[8]{};
     double coldRingSolidMass[8]{},coldFrozenArea=0,coldContactAge=0;
@@ -30,14 +30,14 @@ struct ParticleState {
     double mass=0,energy=0,diameter=0,contactAge=0,contactDuration=0,contactArea=0;
     std::uint64_t rng=0;
     ParticleThermalHistory thermal{};
-    // energy is the represented thermal inventory [J]. Once initialized,
 
 
-    // energy is a derived output, never a second independent thermal update.
+
+
 };
-// Contact mechanical energy is a diagnostic of the deferred lab-frame
-// rebound velocity, not an independently configurable inventory. Use the same
-// rule before initial output and after a resident snapshot download.
+
+
+
 template<class Vector>
 #if defined(__CUDACC__)
 __host__ __device__

@@ -77,7 +77,7 @@ int main(int argc,char** argv){
   double singular[4]={1,2,2,4},srhs[2]={1,2};assert((!gasChemistryDetail::solveDense<double,2>(2,singular,srhs)));
   double basis[4]={1,1,0,eps},q[4];a.m.independentRank=2;a.m.stoichiometricBasis=basis;assert(gasChemistryDetail::orthogonalBasis(a.m,q));
  } else if(test=="state") {
-  gasChemistryDetail::ReactorContext<double,2> ctx(b,a.t,a.m,controls);double z[2]={2000,0},mass[2]={-777,-778},T=700;assert(!ctx.state(z,mass,T)); // Original internal trial rejection feeds damping/refinement.
+  gasChemistryDetail::ReactorContext<double,2> ctx(b,a.t,a.m,controls);double z[2]={2000,0},mass[2]={-777,-778},T=700;assert(!ctx.state(z,mass,T));
   ctx.refinement=false;assert(ctx.state(z,mass,T));assert(mass[0]<0&&mass[1]==.056);assert(gasFinite(T));
  } else if(test=="budget" || test=="lte" || test=="controls") {
   controls.maximumNewtonIterations=0;controls.maximumLineSearchIterations=0;controls.maximumSteps=0;controls.maximumRejectedSteps=0;controls.initialStep=.1;controls.minimumStep=.2;
@@ -87,7 +87,7 @@ int main(int argc,char** argv){
   assert(validateChemistryControls(controls));auto st=advanceClosedReactor(b,1.,a.t,a.m,controls,r);assert(st);assert(r.speciesMass[0]!=b.speciesMass[0]&&r.speciesMass[1]!=-777&&gasFinite(r.temperature));assert(st.attemptedSteps>0&&st.attemptedSteps<=10);assert(r.speciesMass[0]+r.speciesMass[1]==b.totalMass);
  } else if(test=="subnormal") {
   const double h=std::numeric_limits<double>::denorm_min();a.rx[0].highRate.preExponential=1e100;ClosedReactorResult<double,2> r;
-  assert(advanceClosedReactor(b,h,a.t,a.m,controls,r));// Original successful half-step arithmetic rounds h/2 to zero. Preserve it.
+  assert(advanceClosedReactor(b,h,a.t,a.m,controls,r));
   assert(r.speciesMass[0]==b.speciesMass[0] && r.speciesMass[1]==0);assert(gasFinite(r.temperature));
  }
 }
@@ -113,8 +113,8 @@ int main(){
  const Real savedEnergy=f.energy[0];auto st=advanceGasChemistryCell(f.state,0,.1,Real(.7));assert(st);assert(f.partial[0]<1.5);assert(f.energy[0]==savedEnergy);assert(f.cellStatus[0]==0);assert(f.partial[0]==expected.speciesMass[0]/input.volume&&f.partial[2]==expected.speciesMass[1]/input.volume);
  Fixture reference;assert(advanceGasChemistryCell(reference.state,0,.01,Real(.5)));
  Fixture stale;stale.cellStatus[0]=int(GasTransportCode::NegativeInventory);stale.chemistryStatus[0].code=ChemistryCode::ConservationFailure;
- // Real trial owners reset aggregate and chemistry statuses before a new trial.
- // Direct adapter success owns chemistryStatus, not other operators' aggregate.
+
+
  if(OWNER_RESET){stale.cellStatus[0]=0;stale.chemistryStatus[0]=ChemistryStatus{};}
  const Real staleEnergy=stale.energy[0];assert(advanceGasChemistryCell(stale.state,0,.01,Real(.5)));
  assert(stale.cellStatus[0]==(OWNER_RESET?0:int(GasTransportCode::NegativeInventory))&&stale.chemistryStatus[0]);

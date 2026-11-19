@@ -1,5 +1,5 @@
-// Shared seed and actual injection-kernel regression. The GPU fixture supplies
-// one source and a planar unit face; it does not replace full solver validation.
+
+
 #include "BoundaryInjectionSequence.H"
 #include "BoundaryInjectionApi.H"
 #include "../../applications/gasUGKPSteady/SteadyRestartState.H"
@@ -28,8 +28,8 @@ static void cpuChecks(const std::string& path) {
             ugkwp::injectionPositionSeed(123,0,.5,0));
     }
     assert(keys.size()==64);
-    // Face identity and sample identity must not share an interchangeable hash
-    // domain: exchanging face=1/sequence=2 with face=2/sequence=1 is distinct.
+
+
     assert(ugkwp::particleInjectionPositionSeed(state,123,1,.5,0,2,true)!=
         ugkwp::particleInjectionPositionSeed(state,123,2,.5,0,1,true));
     state.particleResidentInterval.active=true;
@@ -40,7 +40,7 @@ static void cpuChecks(const std::string& path) {
     struct LegacyState {};
     assert(ugkwp::particleInjectionPositionSeed(LegacyState{},123,1,.5,0)==
         ugkwp::injectionPositionSeed(123,1,.5,0));
-    // Resume the next sequence from unchanged steadyState.dat wire fields.
+
     SteadyRestartState saved{.5,16.,32,.5},loaded;
     assert(writeSteadyRestartState(path,saved));
     assert(readSteadyRestartState(path,loaded));
@@ -120,8 +120,8 @@ static Result run(int mode,unsigned long long completed,int samples,bool republi
     Result result;const int updateStart=parameterUpdates;
     for(int step=0;step<samples;++step) {
         if(republish&&step==samples/2) {
-            // Preserve authoritative particle arrays while intentionally sending
-            // a stale host interval, as full configuration publication does.
+
+
             DeviceState actual;check(cudaMemcpy(&actual,state.deviceState,sizeof(actual),cudaMemcpyDeviceToHost));
             actual.particleResidentInterval=state.particleResidentInterval;
             actual.particlePhaseGraphs=state.particlePhaseGraphs;
@@ -136,8 +136,8 @@ static Result run(int mode,unsigned long long completed,int samples,bool republi
             const int status=ugkp::gpu::launchParticlePhaseGraph(&state,.5,.5,
                 [&](double dt,double time){
                     ++result.recordings;
-                    // An intentionally different explicit key proves that the
-                    // resident interval owns graph replay, not captured inputs.
+
+
                     injectBoundaryParticlesKernel<<<1,1,0,state.particleCaptureStream>>>(state.deviceState,dt,time,999,true);
                     state.preBaseDirectoryReady=1;
                     return int(cudaGetLastError()!=cudaSuccess);
@@ -160,7 +160,7 @@ static Result run(int mode,unsigned long long completed,int samples,bool republi
         assert(actual.particleResidentInterval.positionSequence==completed+samples);
         assert(state.particlePhaseGraphs.positionSequence==completed+samples);
         result.updates=parameterUpdates-updateStart;
-        // One warm-up entry and one steady entry, with no per-step updates.
+
         assert(result.recordings==(republish?3:2)&&result.updates==0);
     }
     ugkp::gpu::releaseParticlePhaseGraphs(state.particlePhaseGraphs);

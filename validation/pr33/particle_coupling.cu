@@ -24,8 +24,8 @@ struct State:ugkwp::GasStateView<double,double,int>{
  ugkwp::ParticleCaloric law;
  int solveParticleTemperature=1,particleGasHeatTransferModelId=1;
 };
-// Minimal state adapter: retain the production mixture caloric inversion.
-// The transaction below is the unmodified production CUDA kernel.
+
+
 __device__ void recoverGasPrimitiveCell(State& s,int c){
  s.Ux[c]=s.rhoUx[c]/s.rho[c];s.Uy[c]=s.rhoUy[c]/s.rho[c];s.Uz[c]=s.rhoUz[c]/s.rho[c];
  const double kinetic=.5*(s.rhoUx[c]*s.rhoUx[c]+s.rhoUy[c]*s.rhoUy[c]+s.rhoUz[c]*s.rhoUz[c])/s.rho[c];

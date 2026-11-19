@@ -37,7 +37,7 @@ int main() {
     assert(touches==0 && result.fatalClaim==1 && result.firstFatal.entityIndex==result.firstFatal.observed);
     assert(result.firstFatal.operationSequence==88 && result.firstFatal.step==4);
     assert(result.warnings[1].count>0 && result.warnings[1].count<=2048);
-    // Independent operation storage remains healthy and its consumer executes.
+
     CUDA_OK(cudaMemcpy(context,&initial,sizeof(initial),cudaMemcpyHostToDevice));
     consumer<<<16,128,0,b>>>(context,touched);CUDA_OK(cudaStreamSynchronize(b));
     CUDA_OK(cudaMemcpy(&touches,touched,sizeof(touches),cudaMemcpyDeviceToHost));assert(touches==4096);

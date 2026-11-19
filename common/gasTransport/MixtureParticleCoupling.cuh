@@ -7,10 +7,10 @@
 #include "MixtureCouplingTeam.cuh"
 #include "MixtureParticleResponse.cuh"
 
-// Physical-time source transaction shared by gasUGKP and gasUGKPSteady. One cell worker
-// owns all parcel writes and the reverse gas publication for its cell. CSR and
-// split direct-base + indexed-injection ranges consume the same post-collision
-// epoch. A full scan remains available only for the serial reference oracle.
+
+
+
+
 
 template<class DragModel,bool ConstantHeat,class State,class Team>
 __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragActive,bool useCsr,bool useSplit,const Team&team)
@@ -21,7 +21,7 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragAct
     double weight=0,x=0,y=0,z=0;
     mixtureParticles::DragCellProperties dragProperties{};
     bool dragPropertiesReady=false;
-    // No parcel or gas state is changed while forming the finite-bath target.
+
     for(int pos=begin+team.rank();pos<end;pos+=team.width())
     {
         const int i=mixtureParticles::parcel(s,c,pos,useCsr,useSplit);
@@ -59,8 +59,8 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragAct
             s.pTheta[i]=oldTheta*exp(-2*b*dt);
             const double dx=s.pux[i]-oldX,dy=s.puy[i]-oldY,dz=s.puz[i]-oldZ;
             dpx+=s.pm[i]*dx;dpy+=s.pm[i]*dy;dpz+=s.pm[i]*dz;
-            // Actual represented differences, not independently recomputed work
-            // or subtraction of two large mechanical energies.
+
+
             dEnergy+=s.pm[i]*(.5*(dx*(s.pux[i]+oldX)+dy*(s.puy[i]+oldY)+dz*(s.puz[i]+oldZ))
                               +1.5*(s.pTheta[i]-oldTheta));
         }
@@ -109,8 +109,8 @@ __device__ void mixtureParticleCouplingCell(State&s,int c,double dt,bool dragAct
         if(status!=ugkwp::ThermoStatus::Success)
         {
             if(team.rank()==0){s.gasSpecies.cellStatus[c]=static_cast<int>(status);
-            // A failed physical exchange must reach this step's completion,
-            // including the final sample, without waiting for another flux.
+
+
             using namespace ugkp::diagnostics;
             auto failure=makeRecord(Code::InvalidPhysicalState,30700,0,0,
                 EntityKind::Cell,c,-1,static_cast<int>(status));

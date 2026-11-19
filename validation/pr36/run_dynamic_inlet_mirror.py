@@ -13,7 +13,7 @@ def main():
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
     header = args.before_header or ROOT/'common/operators/updateLegacyGasBoundaryMirrorKernel.cuh'
-    # Copy unchanged kernel definitions; exclude unrelated reconstruction helpers.
+
     text = header.read_text()
     begin = text.index('template<class GasState>')
     end = text.index('#include "reconstructGasMixtureFace.cuh"')

@@ -34,10 +34,10 @@ def list_body(path):
 def prepare(case,grid,end,viscosity="const"):
     meta=json.loads((matrix.HERE/"fixtures.json").read_text())["cht-contact"]
     layer.prepare("cht-contact",case,meta,grid)
-    # Keep transport an explicit input choice. The upstream none/none particle
-    # model combination does not snapshot couplingTgasOld, which its thermal
-    # relaxation reads for Sutherland viscosity before checking model switches.
-    # Constant viscosity isolates the interface reduction from that existing bug.
+
+
+
+
     if viscosity == "const":
         (case/"constant/gasTransportProperties").write_text(
             "FoamFile {version 2.0; format ascii; class dictionary; object gasTransportProperties;}\n"
@@ -114,8 +114,8 @@ def particle_inventory(snapshot):
     fields=particles(snapshot)
     assert np.all(fields["status"]==1) and np.all(fields["pStuck"]==1)
     assert np.all(fields["pux"]==0) and np.all(fields["puy"]==0) and np.all(fields["puz"]==0)
-    # The production cold-wall owner stores a uniform FP64 specific-enthalpy
-    # carry in addition to its eight FP32 nodes (GpuColdWall1DPublish.inl).
+
+
     h=np.mean(fields["pColdNodeSpecificEnthalpy"].astype(np.float64),axis=1)
     h+=fields["pThermalEnthalpyResidual"]
     assert np.all(np.isfinite(h)) and np.all(np.isfinite(fields["pm"]))
@@ -123,8 +123,8 @@ def particle_inventory(snapshot):
 
 
 def gas_inventory(snapshot,grid):
-    # Conserved gas fields are intrinsic densities; the checkpoint porosity
-    # converts them to the physical gas inventory in each unit-cube cell.
+
+
     values=(snapshot/"gpuResidentStrictEpsGPrev.dat").read_text().split()
     count=grid**3
     assert int(values[0])==count and len(values)==count+1

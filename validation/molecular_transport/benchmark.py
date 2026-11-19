@@ -34,7 +34,7 @@ def main():
                 elapsed=matrix.run([binary,'-case',case],case/'run.log')
                 if repeat:samples[mode].append(elapsed)
                 terminals[mode]=case
-        # Check that the timing extension preserves const parity too.
+
         parity=matrix.compare_chmt(terminals['baseline'],terminals['const']) if solver=='CHMT' else matrix.compare_fields(matrix.times(terminals['baseline'])[-1],matrix.times(terminals['const'])[-1])
         results[name]={'end_time':end,'max_dt':dt,'seconds':samples,'median_seconds':{key:statistics.median(value) for key,value in samples.items()},'const_parity':parity}
         (work/'results.json').write_text(json.dumps(results,indent=2)+'\n')

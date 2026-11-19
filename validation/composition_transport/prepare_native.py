@@ -20,7 +20,7 @@ diffusion { model constant; coefficients (0 0); turbulentSchmidt .7; }
 """)
  shutil.copyfile(R/'validation/composition_transport/transport.dict',case/'constant/gasTransportProperties')
  fluid=case/'constant/fluidProperties';fluid.write_text(fluid.read_text().replace('nodes 8;','nodes 16; writeProfiles true;'))
- # Consistent rho from the configured EOS: initial and inlet Y=(.5,.5), T=300, p=101325.
+
  rho=101325/(8.31446261815324*(.5/.02896520682164515+.5/.0440095)*300)
  p=case/'0/rho';s=p.read_text();s=re.sub(r'((?:internalField|value) uniform )[^;]+',lambda a:a[1]+str(rho),s);p.write_text(s)
  p=case/'0/rhoE';energy=rho*((.5*1004.675+.5*819.27-101325/(rho*300))*300+.5*70**2);p.write_text(re.sub(r'((?:internalField|value) uniform )[^;]+',lambda a:a[1]+str(energy),p.read_text()))

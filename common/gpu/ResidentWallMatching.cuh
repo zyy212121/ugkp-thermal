@@ -1,4 +1,4 @@
-// Included inside ugkp::gpu::geometry, after the common allocation helpers.
+
 namespace {
 __global__ void combineWallConstraints(int count,const unsigned char* explicitMask,
     const unsigned char* physicalWallOwner,unsigned char* output){
@@ -33,14 +33,14 @@ ResidentWallMatching::ResidentWallMatching(const WallMatchingDefinition& definit
     }
     for(int f:definition.walls)if(f<0||f>=d.faces)throw std::invalid_argument("resident wall face index mismatch");
     for(int c=0;c<d.cells;++c)offsets[c+1]+=offsets[c];std::vector<int> cursor=offsets,cellFaces(offsets.back());
-    // Ascending face traversal reproduces the native geometry builder's CSR.
+
     for(int f=0;f<d.faces;++f){cellFaces[cursor[definition.owner[f]]++]=f;if(definition.neighbour[f]>=0)cellFaces[cursor[definition.neighbour[f]]++]=f;}
     d.install(d.owner,definition.owner);d.install(d.neighbour,definition.neighbour);d.install(d.cellOffsets,offsets);d.install(d.cellFaces,cellFaces);
     d.install(d.triangleOffsets,triangleOffsets);d.install(d.walls,definition.walls);d.install(d.physicalWall,definition.physicalWall);d.install(d.physicalOwner,wallOwner);
     d.install(d.defaultConstrained,definition.constrained.empty()?std::vector<unsigned char>(d.cells,0):definition.constrained);d.install(d.defaultGas,definition.gasCell);
     d.constrained.reserve(d.cells);d.ring.reserve(definition.faceOffsets.back());d.polygonFailure.reserve(1);
     d.triangles.reserve(triangleOffsets.back());d.metrics.reserve(d.faces);d.result.reserve(d.rows);d.status.reserve(1);
-    checked(cudaStreamSynchronize(nullptr)); // Publish completed initialization to arbitrary consumer streams.
+    checked(cudaStreamSynchronize(nullptr));
 }
 ResidentWallMatching::~ResidentWallMatching()=default;
 WallMatchingDeviceView ResidentWallMatching::view()const{const auto& d=*data_;return {d.rows,d.result.pointer,d.status.pointer};}

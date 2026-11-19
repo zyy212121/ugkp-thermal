@@ -38,7 +38,8 @@ EXTRA_STATE = r'''
  double rhoE[16]{},rhoENext[16]{};
  unsigned char *compactPStuck=pStuck; int *compactPStuckFaceId=pStuckFaceId;
  GpuReal* compactPT=pT;
- float *compactPColdNodeSpecificEnthalpy=coldH,*compactPCold2DNodeSpecificEnthalpy=cold2DH;
+ double* compactPColdNodeSpecificEnthalpy=coldH;
+ float* compactPCold2DNodeSpecificEnthalpy=cold2DH;
  double* compactPThermalEnthalpyResidual=pThermalEnthalpyResidual;
  int compactCount=0,*compactCountDevice=&compactCount,compactPStatus[16]{};
  int poolThermalCount[16]{},poissonPoolSampleTargetCount[16]{};
@@ -56,17 +57,14 @@ INCLUDES = r'''
 constexpr GpuReal OfSmall=GPU_R(2.22044604925031308085e-16);
 constexpr GpuReal OfGreat=GPU_R(1.0)/OfSmall;
 #include "GpuColdWall2DSolidification.H"
+#include "wall/GpuColdWall1DHandles.cuh"
+#include "ParticleResidentInterval.H"
 #include "GpuParticleThermalCarry.H"
 #include "GpuPairedParticleHeat.H"
 #include "GpuColdWallThermalCarry.cuh"
 #include "GpuParticleCaloricDevice.cuh"
 #include "actual_gas_recovery.cuh"
-#define molecularGasConductivity actualMolecularGasConductivity
-#include "route_conductivity.cuh"
-#undef molecularGasConductivity
-int thermalEvaluations=0;
-template<class GasState> GpuReal molecularGasConductivity(const GasState& s){++thermalEvaluations;return actualMolecularGasConductivity(s);}
-template<class GasState> GpuReal molecularGasConductivity(const GasState& s,int c,GpuReal t){++thermalEvaluations;return actualMolecularGasConductivity(s,c,t);}
+#include "gasTransport/GasMolecularConductivity.cuh"
 #include "GpuPairedParticleHeat.cuh"
 #include "paired_heat_reference.cuh"
 #include "operators/clearColdWallParticleState.cuh"
@@ -76,6 +74,7 @@ template<class GasState> GpuReal molecularGasConductivity(const GasState& s,int 
 #include "operators/appendSelectedStuckParticleIndex.cuh"
 #include "GpuCollisionPoolSampling.cuh"
 #include "actual_mobile_finalizer.cuh"
+#include "GpuFrozenParticleRelease.cuh"
 #include "GpuThermalParticleFinalization.cuh"
 #include "operators/finalizeOneThermalizedParticlePath.cuh"
 #include "operators/samplePoissonPoolParticlesKernel.cuh"
@@ -94,12 +93,12 @@ void clear_case() {
   near(s.rhoENext[c],0.,0.,"pool clear must initialize paired capacity scratch");
  }
 }
-// Slots: selected mobile, selected 1D detach, unselected cold stuck,
-// hot uncollided mobile, cold uncollided mobile, newly injected selected mobile,
-// empty, dead, invalid-cell selected stuck, bad-pool selected stuck/mobile,
-// retained selected stuck, selected 2D detach, and zero-mass live slot.
-// Injection publication itself is outside this collision/thermal fixture;
-// its resulting live slot is included in the actual particle-count scan.
+
+
+
+
+
+
 void setup(DeviceState& s,bool nearFloor,bool noCollision=false,bool empty=false) {
  s.nCells=3;s.nFaces=16;s.particleCapacity=16;s.particleCount=empty?0:14;
  for(int c=0;c<s.nCells;++c){
@@ -130,14 +129,14 @@ void setup(DeviceState& s,bool nearFloor,bool noCollision=false,bool empty=false
  }
  s.particleStuckCandidateMask[12]=particleWallColdWall2D;
  initialiseColdWall2DParticleState(s,12,s.pT[12]);
- // Two opposite-sign candidates make the sum sensitive to reduction order.
+
  s.pT[2]=GPU_R(4800);s.pm[2]=GPU_R(1.e-7);initialiseColdWallParticleState(s,2,s.pT[2]);
  s.pT[3]=GPU_R(5000);s.pm[3]=GPU_R(1.e-7);
  s.pStatus[6]=0;s.pStatus[7]=0;s.pm[7]=0;s.pm[13]=0;
  s.pCellId[8]=-1;s.pCellId[9]=1;s.pCellId[10]=1;
- // A valid, strongly bound selected parcel must remain in the deferred route.
+
  s.pDepositionArea[11]=1.f;
- // If collisions are absent, keep 2D out of this gas-only publication fixture.
+
  if(noCollision){s.pStuck[12]=particleWallMobile;s.pStuckFaceId[12]=-1;}
  if(empty)return;
  const int count=noCollision?0:5;
@@ -247,7 +246,7 @@ void transaction(bool nearFloor,bool reversed,bool noCollision,bool empty,double
   publishPairedParticleGasHeat(fused,i,dt);publishPairedParticleGasHeat(reference,i,dt);
   const double db=particleMaterialEnthalpyBaseDevice(fused,i)-base;
   publicationBound+=32.*eps*double(fused.pm[i])*(std::abs(db)+std::abs(carry)+std::abs(fused.pThermalEnthalpyResidual[i]));
-  // Compare the represented increment, not a relative tolerance against total H.
+
   const long double actual=(long double)particleMaterialEnthalpyBaseDevice(fused,i)+fused.pThermalEnthalpyResidual[i];
   const long double expected=(long double)particleMaterialEnthalpyBaseDevice(reference,i)+reference.pThermalEnthalpyResidual[i];
   const double heatTol=512.*eps*std::abs(pairedParticleHeatCandidate(reference,i,dt).specificHeat);
@@ -274,14 +273,14 @@ void disabled_case(int nullBuffers,bool falsePositiveDt=false){
  if(nullBuffers&1)s.particleHeatCoefficient=nullptr;
  if(nullBuffers&2)s.particleHeatBudget=nullptr;
  for(int c=0;c<3;++c){s.heatCoefficient[c]=17.;s.heatBudget[c]=-19.;s.rhoENext[c]=23.;}
- // No active heat buffers: the existing pool clear must not touch thermal scratch.
+
  if(nullBuffers)for(int c=0;c<3;++c){threadIdx.x=c;clearPoissonThermalPoolKernel(&s);
   require(s.heatCoefficient[c]==17.&&s.heatBudget[c]==-19.&&s.rhoENext[c]==23.,"heat-disabled pool clear must preserve thermal scratch");}
- // Rebuild real collision pools after testing their clear.
+
  if(nullBuffers){setup(s,false);if(nullBuffers&1)s.particleHeatCoefficient=nullptr;if(nullBuffers&2)s.particleHeatBudget=nullptr;}
  sample(s,false);sample(reference,false);
  for(int c=0;c<3;++c){s.heatCoefficient[c]=17.;s.heatBudget[c]=-19.;s.rhoENext[c]=23.;}
- // A positive dt with either missing buffer must also bypass candidate work.
+
  if(nullBuffers){
   for(int lane=0;lane<16;++lane){threadIdx.x=lane;monitor(s);correctPoissonThermalizedMobileParticlesKernel<true>(&s,1,.001);
    require(traceCalls==0&&thermalEvaluations==0,"missing heat buffer bypasses mobile thermal work even at positive dt");stop_monitor();}
@@ -321,7 +320,15 @@ def fusion_binary( tmp_path_factory):
     fixture = ((VALIDATION_ROOT / 'tests/fixtures/cold_wall_contact_routes.cpp')).read_text()
     prefix = fixture[:fixture.index('#include "operators/particleSpecificHeatDevice.cuh"')]
     prefix = prefix.replace('[1]', '[16]').replace('coldH[8]', 'coldH[128]').replace('coldRing[8]', 'coldRing[128]')
-    prefix = prefix.replace('struct DeviceState {', 'struct DeviceState {' + EXTRA_STATE)
+    prefix = prefix.replace('using ProfileStorage=float;', 'using ProfileStorage=double;')
+    prefix = prefix.replace('GpuReal couplingGasConductivity[16]{};', 'CountedConductivity couplingGasConductivity;')
+    prefix = prefix.replace('struct DeviceState {', '''int thermalEvaluations=0;
+struct CountedConductivity {
+ GpuReal values[16]{};
+ GpuReal& operator[](int c){return values[c];}
+ GpuReal operator[](int c)const{++thermalEvaluations;return values[c];}
+};
+struct DeviceState {''' + EXTRA_STATE)
     prefix = prefix.replace('template<class T> T atomicAdd(T* target,T value) {T old=*target;*target+=value;return old;}',
         'double *traceA=nullptr,*traceQ=nullptr,*traceC=nullptr; int traceCalls=0;\n'
         'template<class T> T atomicAdd(T* target,T value) {\n'
@@ -332,11 +339,10 @@ def fusion_binary( tmp_path_factory):
     recovery = (ROOT/'common/operators/computeSstFaceFluxKernel.cuh').read_text()
     (build/'actual_gas_recovery.cuh').write_text(
         '#include "gasTransport/GasCapabilities.H"\n#include "gasTransport/MixtureThermo.H"\n#include "gasTransport/GasGeometryValidation.H"\n'
-        + '#include "operators/gasStencilDiagnostics.cuh"\n'
+        + '#include "operators/gasStencilDiagnostics.cuh"\n#include "operators/recoverStationaryGasPrimitive.cuh"\n'
         + recovery[recovery.index('template<class GasState,class Scalar>'):recovery.index('template<class GasState>\n__device__ void sstInternalRhoDiffusivities')]
         + function(recovery, 'template<class GasState>\n__device__ void recoverGasPrimitiveCell'))
-    (build/'route_conductivity.cuh').write_text('#include "gasTransport/GasMolecularConductivity.cuh"\n')
-    two = (ROOT/'common/wall/GpuColdWall2DDevice.cuh').read_text()
+    two = (ROOT/'legacy/common/wall/GpuColdWall2DDevice.cuh').read_text()
     (build/'actual_cold_2d_clear.cuh').write_text(function(two, '__device__ void clearColdWall2DParticleState')
         + function(two, '__device__ void initialiseColdWall2DParticleState'))
     backend = (ROOT/'common/thermal/GpuResidentStrict.cu').read_text()
@@ -347,7 +353,7 @@ def fusion_binary( tmp_path_factory):
     source = build/'fusion.cpp'
     source.write_text(prefix + INCLUDES + helpers + HARNESS)
     exe = build/'fusion'
-    run = subprocess.run(['g++','-std=c++20','-O2','-pthread','-DROUTE_FSH=0','-I'+str(build),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/wall'),
+    run = subprocess.run(['g++','-std=c++20','-O2','-pthread','-DROUTE_FSH=0','-I'+str(VALIDATION_ROOT/'tests/fixtures/contact_host'),'-I'+str(build),'-I'+str(ROOT/'common'),'-I'+str(ROOT/'common/wall'),
         '-I'+str((VALIDATION_ROOT / 'tests/gas_transport')),str(source),'-o',str(exe)],capture_output=True,text=True,timeout=90)
     assert run.returncode == 0, run.stdout + run.stderr
     return exe

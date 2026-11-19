@@ -1,9 +1,9 @@
 #ifndef UGKWP_GAS_NUMERICS_IO_H
 #define UGKWP_GAS_NUMERICS_IO_H
 
-// Host-only OpenFOAM selector adapter. Keep this header out of device includes.
-// The original gasUGKP parser body is shared without changing its selectors,
-// defaults, validation, or fvSchemes/fvSolution ownership.
+
+
+
 #include "dictionary.H"
 #include "Switch.H"
 #include "scalar.H"
@@ -370,5 +370,5 @@ else
         gasTimeIntegrator
     };
 }
-} // namespace Foam
+}
 #endif

@@ -1,6 +1,6 @@
 #pragma once
-// Included after the solver-specific copyCellLocalParticle hook.
-// The ordered filtered path and the proven all-live path are shared with gas.
+
+
 template<int BlockThreads, bool IndexOnly>
 __device__ void gatherCellLocalRangeImpl
 (
@@ -8,8 +8,8 @@ __device__ void gatherCellLocalRangeImpl
     const int end, const int outputStart, const bool allKept
 )
 {
-    // The moment reduction counts exactly the gather predicate. Pressure
-    // projection changes velocities only, so equality proves every entry lives.
+
+
     if (allKept)
     {
         for (int pos = start + threadIdx.x; pos < end; pos += BlockThreads)

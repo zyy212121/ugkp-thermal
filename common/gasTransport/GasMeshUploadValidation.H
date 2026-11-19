@@ -1,8 +1,8 @@
 #pragma once
 #include "../Diagnostics.H"
 namespace ugkwp {
-// Host upload owns the allocation length. Validate before any device copy or
-// kernel can consume cellPlaneStart/count; subtraction avoids integer overflow.
+
+
 inline bool gasMeshStencilUploadValid(int cells,int planes,const int* starts,
     const int* counts,ugkp::diagnostics::Record& failure)
 {

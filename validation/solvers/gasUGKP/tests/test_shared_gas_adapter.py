@@ -33,8 +33,8 @@ void setLastError(const char*s,int){last=s;}
 template<class T> int allocate(T*&p,std::size_t n,const char*){p=nullptr;if(!n)return 0;if(failAfter==0)return 1;if(failAfter>0)--failAfter;p=static_cast<T*>(std::malloc(n*sizeof(T)));if(!p)return 1;++allocations;return 0;}
 template<class T> int copyToDevice(T*d,const T*s,std::size_t n,const char*){if(copyFailAfter==0){copyFailAfter=-1;if(n)std::memcpy(d,s,sizeof(T));return 1;}if(copyFailAfter>0)--copyFailAfter;if(n)std::memcpy(d,s,n*sizeof(T));return 0;}
 template<class T> int copyToHost(T*d,const T*s,std::size_t n,const char*){if(hostCopyFailAfter==0){hostCopyFailAfter=-1;if(n)std::memcpy(d,s,sizeof(T));return 1;}if(hostCopyFailAfter>0)--hostCopyFailAfter;if(n)std::memcpy(d,s,n*sizeof(T));return 0;}
-// This adapter probe replaces only diagnostics completion (no CUDA work).
-// Storage allocation/copy/rollback and the complete species adapter are real.
+
+
 struct ProbeDiagnosticOwner {
  int completions=0;
  void recordHostFatal(const ugkp::diagnostics::Record&) {assert(false);}
@@ -68,7 +68,7 @@ int main(){
  auto model=ugkwp::parseGasModelProperties(text);
  ugkwpGpu::GasModelConfigureArgsV1 args{1,1,2,0,model.speciesOrderHash,model.thermoHash,0,text.size(),0};
  state.turbulenceModel=state.hostTurbulenceModel=3;state.sstWallTreatment=1;
- // Existing wall operators remain selectable for moving/reacting input.
+
  auto wallRequest=sharedGasCapabilityRequest(&state,model.mode,1);
  assert(ugkwp::validateGasCapabilities(wallRequest));
  wallRequest.movingGeometry=true;
@@ -81,8 +81,8 @@ int main(){
  releaseSharedGasSpecies(state.gasSpecies);device.gasSpecies={};
  assert(allocations==0);
  state.particleCapacity=0;
- // Exercise all subsequent configure/upload rollback and immutable-identity
- // assertions with the supported SST wallFunction family still selected.
+
+
  auto bad=args;++bad.thermoHash;
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&bad,text.data(),nullptr)==0);
  releaseSharedGasSpecies(state.gasSpecies);device.gasSpecies={};
@@ -101,8 +101,8 @@ int main(){
  double density[]={1,1};state.rho=density;state.gasInitialFieldsUploaded=true;
  ugkwpGpu::GasSpeciesIdentityV1 identity{1,2,model.speciesOrderHash,model.thermoHash,0};
  double values[]={-.1,.4,1.1,.6};
- // Signed fields are exercised by the continuation probe; ordinary fault tests
- // start from actual unpopulated storage and inspect all transfer results.
+
+
  values[0]=.4;values[2]=.6;
  const int configuredAllocations=allocations;
  copyFailAfter=0;
@@ -146,7 +146,7 @@ int main(){
  assert(device.gasSpecies.boundaryMassFraction==state.gasSpecies.boundaryMassFraction);
  for(int i=0;i<4;++i)assert(state.gasSpecies.boundaryMassFraction[i]==boundary[i]);
  assert(device.gasSpecies.rho==state.gasSpecies.rho);
- // Field upload deliberately scrubs host copies of device calculation scalars.
+
  state.gasFluxScheme=state.gasTimeIntegrator=state.turbulenceModel=0;
  state.hostGasFluxScheme=2;state.hostGasTimeIntegrator=3;state.hostTurbulenceModel=3;
  state.hostGasReconstruction=1;state.hostGasLimiter=2;
@@ -229,16 +229,16 @@ int main(int argc,char**argv){
  assert(state.gasSpecies.mode==ugkwp::GasMode::MixtureFrozen&&state.gasSpecies.chemistryStatus==status);
  assert(ugkwpGpuResidentStrictConfigureGasModelV1(&state,&args,text.data(),chemistry.data())==0);
  assert(state.gasSpecies.chemistryStatus==status&&device.gasSpecies.chemistryStatus==status);
- // Actual adapter reports its missing required energy/momentum storage through
- // the independently retained status, after chemistry-frozen-chemistry changes.
+
+
  auto result=ugkwp::advanceGasChemistryCell(state,0,.1,1.);
  assert(!result&&result.code==ugkwp::ChemistryCode::InvalidModel&&status[0].code==result.code);
  assert(state.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::InvalidStorage));
 
- // Start a distinct valid trial: the preceding missing-storage status is sticky.
+
  state.gasSpecies.cellStatus[0]=0;
  ugkp::diagnostics::reset(state.diagnosticContext,0,0);
- // Complete positive chemistry after the same lifecycle, with no optional audit.
+
  double rho[2]={1,1},momentum[2]={0,0},energy[2]{};
  state.rho=rho;state.rhoUx=state.rhoUy=state.rhoUz=momentum;state.rhoE=energy;
  double initial[10]={.02,0,0,.16,0,0,0,0,0,.82};

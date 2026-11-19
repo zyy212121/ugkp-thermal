@@ -10,8 +10,8 @@ from test_legacy_ale_transport import fixture
 
 
 def energy_fixture():
-    # The RED baseline used hidden double pointers to execute the old numerical
-    # bodies; the final fixture exercises the typed public interface itself.
+
+
     return fixture().replace(
         'GasStateView<Real,Time,ugkwp::SstCoefficients>',
         'GasStateView<Real,Time,ugkwp::SstCoefficients,double>',
@@ -167,7 +167,7 @@ ck(s.gasSpecies.cellStatus[0]==int(ugkwp::GasTransportCode::NonFiniteState)&&s.r
 const Real candidate[4]={s.rho[0],s.rhoUx[0],s.rhoUy[0],s.rhoUz[0]};
 if(STRICT)ck(s.rhoE[0]==updated&&std::memcmp(live,candidate,sizeof live)==0,"strict candidate published physical fields");
 else{ck(std::isnan(s.rhoE[0]),"public energy arithmetic was not evaluated");for(int k=0;k<4;++k)ck(candidate[k]==live[k]*(oldV[0]/newV[0]),"public bulk arithmetic incomplete");}
-// RK save/restore is exercised directly, without claiming a CHT transaction layer.
+
 s.gasSpecies.cellStatus[0]=0;s.rhoE[0]=updated+.05;blendGasConservativeStateKernel(&s,1.,0.);ck(s.rhoE[0]==saved,"RK restore narrowed accepted bits");}
 '''.replace('STRICT','true' if strict else 'false'))
 

@@ -14,7 +14,7 @@ int main(){
  assert(gasCoMaxStep(1,.4,.8,1)==.5);
  assert(gasCoMaxStep(1,.4,0,0.5)==.525);
  assert(gasCoMaxStep(1,.4,.1,1)==1);
- // Diffusion and source are already equivalent Co; apply target only once.
+
  for(double co:{.8,1.6})assert(gasCoMaxStep(1,.4,co,1)==.4/co);
  assert(boundedGasMicrostep(0,1.5,1.25,2)==1.25);
  assert(boundedGasMicrostep(0,.5,2,2)==.5);

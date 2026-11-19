@@ -66,7 +66,7 @@ auto&m=s.gasBoundaryLayerModel;m.config.model=ugkwp::gaswall::BoundaryLayerModel
 ugkwp::gaswall::WallInput<Real,2> in[1];ugkwp::gaswall::WallResidentOutput<Real,2> out[1];ugkwp::gaswall::WallOutput<Real,2> evaluation[1];ugkwp::gaswall::WallStatus modelStatus[1];auto*workspace=new ugkwp::gaswall::WallWorkspace<Real,2>[1];
 int face[1]={1},offsets[2]={0,1},matching[1]={1};Real weights[1]={1},qd[1]={.5},qw[1]={1};m.input=in;m.output=out;m.evaluationOutput=evaluation;m.workspace=nullptr;m.workspaceCount=0;delete[] workspace;m.status=modelStatus;m.faces=face;m.matchingOffsets=offsets;m.matchingCells=matching;m.matchingWeights=weights;
 in[0].normal[0]=1;in[0].matchingDistance=1.5;in[0].ownerDistance=.5;in[0].quadrature={qd,qw,1,1,.5};
-// Real device scratch is raw allocation, never constructor-zeroed.
+
 if(m.workspace)for(std::size_t b=0;b<ugkwp::gasBoundaryLayerWorkspaceBytes<Real,2>(m.config.nodes);++b)static_cast<unsigned char*>(m.workspace)[b]=0xff;
 Real savedRho=s.rho[0],savedEnergy=s.rhoE[0],savedSpecies=s.gasSpecies.rho[0];
 if(!ugkwp::evaluateGasBoundaryLayerSlot(s,0)){std::fprintf(stderr,"wall failed transport=%d code=%d iterations=%d residual=%.17g\n",status[0],int(modelStatus[0].code),modelStatus[0].iteration,modelStatus[0].residual);return 1;}ck(exchange[0].ready,"stage not published");

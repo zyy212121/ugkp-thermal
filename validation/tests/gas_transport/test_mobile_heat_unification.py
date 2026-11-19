@@ -62,15 +62,15 @@ int main(){
    ck(std::abs(particleEffectiveTemperatureDevice(s,i)-expectedT)<3e-12,"mobile temperature differs from gas reference exponential relaxation");
   }
  }
- // Free-cell macro targets are not replaced by sampled micro moments.
+
  DeviceState macro;init(macro);macro.momRhoUPx[0]=17.;macro.momRhoHpP[0]+=123.;
  prepareMobileParticleHeatMomentsKernel(&macro);subtractContactParticleHeatMomentsKernel(&macro);
  ck(macro.mobileMoments[1]==17.&&macro.mobileMoments[5]==macro.momRhoHpP[0],"analytical macro target discarded");
- // At sub-temperature-ulp increments, retained caloric carry remains nonzero.
+
  DeviceState tiny;init(tiny);const double oldT=tiny.pT[0];
  relaxMobileParticleThermalState(tiny,0,0,0.,tiny.pd[0],1e-18);
  ck(tiny.pT[0]==oldT&&tiny.pThermalEnthalpyResidual[0]>0.,"sub-ulp mobile heat lost");
- // Quantify the accepted macro/micro approximation; it must refine with dt.
+
  double previous=1e300;
  for(int steps:{4,8,16,32}){
   DeviceState s;init(s);s.count=1;s.particleStuckModelConfigured=0;moments(s);
@@ -102,8 +102,8 @@ def test_mobile_contact_heat_production(tmp_path):
 
 
 def test_released_contact_is_not_heated_twice(tmp_path):
- # Dispatch-only probe: the numeric laws are exercised separately above.
- # A 1D contact can become mobile before the mobile relaxation pass.
+
+
  from test_actual_particle_energy_budget import particle_fixture
  source=particle_fixture().split('void printState',1)[0]
  source=source.replace('struct DeviceState:State{','struct DeviceState:State{\n int particleStuckModelConfigured=1; unsigned char particleContactHeatEpoch[1]{1};')

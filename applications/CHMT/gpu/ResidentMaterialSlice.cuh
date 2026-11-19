@@ -6,19 +6,21 @@ namespace chmt { namespace material_slice_detail {
 __global__ void plan(ResidentMaterialDriveHistory h,const ugkp::IntervalSliceCursor* cursor,
     const ugkp::CompensatedTime* target,std::size_t externalFaces,ugkp::IntervalSlicePlan* result){
     if(blockIdx.x||threadIdx.x)return;
-    auto p=ugkp::planIntervalSlice(h,*cursor,*target);
-    // The host cursor checks this only when it has a history radiation vector.
+    h=h.resolved();auto p=ugkp::planIntervalSlice(h,*cursor,*target);
+
     if(p.error==ugkp::IntervalSliceError::None&&p.hasRecords()&&h.faces&&externalFaces&&externalFaces!=h.faces)
         p.error=ugkp::IntervalSliceError::RadiationLayout;
     *result=p;
 }
+template<class Total>
 __global__ void prepare(ResidentMaterialSlice slice,MaterialSliceAccumulators candidate,
-    const Real* external,std::size_t externalFaces,ugkp::CompensatedTime total,Real* radiation){
+    const Real* external,std::size_t externalFaces,Total totalValue,Real* radiation){
+    const ugkp::CompensatedTime total=totalValue;
     const auto p=*slice.plan;if(p.error!=ugkp::IntervalSliceError::None)return;
-    const auto h=slice.history;const auto count=h.faces>externalFaces?h.faces:externalFaces;
+    const auto h=slice.history.resolved();const auto count=h.faces>externalFaces?h.faces:externalFaces;
     for(std::size_t f=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x;f<count;f+=std::size_t(blockDim.x)*gridDim.x){
         if(f<h.faces){
-            // Only the last partial record survives in the candidate cursor.
+
             for(unsigned k=0;k<3;++k){const auto local=3*f+k;ExchangePacket used{};
                 if(!p.hasRecords())used=slice.used.packets[local];
                 else if(p.end.record<p.past){
@@ -50,6 +52,15 @@ __global__ void prepare(ResidentMaterialSlice slice,MaterialSliceAccumulators ca
         }
     }
 }
+
+
+__global__ void prepareExternal(std::size_t count,const Real* total,const Real* used,
+    Real* candidate,Real fraction,bool last,Real* radiation){
+    for(std::size_t f=std::size_t(blockIdx.x)*blockDim.x+threadIdx.x;f<count;f+=std::size_t(blockDim.x)*gridDim.x){
+        const Real part=last?total[f]-used[f]:total[f]*Real(fraction);
+        candidate[f]=used[f]+part;radiation[f]+=part;
+    }
+}
 __global__ void commit(const ugkp::IntervalSlicePlan* plan,MaterialSliceAccumulators candidate,
     MaterialSliceAccumulators current,std::size_t faces,std::size_t externalFaces,
     ugkp::IntervalSliceCursor* cursor,const int* accepted){
@@ -63,9 +74,9 @@ __global__ void commit(const ugkp::IntervalSlicePlan* plan,MaterialSliceAccumula
 }
 inline unsigned blocks(std::size_t n){const auto count=n/ugkp::gpu::workPlan().materialBlockThreads+(n%ugkp::gpu::workPlan().materialBlockThreads!=0);return unsigned(count>65535?65535:(count?count:1));}
 }
-// Allocations and stream ownership belong to the material owner. Preparation
-// and commit are separate so a rejected physical source never consumes history.
-// No publication, host decision or temporary packet-history copy is required.
+
+
+
 inline cudaError_t prepareResidentMaterialSlice(ResidentMaterialSlice slice,
     const ugkp::IntervalSliceCursor* cursor,const ugkp::CompensatedTime* target,
     MaterialSliceAccumulators candidate,const Real* external,std::size_t externalFaces,

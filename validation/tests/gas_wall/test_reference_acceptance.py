@@ -1,9 +1,9 @@
-"""Both wall entry points require equation convergence before heat publication."""
+"""Bounded wall solves publish finite heat and report accuracy at the iteration limit."""
 import subprocess
 from validation.tools.paths import SOURCE_ROOT
 
 
-def test_reference_rejects_unconverged_candidate_without_publishing_heat(tmp_path):
+def test_reference_publishes_finite_heat_and_bounds_residual_evaluations(tmp_path):
     source = tmp_path / "acceptance.cpp"
     source.write_text(r'''
 #include "validation/tests/gas_wall/fixtures/sst_restart004_capture.H"
@@ -11,21 +11,31 @@ def test_reference_rejects_unconverged_candidate_without_publishing_heat(tmp_pat
 #include <cassert>
 int main(){
  using namespace ugkwp::gaswall;
- CapturedSstWall model;model.config.maxIterations=0;
- WallWorkspace<double,2,24> normal{},reference{};
+ using R=WallReal; CapturedSstWallOf<R> model;
+ ugkp::diagnostics::DeviceContext diagnostics{};model.input.diagnostics=&diagnostics;
+ model.config.maxIterations=0;
+ WallWorkspace<R,2,24> normal{},reference{};
  WallReferenceScratch<2,24> scratch{};WallReferenceStats stats;
- WallOutput<double,2> a{},b{};a.conductiveHeatFlux=b.conductiveHeatFlux=12345;
+ WallOutput<R,2> a{},b{};a.conductiveHeatFlux=b.conductiveHeatFlux=12345;
  WallStatus sa{},sb{};
- assert(!evaluateReactingWallLayer(model.input,model.config,normal,a,sa));
- assert(!evaluateWallReference(model.input,model.config,reference,scratch,
-     static_cast<const double*>(nullptr),b,sb,stats));
- assert(sa.code==WallCode::NonConvergence&&sb.code==WallCode::NonConvergence);
- assert(!stats.converged&&a.conductiveHeatFlux==12345&&b.conductiveHeatFlux==12345);
- model.config.maxIterations=100;
+ assert(evaluateReactingWallLayer(model.input,model.config,normal,a,sa));
  assert(evaluateWallReference(model.input,model.config,reference,scratch,
-     static_cast<const double*>(nullptr),b,sb,stats));
- assert(stats.converged&&stats.residual<=model.config.absoluteTolerance+model.config.relativeTolerance);
- assert(b.conductiveHeatFlux!=12345);
+     static_cast<const R*>(nullptr),b,sb,stats));
+ assert(sa.code==WallCode::NonConvergence&&sb.code==WallCode::NonConvergence);
+ assert(!stats.converged&&std::isfinite(a.conductiveHeatFlux)&&std::isfinite(b.conductiveHeatFlux));
+ assert(a.conductiveHeatFlux!=12345&&b.conductiveHeatFlux!=12345&&stats.residualEvaluations==1);
+ assert(!diagnostics.fatalClaim);
+ const auto slot=static_cast<unsigned>(ugkp::diagnostics::Code::AccuracyResidual)-101;
+ assert(diagnostics.warnings[slot].count>=2);
+ model.input.diagnostics=nullptr;
+ model.config.maxIterations=1;
+ assert(evaluateWallReference(model.input,model.config,reference,scratch,
+     static_cast<const R*>(nullptr),b,sb,stats));
+ assert(stats.iterations<=1&&stats.residualEvaluations<=3&&std::isfinite(b.conductiveHeatFlux));
+ model.config.absoluteTolerance=stats.residual*R(2)+R(1);
+ assert(evaluateWallReference(model.input,model.config,reference,scratch,
+     &reference.state[0][0],b,sb,stats));
+ assert(stats.converged&&stats.iterations==0&&stats.residualEvaluations==1);
 }
 ''')
     binary = tmp_path / "acceptance"

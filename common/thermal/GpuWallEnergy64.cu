@@ -1,3 +1,4 @@
+#include "ThermalEventApi.H"
 #include "../gpu/WorkPlan.H"
 #include "GpuWallEnergy64.H"
 #include "../gpu/GpuInterfaceExchange.cuh"
@@ -96,10 +97,11 @@ void releaseInterfaceExchange(GpuWallEnergyState* s)
 __global__ void gatherInterfaceExchangeKernel
 (
     const GpuWallEnergyState* state, double deltaT, bool hasRadiation,
-    const double* boundaryRadiation, int boundaryOffset
+    const double* boundaryRadiation, int boundaryOffset,const ugkp::gpu::ThermalEventState* event=nullptr
 )
 {
     const auto& s=*state;
+    if(event){deltaT=event->heatInterval;hasRadiation=event->radiationDue;}
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;
     if(slot>=s.nEnabledFaces)return;
     const int face=s.enabledFaceIds[slot];
@@ -108,7 +110,7 @@ __global__ void gatherInterfaceExchangeKernel
         ?s.particleWallDepositedEnergy[face]:0.0;
     const double reflected=s.particleWallHeatTransferEnabled
         ?s.particleWallReflectedEnergy[face]:0.0;
-    // Preserve the host expression order: gas + radiation + (deposit + reflect).
+
     double combined=gas;
     if(hasRadiation)combined+=boundaryRadiation?boundaryRadiation[face-boundaryOffset]:s.interfaceRadiationEnergy[slot];
     if(s.particleWallHeatTransferEnabled)combined+=deposited+reflected;
@@ -516,8 +518,8 @@ extern "C" int ugkwpGpuResidentStrictUploadWallEnergyLedgerRange
     return 0;
 }
 
-// Reset is ordered on the same stream as ledger producers and borrowed views;
-// the next owner operation or explicit output publication observes completion.
+
+
 extern "C" int ugkwpGpuResidentStrictDownloadAndResetGasWallEnergy
 (
     void* handle,
@@ -738,8 +740,8 @@ extern "C" int ugkwpGpuResidentStrictResetParticleWallHeatLedgers(void* handle)
     return 0;
 }
 
-// The map is built once from the existing conformal/nonconformal mapper.
-// All arrays use configured-face order; CSR entries retain fluid-face order.
+
+
 extern "C" int ugkwpGpuResidentStrictConfigureInterfaceExchange
 (
     void* handle,int nSolidFaces,const int* rowOffsets,
@@ -827,9 +829,9 @@ extern "C" int ugkwpGpuResidentStrictCollectInterfaceExchange(void* handle,doubl
     auto* s=asState(handle);if(validateState(s,"publish interface exchange")!=0)return 1;
     return copyToHost(s,output,s->interfacePreview,3*s->nEnabledFaces+s->nInterfaceSolidFaces,"publish interface exchange");
 }
-// The DO material workspace owns boundaryEnergy in complete boundary-face
-// order. Read it directly and retain the mapped, integrated solid energy for
-// the implicit owner; optional host publication is diagnostic/output only.
+
+
+
 extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice
 (
     void* handle,double deltaT,
@@ -878,3 +880,43 @@ extern "C" int ugkwpGpuResidentStrictPreviewInterfaceExchangeDevice
         s->interfacePreview?s->interfacePreview+3*count:nullptr,nullptr,s->interfaceInterval};
     return 0;
 }
+
+namespace ugkp { namespace thermal {
+namespace {
+__global__ void setThermalInterfaceInterval(double* interval,const gpu::ThermalEventState* event){
+    if(!threadIdx.x)*interval=event->heatInterval;
+}
+}
+int enqueueThermalInterface(void* handle,const gpu::ThermalEventState* event,
+    const gpu::RadiationMaterialDeviceView* radiation,void* executionStream){
+    auto* s=asState(handle);const auto stream=static_cast<cudaStream_t>(executionStream);
+    if(validateState(s,"parent thermal interface")||!event||!s->interfaceInterval)return 1;
+    if(radiation&&(!radiation->enabled||radiation->boundaryFaces!=s->nFaces-s->nInternalFaces
+        ||(radiation->boundaryFaces&&!radiation->boundaryEnergy))){
+        setLastErrorText(s,"parent thermal radiation face layout is incomplete");return 1;
+    }
+    setThermalInterfaceInterval<<<1,1,0,stream>>>(s->interfaceInterval,event);
+    const int width=gpu::workPlan().faceBlockThreads;
+    if(s->nEnabledFaces)gatherInterfaceExchangeKernel<<<(s->nEnabledFaces+width-1)/width,width,0,stream>>>(
+        s->deviceState,1,false,radiation?radiation->boundaryEnergy:nullptr,s->nInternalFaces,event);
+    if(s->nInterfaceSolidFaces)interfaceExchange::sumMappedFaceValues<<<(s->nInterfaceSolidFaces+width-1)/width,width,0,stream>>>(
+        s->nInterfaceSolidFaces,s->interfaceRowOffsets,s->interfaceSourceIndices,
+        s->interfaceCombinedEnergy,s->interfacePreview+3*s->nEnabledFaces);
+    const auto error=cudaGetLastError();
+    if(error!=cudaSuccess){setLastError(s,"prepare parent thermal interface",error);return 1;}return 0;
+}
+int enqueueThermalLedgerReset(void* handle,void* executionStream){
+    auto* s=asState(handle);const auto stream=static_cast<cudaStream_t>(executionStream);
+    if(validateState(s,"parent thermal ledger commit"))return 1;
+    if(!s->gasWallEnergy){setLastErrorText(s,"parent gas wall ledger is unavailable");return 1;}
+    cudaError_t error=cudaMemsetAsync(s->gasWallEnergy,0,s->nFaces*sizeof(*s->gasWallEnergy),stream);
+    if(error==cudaSuccess&&s->particleWallHeatTransferEnabled){
+        if(!s->particleWallDepositedEnergy||!s->particleWallReflectedEnergy){
+            setLastErrorText(s,"parent particle wall ledgers are unavailable");return 1;
+        }
+        error=cudaMemsetAsync(s->particleWallDepositedEnergy,0,s->nFaces*sizeof(*s->particleWallDepositedEnergy),stream);
+        if(error==cudaSuccess)error=cudaMemsetAsync(s->particleWallReflectedEnergy,0,s->nFaces*sizeof(*s->particleWallReflectedEnergy),stream);
+    }
+    if(error!=cudaSuccess){setLastError(s,"commit parent thermal ledgers",error);return 1;}return 0;
+}
+}}

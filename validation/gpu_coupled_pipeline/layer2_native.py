@@ -50,9 +50,9 @@ def compare_material(left, right):
 
 
 def audit(case, scenario, material):
-    # The current selected fixtures have a closed outer boundary. Conversion
-    # changes individual species; the synthetic dry stoichiometric invariants
-    # below account for those changes explicitly.
+
+
+
     states = []
     maximum = {}
     for name, solid in material.items():

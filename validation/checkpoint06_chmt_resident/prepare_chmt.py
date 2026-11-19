@@ -34,7 +34,7 @@ def geometry(mesh):
  assert abs(next(x['outwardSignedDistance'] for x in margins['attached'] if x['face']==wallface))<1e-12
  return {'method':'offline planar face half-space check from frozen ASCII points/faces/owner/neighbour; not a solver/operator execution', 'cell':0,'wallFace':wallface,'cellVertexBounds':[[min(points[v][j] for v in verts),max(points[v][j] for v in verts)] for j in range(3)],'margins':margins}
 def particles(face):return f"""
-// CP6 declared independent moving-live fixture; production original cases untouched.
+
 enableParticles true;
 particle {{ volumeMode Coupled; capacity 8; rhoSolid 2500;
  dragModel SchillerNaumann; heatTransferModel RanzMarshall; contactModel reboundContact;

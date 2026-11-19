@@ -14,11 +14,11 @@ int main(){feenableexcept(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW);std::mt19937_64 r
    bool old=compositionResidualPolicy<false>(y,b,j,101325,300,.01,p,oldF,oldJ);
    bool now=compositionResidualPolicy<false>(y,b,j,101325,300,.01,p,newF,newJ,&fixed);require(old==now,"prepared evaluation changed success");
    if(old){for(int i=0;i<Ns;++i)require(oldF[i]==newF[i],"prepared original residual differs");for(int i=0;i<Ns*Ns;++i)require(oldJ[i]==newJ[i],"prepared Jacobian differs");}
-   // The same invocation uses genuinely different compositions and mixture R.
+
    for(int i=0;i<Ns;++i)y[i]=u(rng);
   }
  }
- // The common EOS work must preserve the guarded extreme/subnormal path too.
+
  const Real numbers[]={0,4.9406564584124654e-324,2.2250738585072014e-308,1e-200,1e-20,1,1e20,1e200,1.7976931348623157e308};
  for(Real pressure:numbers)for(Real T:numbers)for(Real R:numbers)if(pressure>0&&T>0&&R>0){composition_detail::DiffusionState state(pressure,T,.01,R);
   for(Real D:numbers){Real before=0,after=0;bool ok=composition_detail::diffusionScale(pressure,D,T,.01,R,before);bool fresh=state.scale(D,after);require(ok==fresh&&(!ok||before==after),"shared EOS changed extreme diffusion coefficient");}}

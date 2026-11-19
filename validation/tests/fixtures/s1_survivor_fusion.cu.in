@@ -38,7 +38,7 @@ int main(){
  CHECK(binParticlesByCell(s,block,@SURVIVOR_ARG@)==0);CHECK(cudaDeviceSynchronize()==cudaSuccess);
  for(int c=0;c<5;++c)CHECK(d->cellParticleCount[c]==expected[c]);
  const int kept=d->cellParticleOffset[5];
- // A restart moment reduction must leave the scratch payload untouched.
+
  accumulateParticleMomentsSegmentedKernel<false><<<5,block,8*(block/32)*sizeof(double)>>>(d);
  CHECK(cudaDeviceSynchronize()==cudaSuccess);
  for(int pos=0;pos<kept;++pos)CHECK(d->compactPStatus[pos]==91);
@@ -47,7 +47,7 @@ int main(){
  for(int c=0;c<5;++c){CHECK(d->cellParticleCount[c]==expected[c]);CHECK(d->momRhoP[c]==2*expected[c]);CHECK(d->momRhoUPx[c]==2*expected[c]);CHECK(d->momRhoUPy[c]==4*expected[c]);CHECK(d->momRhoUPz[c]==6*expected[c]);CHECK(d->momRhoEP[c]==26*expected[c]);CHECK(d->momRhoPD[c]==.5*expected[c]);}
  for(int pos=0;pos<kept;++pos){int i=d->sortedParticleIndex[pos];CHECK(i>=0&&i<N);@CHECK_PAYLOAD@}
  for(int pos=kept;pos<N;++pos)CHECK(d->compactPStatus[pos]==91);
- // Compare the complete original-index pressure kernel with compact addressing.
+
  for(int cutoff:{0,1}){
   d->epsSMin=cutoff?1e10:0;d->nFaces=5;
   for(int c=0;c<5;++c){d->cellPlaneStart[c]=c;d->cellPlaneCount[c]=1;d->cellFaceId[c]=c;d->faceOwner[c]=c;d->solidPressurePhiMomX[c]=.01;d->solidPressurePhiEnergy[c]=.1;}

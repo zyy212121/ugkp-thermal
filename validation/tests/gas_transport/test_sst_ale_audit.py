@@ -6,7 +6,7 @@ from test_mixture_state import compile_probe
 from test_legacy_ale_transport import fixture
 
 AUDIT=r'''
-// Test-owned observations only. No audit storage or hook is attached to State.
+
 struct SstObservation{bool enabled=true;Real transportK[2]{},transportOmega[2]{},sourceK[2]{},sourceOmega[2]{},constraintK[2]{},constraintOmega[2]{},initialTransportK[2]{},initialTransportOmega[2]{},initialSourceK[2]{},initialSourceOmega[2]{},initialConstraintK[2]{},initialConstraintOmega[2]{},volume[2]{};} observed;
 void audit(State&s){observed={};for(int c=0;c<2;++c)observed.volume[c]=s.gasGeometry.enabled?s.gasGeometry.oldVolume[c]:s.V[c];}
 void samePhysical(Real got,Real expected,const char*why){if(std::isnan(expected))ck(std::isnan(got),why);else if(std::isinf(expected))ck(got==expected,why);else{ck(std::isfinite(got),why);near(got,expected,why);}}
@@ -108,8 +108,8 @@ def test_mesh_motion_is_removed_from_sst_compression_and_bound(tmp_path,evaluati
 int main(){State s;initialise(s);s.sstConfigured=1;
 Real oldV[2]={1,1},newV[2]={Real(1.1),Real(.9)},sweeps[3]={Real(.1),0,0};const Real dt=Real(.001);
 moving(s,oldV,newV,sweeps,dt);audit(s);
-s.V[0]=Real(EVALUATION_VOLUME); // Evaluation metrics need not equal stage inventories.
-// Uniform stationary fluid has zero absolute div(U), despite relative ALE flux.
+s.V[0]=Real(EVALUATION_VOLUME);
+
 s.gasPhiRho[0]=-s.rho[0]*sweeps[0]/dt;
 s.sstPhiRhoK[0]=s.gasPhiRho[0]*s.k[0];s.sstPhiRhoOmega[0]=s.gasPhiRho[0]*s.omega[0];
 const Real sourceK=-s.rho[0]*s.sstCoefficients.betaStar*s.k[0]*s.omega[0];

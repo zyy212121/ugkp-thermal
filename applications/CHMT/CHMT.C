@@ -9,12 +9,13 @@
 #include "io/MultirateEvolution.H"
 #ifndef CHMT_FRONTEND_COMPILE_ONLY
 #include "io/CoupledRadiation.H"
+#include "io/AcceptedOutputWriter.H"
 #endif
 #include "gpu/Backend.H"
 #include "restart/Checkpoint.H"
 #include <fstream>
 #include <iostream>
-// Coupling-only application. Gas physics and stage ordering have common owners.
+
 int main(int argc,char** argv) {
     Foam::argList::noParallel();
     Foam::argList::addBoolOption("build-info","Print actual source/compiler/build identity.");
@@ -45,25 +46,23 @@ int main(int argc,char** argv) {
         std::cerr<<"CHMT input-only build has no CUDA backend; use the native build to evolve.\n";return 2;
 #else
         std::string error;
+        Foam::fileName restart;
         if(time.controlDict().found("restartDirectory")){
-            Foam::fileName restart(chmt::io::text(time.controlDict(),"restartDirectory"));
+            restart=chmt::io::text(time.controlDict(),"restartDirectory");
             if(!restart.isAbsolute())restart=time.path()/restart;
             chmt::io::require(chmt::readCheckpoint(restart,input.model,input.state,error),error);
-            // Older checkpoints may contain an unnormalized initial diagnostic.
+
             for(auto& particle:input.state.particles)
                 ugkp::thermal::normalizeParticleContactMechanicalEnergy(particle);
         }
         chmt::GasExecutionOptions options;
-        options.adjustTimeStep=time.controlDict().lookupOrDefault<Foam::Switch>("adjustTimeStep",true);
+        options.adjustTimeStep=input.gasTime.adjustTimeStep;
         options.fixedDeltaT=time.controlDict().lookup<Foam::scalar>("deltaT");
         options.fluxScheme=input.gasNumerics.gasFluxScheme;options.reconstruction=input.gasNumerics.gasReconstruction;
         options.limiter=input.gasNumerics.gasLimiter;options.timeIntegrator=input.gasNumerics.gasTimeIntegrator;
         options.turbulenceModel=input.model.physics.enableSst?3:0;
-        const Foam::word gasRegion(input.gasMesh->name());
-        const auto& scheme=ugkp::solverControls::startupScheme(time);
-        options.courantUpdateInterval=1;options.maximumTimeStepGrowth=1.05;
-        scheme.read("gasTimeStep","courantUpdateInterval",options.courantUpdateInterval,"default",gasRegion);
-        scheme.read("gasTimeStep","maximumTimeStepGrowth",options.maximumTimeStepGrowth,"default",gasRegion);
+        options.courantUpdateInterval=input.gasTime.courantUpdateInterval;
+        options.maximumTimeStepGrowth=input.gasTime.maximumTimeStepGrowth;
         chmt::io::require(options.courantUpdateInterval>0&&std::isfinite(options.maximumTimeStepGrowth)
             &&options.maximumTimeStepGrowth>=1,"invalid gas Courant scheduling");
         std::unique_ptr<chmt::Backend,void(*)(chmt::Backend*)> backend(
@@ -99,17 +98,22 @@ int main(int argc,char** argv) {
         std::unique_ptr<chmt::CoupledRadiation> radiation;
         if(input.thermalSchedule.radiationEnabled)
             radiation.reset(new chmt::CoupledRadiation(time,*input.gasMesh,input.model,input.state,input.thermalSchedule.radiationFrequency));
-        if(radiation&&time.controlDict().found("restartDirectory")){
-            Foam::fileName restart(chmt::io::text(time.controlDict(),"restartDirectory"));
-            if(!restart.isAbsolute())restart=time.path()/restart;
+        if(radiation&&!restart.empty()){
             radiation->readWarmStart((restart/"domWarmStart.bin").c_str());
         }
         std::cout<<"CHMT couplingInterval="<<input.coupling.interval<<" radiationFrequency="
             <<(radiation?input.thermalSchedule.radiationFrequency:0)<<std::endl;
         const chmt::Real end=time.controlDict().lookup<Foam::scalar>("endTime");
         const Foam::fileName directory=time.path()/chmt::io::text(time.controlDict(),"outputDirectory","chmtOutput");
-        chmt::io::require(!Foam::isDir(directory)&&!Foam::isFile(directory),"output directory already exists");
-        chmt::io::require(Foam::mkDir(directory),"cannot create coupled output directory");
+        namespace fs=std::filesystem;
+        const fs::path outputPath(directory.c_str());
+        std::error_code ec;
+        fs::create_directories(outputPath,ec);
+        chmt::io::require(!ec,"cannot open coupled output directory "+outputPath.string()+": "+ec.message());
+        std::optional<std::uint64_t> resumedStep;
+        if(!restart.empty()&&fs::equivalent(fs::path(restart.c_str()),
+            outputPath/("checkpoint-"+std::to_string(input.state.acceptedSteps)),ec))
+            resumedStep=input.state.acceptedSteps;
         const auto& outputControls=time.controlDict();
         const auto diagnosticInterval=outputControls.lookupOrDefault<Foam::label>("diagnosticInterval",1);
         const auto fieldInterval=outputControls.lookupOrDefault<Foam::label>("fieldInterval",1);
@@ -117,46 +121,23 @@ int main(int argc,char** argv) {
         chmt::io::require(diagnosticInterval>=0&&fieldInterval>=0&&checkpointInterval>=0,"output intervals must be nonnegative accepted-step counts");
         const bool writeInitial=chmt::io::flag(outputControls,"writeInitial",true);
         const bool writeFinal=chmt::io::flag(outputControls,"writeFinal",true);
-        auto publish=[&](bool force){
-            const auto step=input.state.acceptedSteps;
-            const bool diagnostics=force||(diagnosticInterval>0&&step%diagnosticInterval==0);
-            const bool full=force||(fieldInterval>0&&step%fieldInterval==0);
-            const bool checkpoint=force||(checkpointInterval>0&&step%checkpointInterval==0);
-            if(!diagnostics&&!full&&!checkpoint)return;
-            chmt::io::require(chmt::publishAcceptedState(*backend,input.state,error),error);
-            const std::string suffix=std::to_string(input.state.acceptedSteps);
-            if(diagnostics){
-            std::ofstream summary((directory/Foam::fileName("accepted-"+suffix+".csv")).c_str());
-            chmt::io::require(chmt::io::writeAcceptedCoupledSummary(summary,input.state,input.model,error),error);
-            }
-            if(full){
-            std::ofstream fields((directory/Foam::fileName("gas-"+suffix+".csv")).c_str());
-            chmt::io::require(chmt::io::writeAcceptedGasFields(fields,input.state,input.model,error),error);
-            if(input.model.physics.enableParticles){
-                std::ofstream particles((directory/Foam::fileName("particles-"+suffix+".csv")).c_str());
-                chmt::io::require(chmt::io::writeAcceptedParticleFields(particles,input.state,error),error);
-            }
-            std::ofstream solid((directory/Foam::fileName("material-"+suffix+".csv")).c_str());
-            chmt::io::require(chmt::io::writeAcceptedMaterialFields(solid,input.state,input.model,error),error);
-            std::ofstream exchange((directory/Foam::fileName("exchange-"+suffix+".csv")).c_str());
-            chmt::io::require(chmt::io::writeAcceptedExchangeFields(exchange,input.state,input.model,error),error);
-            if(input.model.physics.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){
-                std::ofstream wall((directory/Foam::fileName("wall-layer-"+suffix+".csv")).c_str());
-                chmt::io::require(chmt::io::writeAcceptedWallLayerFields(wall,input.state,input.model,error),error);
-            }
-            }
-            if(checkpoint){
-                const auto checkpointPath=directory/Foam::fileName("checkpoint-"+suffix);
-                chmt::io::require(chmt::writeCheckpoint(checkpointPath,input.model,input.state,error),error);
-                if(radiation)radiation->writeWarmStart((checkpointPath/"domWarmStart.bin").c_str());
-            }
+        chmt::io::AcceptedOutputWriter output(directory.c_str(),resumedStep,input.model,ugkp::diagnostics::makeFoamSink());
+        const auto selection=[&](std::uint64_t step,bool force){
+            const auto due=[&](Foam::label interval){return force||(interval>0&&step%interval==0);};
+            return chmt::io::OutputSelection{due(diagnosticInterval),due(fieldInterval),due(checkpointInterval)};
         };
-        if(writeInitial||(writeFinal&&input.state.time>=end))publish(true);
-        input.state.ledger.clear(); // already published audit packets are not PDE state
+        const auto publish=[&](chmt::io::OutputSelection choice){
+            output.submit(choice,*backend,input.state,radiation.get());
+        };
+        try {
+        if(writeInitial||(writeFinal&&input.state.time>=end))publish(selection(input.state.acceptedSteps,true));
+        input.state.ledger.clear();
         while(input.state.time<end){
+            output.collectReady();
+            auto choice=selection(input.state.acceptedSteps+1,false);
             chmt::WindowEvolutionReport report;
-            chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error,radiation.get(),false),error);
-            publish(writeFinal&&input.state.time>=end);
+            chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error,radiation.get(),false,choice.fields||choice.checkpoint),error);
+            publish(writeFinal&&input.state.time>=end?selection(input.state.acceptedSteps,true):choice);
             input.state.ledger.clear();ugkp::releaseUnusedHostPages();
             if
             (
@@ -169,10 +150,27 @@ int main(int argc,char** argv) {
             {
                 std::cout << "CHMT_REPRO step=" << input.state.acceptedSteps
                     << " time=" << input.state.time
+                    << " radiationTime=" << input.state.radiationTime
                     << " gasMicrosteps=" << report.acceptedGasMicrosteps
                     << " materialSolves=" << report.materialSolves << std::endl;
             }
         }
+        } catch(...) {
+
+            try {
+                auto secondary=output.collect();
+                if(secondary.hasFatal){
+                    const auto* source=ugkp::diagnostics::findSource(secondary,secondary.fatal.sourceSiteId);
+                    Foam::SeriousError<<ugkp::diagnostics::formatRecord(secondary.fatal,source).c_str()<<Foam::endl;
+                    secondary.hasFatal=false;
+                }
+                ugkp::diagnostics::dispatch(secondary,ugkp::diagnostics::makeFoamSink());
+            } catch(const std::exception& secondary) {
+                Foam::SeriousError<<secondary.what()<<Foam::endl;
+            }
+            throw;
+        }
+        output.finish();
         return 0;
 #endif
     } catch(const Foam::error& error) {

@@ -59,8 +59,8 @@ def measured(tmp_path_factory):
             (line.split() for line in result.stdout.splitlines())}
 
 def test_fixed_single_pass_matches_independent_sdirk_stability_function(measured):
-    # For y'=-2y, the two-stage stiffly accurate SDIRK2 Butcher tableau gives
-    # R(z)=(1+(1-2*gamma)*z)/(1-gamma*z)^2, gamma=1-1/sqrt(2).
+
+
     gamma=1-1/math.sqrt(2)
     for steps,mass in measured.items():
         z=-.5/steps
@@ -70,8 +70,8 @@ def test_fixed_single_pass_matches_independent_sdirk_stability_function(measured
 def test_uniform_external_partition_has_second_order_global_error(measured):
     exact=.028*math.exp(-.5)
     errors={n:abs(mass-exact) for n,mass in measured.items()}
-    # Assert the actual one-step error explicitly, instead of relaxing the
-    # historical adaptive-accuracy assertions.
+
+
     assert math.isclose(errors[1],9.148102899797905e-5,rel_tol=1e-10)
     assert errors[1]>2e-5
     for n in (4,8,16):

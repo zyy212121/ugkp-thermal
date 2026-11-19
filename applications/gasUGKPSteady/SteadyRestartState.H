@@ -4,8 +4,8 @@
 #include <iomanip>
 #include <string>
 
-// Statistics windows restart afresh; physical sampling time and the frozen
-// external boundary clock are independent of OpenFOAM's output-folder labels.
+
+
 struct SteadyRestartState
 {
     double boundaryTime=0;

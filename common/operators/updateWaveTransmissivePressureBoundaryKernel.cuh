@@ -48,9 +48,9 @@ __global__ void updateWaveTransmissivePressureBoundaryKernel
     GPU_OPERATOR_REAL psi =
         s.gasBoundaryRho[f]
        /clampMin(s.gasBoundaryP[f], OfSmall);
-    // Frozen mixtures use the boundary EOS, not owner rho divided by a
-    // separately evolved boundary pressure. Gamma remains the user-specified
-    // waveTransmissive parameter, as in the single-gas boundary law.
+
+
+
     if constexpr(ugkwp::GasStateTraits<GasState>::speciesCount>0)if(ugkwp::mixtureGasActive(s)){
         constexpr int Ns=ugkwp::GasStateTraits<GasState>::speciesCount;
         GPU_OPERATOR_REAL y[Ns];

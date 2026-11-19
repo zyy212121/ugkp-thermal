@@ -14,7 +14,6 @@ GAS_HEADERS = (
     "updateLegacyGasBoundaryMirrorKernel", "gasFaceSubgridTransportProperties",
     "computeRiemannGasFaceFluxDevice", "computeGasInternalFaceFluxKernel",
     "computeGasFluxPositivityScaleKernel", "computeSstFaceFluxKernel",
-    "linearScheduledValueDevice",
 )
 
 def test_manifest_covers_actual_state_dependencies_and_excludes_particle_resources():
@@ -25,15 +24,24 @@ def test_manifest_covers_actual_state_dependencies_and_excludes_particle_resourc
         assert not re.search(r"\bDeviceState\b", source), header
     manifest = (ROOT / "common/gasTransport/GasStateFields.inc").read_text()
     fields = set(re.findall(r"UGKWP_GAS_STATE_FIELD\([^,]+,\s*(\w+)\)", manifest))
-    assert fields | {"gasSpecies", "gasThermalConductivity", "gasGeometry", "gasBoundaryLayer", "gasBoundaryLayerModel"} == actual
+    capabilities={"gasSpecies","gasThermalConductivity","gasGeometry","gasBoundaryLayer","gasBoundaryLayerModel",
+                  "diagnostics","gasBoundaryProgram","gasSteadyMode","gravityX","gravityY","gravityZ"}
+    indirect={"gasMu","riemannBoundaryPWaveLInf","riemannBoundaryPWaveGamma","riemannBoundaryPWaveFieldInf"}
+    assert fields | capabilities == actual | indirect
     assert not any(re.search(r"particle|pool|packing|csr|cuda|Stream|Graph", f, re.I) for f in fields)
 
-def test_all_three_legacy_consumers_reach_the_same_operator_owners():
-    for app, leaf in (("gasUGKP", "private_backend"), ("FSH", "private_backend"), ("CHT", "gpu")):
-        if app != "gasUGKP" and not (ROOT / "applications" / app).is_dir():
-            continue
-        source = (ROOT / "applications" / app / leaf / "GpuResidentStrict.cu").read_text()
-        assert '#include "../../../common/GpuGasAdvance.cuh"' in source
+def test_applications_share_the_same_operator_owners():
+    gas=ROOT/"applications/gasUGKP/private_backend/GpuResidentStrict.cu"
+    thermal=ROOT/"common/thermal/GpuResidentStrict.cu"
+    consumers=((ROOT/"applications/CHT/gpu/GpuResidentStrict.cu",thermal),
+               (ROOT/"applications/gasUGKPSteady/private_backend/GpuSteadyBackend.cu",gas))
+    def includes(path):
+        return {(path.parent/name).resolve() for name in re.findall(r'^#include "([^"]+)"',path.read_text(),re.M)}
+    for path,target in consumers:
+        assert target.resolve() in includes(path)
+    for path in (gas,thermal):
+        source=path.read_text()
+        assert (ROOT/"common/GpuGasAdvance.cuh").resolve() in includes(path)
         for header in GAS_HEADERS:
-            assert f'#include "operators/{header}.cuh"' in source, (app, header)
-            assert not re.search(r"__(?:global|device)__[^;{}]*\b" + header + r"\s*\(", source), (app, header)
+            assert f'#include "operators/{header}.cuh"' in source,(path,header)
+            assert not re.search(r"__(?:global|device)__[^;{}]*\b"+header+r"\s*\(",source),(path,header)

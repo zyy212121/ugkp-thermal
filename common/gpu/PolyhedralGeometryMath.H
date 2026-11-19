@@ -53,7 +53,8 @@ UGKP_GEOMETRY_HD inline SweepResult faceSweep(int face,TopologyView t,const Poin
         const Point a=old[ia],b=old[ib],c=old[ic],da=endpoint[ia]-a,db=endpoint[ib]-b,dc=endpoint[ic]-c;
         const Point average=(triangleArea(a,b,c)+triangleArea(a+da*.5,b+db*.5,c+dc*.5)*4+triangleArea(a+da,b+db,c+dc))/6;
         r.area+=average;r.volume+=dot((da+db+dc)/3,average);}
-    if(!finite(r.area)||!std::isfinite(r.volume))r.invalid=1;return r;
+    if(!finite(r.area)||!std::isfinite(r.volume))r.invalid=1;
+    return r;
 }
 struct PlanarConstraint {int a,b,c,d;double scale;};
 struct Polynomial {double value[3];};
@@ -87,8 +88,8 @@ UGKP_GEOMETRY_HD inline Polynomial planarPolynomial(const Point* old,const Point
     }return out;
 }
 UGKP_GEOMETRY_HD inline Point normalized(Point a){const double m=magnitude(a);return m>0&&std::isfinite(m)?a/m:Point{};}
-// Face identities use volume-mesh indices; periodic neighbour endpoint indices
-// retain the canonical topological correspondence supplied by the application.
+
+
 struct SurfaceEdge {int a,b,ownerFace,neighbourFace,neighbourA,neighbourB;};
 struct EdgeResult {Point conormal,ownerOffset,neighbourOffset;double length=0,sweep=0,residual=0,tolerance=0;int invalid=0,converged=0;};
 constexpr double geometryEpsilon=std::numeric_limits<double>::epsilon();
@@ -107,7 +108,9 @@ UGKP_GEOMETRY_HD inline double edgeIntegrand(TopologyView t,const Point* old,con
     Point normal=normalized(faceAreaAt(t,old,end,edge.ownerFace,time,empty));
     if(magnitude(normal)==0)return undefinedGeometry;
     if(edge.neighbourFace>=0){const Point other=normalized(faceAreaAt(t,old,end,edge.neighbourFace,time,empty));
-        if(magnitude(other)==0)return undefinedGeometry;normal=normalized(normal+other);}
+        if(magnitude(other)==0)return undefinedGeometry;
+        normal=normalized(normal+other);
+    }
     if(magnitude(normal)<=1e-12||magnitude(b-a)<=0)return undefinedGeometry;
     const Point displacement=(end[edge.a]-old[edge.a]+end[edge.b]-old[edge.b])*.5;
     return dot(displacement,cross(b-a,normal));

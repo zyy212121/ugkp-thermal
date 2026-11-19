@@ -1,4 +1,4 @@
-                                                                 
+
 
 from __future__ import annotations
 from validation.tools.paths import SOURCE_ROOT, VALIDATION_ROOT, CASES_ROOT
@@ -27,7 +27,7 @@ def direct_wall_euler_flux(
     wall_velocity: tuple[float, float, float],
     wall_temperature: float,
 ) -> tuple[float, tuple[float, float, float], float]:
-                                                                               
+
 
     del wall_temperature
     momentum = tuple(pressure * component for component in normal)
@@ -45,7 +45,7 @@ def zero_transport_correction(
     gas_prandtl: float,
     turbulent_conductivity: float,
 ) -> tuple[float, float]:
-                                                                               
+
 
     mu_effective = gas_viscosity + turbulent_viscosity
     k_effective = (
@@ -233,8 +233,8 @@ def test_empty_and_processor_faces_do_not_reconstruct_cell_state(tmp_path,monkey
     compile_probe(path,fixture()+SETUP+r'''
 int main(){for(int selected=0;selected<2;++selected)for(int kind:{3,4}){
  State s;initialise(s);if(selected)wall(s);s.riemannBoundaryKind[1]=kind;s.gasReconstruction=1;
- // Any actual reconstruction dereferences these. Valid face topology and area
- // remain available for the intended empty/processor skip and map validation.
+
+
  s.rho=s.p=s.Tgas=s.Ux=s.Uy=s.Uz=nullptr;Real m=9,x=9,y=9,z=9,e=9;
  ck(!computeRiemannGasFaceFluxDevice<false>(s,1,m,x,y,z,e,STRICT),"nonphysical face produced a flux");
  ck(m==0&&x==0&&y==0&&z==0&&e==0,"skipped face produced nonzero transport");

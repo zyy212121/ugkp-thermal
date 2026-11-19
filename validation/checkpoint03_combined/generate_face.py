@@ -53,7 +53,7 @@ if a.candidate32_trend:
   'ck(muscl16/muscl32>3.5&&muscl32/muscl64>3.5,"MUSCL lost second-order spatial refinement");',
   'ck(muscl32<Real(.02)*first32,"MUSCL did not improve smooth periodic transport");'])
  trend = r"""
-// Predeclared candidate32 trend criteria. Exact-zero errors remain admissible.
+
 const auto improves=[](Real coarse,Real fine){return fine<coarse||(fine==Real(0)&&coarse==Real(0));};
 ck(improves(first16,first32),"first-order fixed refinement did not improve");
 ck(improves(muscl16,muscl32)&&improves(muscl32,muscl64),"MUSCL fixed refinement did not improve");

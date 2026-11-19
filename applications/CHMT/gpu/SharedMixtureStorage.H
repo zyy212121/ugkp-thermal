@@ -7,10 +7,10 @@ namespace chmt {
 struct CommonMixtureGasView : CommonGasView {
     ugkwp::GasSpeciesState<Real,Ns> gasSpecies;
 };
-// Host staging for the actual common species capability. This is deliberately
-// not a launch-ready backend: mesh metrics, boundary policies, common bulk
-// gradients/RK buffers and CUDA copies are bound by the future device owner.
-// No flux, reconstruction, chemistry or time-step algorithm is defined here.
+
+
+
+
 class SharedMixtureStorage {
     ugkwp::GasModelConfiguration model_;
     std::array<std::vector<Real>,5> bulk_;
@@ -27,7 +27,7 @@ public:
         if(!bindSharedGasModel(shared,validated,error))return false;
         SharedMixtureStorage candidate;candidate.model_=shared;candidate.volume_=source.gasMesh.volumes;
         for(auto& field:candidate.bulk_)field.resize(cells);
-        candidate.nut_.assign(cells,0); // Required even by laminar shared gas helpers.
+        candidate.nut_.assign(cells,0);
         candidate.rhoSpecies_.resize(Ns*cells);candidate.initial_.resize(Ns*cells);
         candidate.flux_.assign(Ns*faces,0);candidate.gx_.assign(Ns*cells,0);
         candidate.gy_.assign(Ns*cells,0);candidate.gz_.assign(Ns*cells,0);
@@ -56,7 +56,7 @@ public:
         *this=std::move(candidate);error.clear();return true;
     }
     CommonMixtureGasView view() {
-        // Refresh every borrowed pointer after owner copy/move/reallocation.
+
         CommonMixtureGasView out;out.nCells=static_cast<int>(volume_.size());out.nFaces=static_cast<int>(faceStatus_.size());
         out.rho=bulk_[0].data();out.rhoUx=bulk_[1].data();out.rhoUy=bulk_[2].data();out.rhoUz=bulk_[3].data();out.rhoE=bulk_[4].data();
         out.V=volume_.data();out.nut=nut_.data();auto& s=out.gasSpecies;

@@ -27,7 +27,7 @@ int main(){PhysicsConfig p;HostMesh m;std::vector<SolidQ> q;std::string error;Ma
  auto missing=m;missing.cellCentres.clear();assert(!detail::completeMaterialTransport(missing,q,p,{},.01,.4,out,error,&numerical)&&!numerical);
  auto unknown=p;unknown.species[0].model=static_cast<ugkwp::SpeciesThermoModel>(99);assert(!detail::completeMaterialTransport(m,q,unknown,{},.01,.4,out,error,&numerical)&&!numerical);
  Real thickness=7;assert(!filmThicknessFromMass(-2,3,1000,thickness)&&thickness==7);assert(detail::completeFilmThicknessFromMass(-2,3,1000,thickness)&&thickness==-2./3000);
- // Source-only instrumentation rejects each ordinary EOS trial after its candidate is actually formed.
+
  fixture(p,m,q);p.spatialOrder=2;p.reconstruction=ReconstructionMode::SmoothVerification;q[1].energy*=1e20;rejectTrials=true;trials=0;SolidQ density;
  assert(reconstruct<true>(m,q,p,0,0,density));assert(trials==48);
  assert(density.energy==lastCandidate.energy);assert(lastBound==std::ldexp(1.,-47));assert(density.energy!=nextEnergy);

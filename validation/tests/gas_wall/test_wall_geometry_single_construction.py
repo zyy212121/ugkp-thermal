@@ -32,8 +32,8 @@ def test_kernel_uses_boundary_triangles_instead_of_cached_polygon_normals(tmp_pa
     compile_run(tmp_path,r'''
  auto m=cubes();wallGeometryDetail::Context<double> ctx;WallStatus s;WallGeometryOptions<double> options;
  assert(wallGeometryDetail::prepare(m,ctx,s,options));
- // The current kernel clips actual triangles; stale aggregate face metadata
- // must not replace these planes or create an artificial iteration warning.
+
+
  ctx.faces[0].normal={1,0,0};ctx.faces[0].centre={0,0,0};
  ctx.faces[1].normal={-1,0,0};ctx.faces[1].centre={0,0,0};
  ugkp::diagnostics::DeviceContext diagnostics{};V seed;double scale=0;

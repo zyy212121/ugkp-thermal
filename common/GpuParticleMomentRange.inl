@@ -1,4 +1,4 @@
-// Intentionally included twice: one maintained traversal, with no call boundary.
+
     GPU_MOMENT_REAL rho = GPU_MOMENT_R(0.0);
     GPU_MOMENT_REAL momX = GPU_MOMENT_R(0.0);
     GPU_MOMENT_REAL momY = GPU_MOMENT_R(0.0);

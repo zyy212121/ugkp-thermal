@@ -29,7 +29,7 @@ def test_zero_flux_double_rk_thirds_preserve_nextafter_bits(tmp_path):
 int main(){State s;initialise(s);s.rhoE[0]=std::nextafter(std::nextafter(1e9,2e9),2e9);saveGasConservativeStateKernel(&s);
 const double energy=s.rhoE[0];for(int stage=0;stage<1000;++stage)blendGasConservativeStateKernel(&s,1./3.,2./3.);
 ck(std::memcmp(&energy,s.rhoE,sizeof energy)==0,"zero-flux double RK thirds lost authoritative ULP");
-// This guard applies only to an affine identity, not arbitrary weight sums.
+
 blendGasConservativeStateKernel(&s,.5,.25);ck(s.rhoE[0]==.75*energy,"non-unit weight sum was incorrectly treated as identity");}
 ''',real_type="double")
 

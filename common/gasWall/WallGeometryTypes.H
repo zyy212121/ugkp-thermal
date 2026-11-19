@@ -11,14 +11,14 @@ struct WallPolygonTopology {
     const int *faceOffsets=nullptr,*facePoints=nullptr,*triangleOffsets=nullptr;
 };
 struct WallPolygonWorkspace {
-    // Ring entries share the immutable face CSR offsets. Triangle offsets
-    // reserve N-2 entries per face. All storage is allocated at initialization.
+
+
     int* ring=nullptr;WallPolygonTriangle* triangles=nullptr;
     WallPolygonMetric* metric=nullptr;int* firstInvalidFace=nullptr;
 };
 struct WallMatchingTopology {
     WallPolygonTopology polygons{};int cells=0;
-    // Sorted by global face index within each cell, as in the native builder.
+
     const int *cellOffsets=nullptr,*cellFaces=nullptr,*owner=nullptr,*neighbour=nullptr;
     const unsigned char *physicalWall=nullptr,*constrained=nullptr,*gasCell=nullptr;
 };

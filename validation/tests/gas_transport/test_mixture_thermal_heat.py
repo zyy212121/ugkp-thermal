@@ -20,8 +20,8 @@ double particleEffectiveTemperatureDevice(const ThermalState&s,int i){
 }
 #include "GpuParticleGasHeatRelaxation.cuh"
 #include "GpuMixtureThermalParticleHeat.cuh"
-// Independent evaluation of the historical caloric law, including endpoint
-// trapezoid and phase interval. No production increment/derivative is used.
+
+
 long double cp(long double t){t=std::max(2327.L,std::min(4000.L,t));return (153.5L+.0031L*(t-2327.L))/.101961276L;}
 long double h(const ugkwp::ParticleCaloric&law,long double t){
  if(!law.phaseChange){const long double d=std::max(0.L,std::min(1673.L,t-2327.L));

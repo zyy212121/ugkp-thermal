@@ -9,10 +9,10 @@
 #define UGKP_SWEEP_TRIAL_HD
 #endif
 namespace ugkp { namespace gpu { namespace geometry {
-// Alpha is the existing line-search sequence 2^-backtrack, in [0,1].
-// Halving before TwoSum prevents overflow without changing a range decision.
-// Around DBL_MAX, the low part is compared with the rounding threshold of the
-// native host long-double format. No floating-point value is stored in FP32.
+
+
+
+
 UGKP_SWEEP_TRIAL_HD inline bool sweepTrialRangeFp64(double origin,double correction,double alpha){
     if(!std::isfinite(origin)||!std::isfinite(correction)||!std::isfinite(alpha))return false;
     const double a=origin*.5,b=(alpha*correction)*.5;

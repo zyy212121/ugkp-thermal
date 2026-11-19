@@ -1,4 +1,4 @@
-// Frozen production writer from 2908e423; only include path and wire-version symbol adapted.
+
 #include "gasBoundary/Wire.H"
 #include "Checkpoint.H"
 #include <algorithm>
@@ -588,7 +588,7 @@ template<class Archive,class Value> void visitHostStateFields(Archive& a,Value& 
     a(x.ledger);
     a(x.filmStorage);
     a(x.gasSstAudit);
-    // gasWallDiagnostics/time are reconstructible output, intentionally absent.
+
     a(x.time);
     a(x.acceptedSteps);
     a(x.rejectedSteps);
@@ -611,7 +611,7 @@ std::string parentDirectory(std::string path){
     const auto slash=path.find_last_of('/');return slash==std::string::npos?".":(slash==0?"/":path.substr(0,slash));
 }
 bool writeAll(int fd,const Bytes& bytes){std::size_t done=0;while(done<bytes.size()){const auto n=::write(fd,bytes.data()+done,bytes.size()-done);if(n<0&&errno==EINTR)continue;if(n<=0)return false;done+=static_cast<std::size_t>(n);}return true;}
-} // namespace
+}
 bool writeCheckpoint(const std::string& directory,const ModelConfig& config,const HostState& state,std::string& error){
     std::string temp;int fd=-1;
     try{
@@ -620,7 +620,7 @@ bool writeCheckpoint(const std::string& directory,const ModelConfig& config,cons
         if(state.gasMesh.gasBoundary&&ugkp::boundary::needsCheckpoint(*state.gasMesh.gasBoundary)) {
             std::vector<int> integers;std::vector<double> values;
             ugkp::boundary::encode(*state.gasMesh.gasBoundary,integers,values);
-            payload.integer(0x31444e42474b5055ULL,8); // UPKGBND1, optional boundary-definition extension
+            payload.integer(0x31444e42474b5055ULL,8);
             payload(integers);payload(values);
         }
         if(!state.gasTemperature.empty()){
@@ -639,9 +639,9 @@ bool writeCheckpoint(const std::string& directory,const ModelConfig& config,cons
         header.integer(checksum(body.data(),body.size()),8);header.data.insert(header.data.end(),body.begin(),body.end());
         const int directoryResult=::mkdir(directory.c_str(),0700);
         if(directoryResult!=0&&errno!=EEXIST){error=systemError("create checkpoint directory");return false;}
-        // Also sync on EEXIST: a previous failed parent fsync may have left
-        // this directory present but not durably linked. Retry must re-establish
-        // parent durability rather than mistake existence for successful sync.
+
+
+
         if(!syncDirectory(parentDirectory(directory),"sync checkpoint parent directory entry",error))return false;
         struct stat st;if(::stat(directory.c_str(),&st)!=0||!S_ISDIR(st.st_mode)){error="checkpoint destination is not a directory";return false;}
         temp=directory+"/.state.chmt.XXXXXX";std::vector<char> name(temp.begin(),temp.end());name.push_back(0);fd=::mkstemp(name.data());temp=name.data();
@@ -677,7 +677,7 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
             throw std::runtime_error("checkpoint checksum mismatch");
         const auto configEnd=decoder.offset+configSize,stateEnd=configEnd+stateSize;
         if(schema<9){
-            // Schemas 6--8 predate molecular transport; preserve their physical payloads.
+
             if(expected.physics.gasTransportFingerprint!=0)
                 throw std::runtime_error("legacy checkpoint has const molecular transport; cannot resume with variable molecular transport");
             decoder.offset=configEnd;
@@ -717,4 +717,4 @@ bool readCheckpoint(const std::string& directory,const ModelConfig& expected,Hos
         output=std::move(candidate);error.clear();return true;
     }catch(const std::exception& e){error=std::string("checkpoint read: ")+e.what();return false;}
 }
-} // namespace chmt
+}

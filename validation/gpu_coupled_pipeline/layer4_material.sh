@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Source OpenFOAM 10 first. TABLE_DIRECTORY contains the six layer4_optics.sh tables.
+
 set -euo pipefail
 if [[ $# != 4 ]]; then echo "usage: $0 REPOSITORY FROZEN_BASELINE TABLE_DIRECTORY OUTPUT" >&2; exit 2; fi
 root=$(realpath "$1"); baseline=$(realpath "$2"); tables=$(realpath "$3"); out=$(realpath -m "$4")

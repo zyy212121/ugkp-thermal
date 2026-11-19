@@ -11,7 +11,7 @@
 
 namespace ugkwp
 {
-// Optional steady capability: legacy and coupled state layouts need no fields.
+
 template<class State, class = void> struct HasGasPseudoTime : std::false_type {};
 template<class State> struct HasGasPseudoTime<State, std::void_t<
     decltype(std::declval<const State&>().gasPseudoDt),
@@ -23,7 +23,7 @@ UGKWP_PSEUDO_TIME_HD inline Time gasCellTimeStep(const State& s, int cell, Time 
     dt=gasResidentStepDt(s,dt);
     if constexpr (HasGasPseudoTime<State>::value)
         if (s.gasPseudoDt)
-            // Preserve source/subinterval fractions of the reference step.
+
             return dt * Time(s.gasPseudoDt[cell] / s.gasPseudoReferenceDt);
     return dt;
 }
@@ -33,8 +33,8 @@ template<class State> struct HasGasSteadyTime<State, std::void_t<
     decltype(std::declval<const State&>().gasSteadyMode),
     decltype(std::declval<const State&>().gasSteadyBoundaryTime)>> : std::true_type {};
 
-// Boundary scheduling is independent of local pseudo-time/source composition.
-// Statistical particle sampling freezes forcing while keeping physical steps.
+
+
 template<class State, class = void> struct HasGasFrozenBoundaryTime : std::false_type {};
 template<class State> struct HasGasFrozenBoundaryTime<State, std::void_t<
     decltype(std::declval<const State&>().gasSteadyBoundaryFrozen),

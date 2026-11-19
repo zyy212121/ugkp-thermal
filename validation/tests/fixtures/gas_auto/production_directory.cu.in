@@ -1,5 +1,5 @@
-// Test-only linker tracing observes the real CUDA task-builder launches.
-// No production counters or handwritten copy of its directory selector.
+
+
 int taskCountsLaunched=0,taskWritesLaunched=0;
 extern "C" cudaError_t __real_cudaLaunchKernel(const void*,dim3,dim3,void**,size_t,cudaStream_t);
 #if CUDART_VERSION >= 13000
@@ -59,7 +59,7 @@ int main(int argc,char**argv){
 #endif
     *s->deviceState=*s;
     require(binParticlesByCell(s,block,true)==0,"actual survivor directory producer");finish();
-    // Linker counts observe capture construction, not conditional replay execution.
+
     check(cudaMemcpy(s->compactCellOffset,s->cellParticleOffset,5*sizeof(int),cudaMemcpyDeviceToDevice));
     if(postTransportFusePayload){gatherCellLocalParticlePayloadKernel<true><<<s->particleWorkGrid,block>>>(s->deviceState);finish();}
     require(productionCompactionStage(s,block)==0,"actual compaction/commit/base capture");finish();
@@ -67,8 +67,8 @@ int main(int argc,char**argv){
     int baseN=0;for(int c=0;c<4;c++)baseN+=initial[c];
     require(*s->preBaseParticleCountDevice==baseN&&s->preBaseCellOffset[4]==baseN,"compaction base/count mismatch");
     populate(r,TestDirectory::full,initial);
-    // Real atomic binning can reorder survivors. Give the independent L1/CPU
-    // reference the committed particles, not their obsolete input ordering.
+
+
     for(int i=0;i<baseN;i++){
         r->pCellId[i]=s->pCellId[i];r->pStatus[i]=s->pStatus[i];r->pRng[i]=s->pRng[i];
         r->pm[i]=s->pm[i];r->pux[i]=s->pux[i];r->puy[i]=s->puy[i];r->puz[i]=s->puz[i];
@@ -76,7 +76,7 @@ int main(int argc,char**argv){
         r->sortedParticleIndex[i]=i;
     }
     const TestDirectory kind=path==0?TestDirectory::full:(path==1?TestDirectory::baseOnly:TestDirectory::splitBaseAndInjection);
-    if(path==0)s->preBaseDirectoryReady=0; // Legal cold/restart cache-miss fallback.
+    if(path==0)s->preBaseDirectoryReady=0;
     if(path!=0){
         selectDirectory(r,kind);r->preBaseCellOffset[0]=0;r->cellParticleOffset[0]=0;
         int offset=0;

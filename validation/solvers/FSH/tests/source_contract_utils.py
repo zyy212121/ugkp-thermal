@@ -166,7 +166,7 @@ def _include_expansion(path):
 
 @lru_cache(maxsize=3)
 def _included_source(path):
-    # Lexical structure only; GPU fixtures compile actual macro branches.
+
     return _include_expansion(path)[0]
 
 def _lookup_included_function(source,name):

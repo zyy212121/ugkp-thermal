@@ -85,8 +85,8 @@ assert(out[0].species[0]==.25*.03&&out[0].condensed[0]==.25*.04&&std::isinf(out[
 assert(out[0].momentum.x==2*out[0].mass+(100003-5)*.375);
 assert(out[1].mass==.25*.007+.25*.003&&out[1].energy==.25*23&&out[1].poreSweep[0]==.25*.001);
 assert(out[2].mass==0&&out[2].energy==0&&out[2].species[0]==0&&status.code!=int(ErrorCode::Success));
-// Actual disappearing-film transfer is evaluated even when the old numerical
-// composition certificate disagrees with the supplied remaining species.
+
+
 r={};r.wet=true;r.phaseMass=-100;r.phaseAdvective=2;r.phaseConductive=3;r.phasePressureWork=4;r.phaseViscousWork=5;
 r.bottomKineticAdvection=7;r.radiationFlux=11;in.filmBase.mass=2;in.filmBase.species[0]=.4;in.filmBase.species[1]=1.6;
 in.filmBase.enthalpy=901;in.filmLocalRate.enthalpy=13;in.aux.thickness=.01;
@@ -125,7 +125,7 @@ auto mutate=[](GasWallInput& value,int kind){
  if(kind==2)value.normal.y=NAN;
  if(kind==3)value.normalSpeed=NAN;
 };
-// Variants 6..9 start with the exact terminal input being reused.
+
 if(variant>=6&&variant<=9)mutate(in,variant-6);
 if(variant==14||variant==15)in.normalSpeed=INFINITY;
 GasWallResult original;assert(evaluateGasWall(in,id,p,original));
@@ -173,8 +173,8 @@ if(variant!=12){auto freshInput=in;freshInput.preparedLayer=nullptr;GasWallResul
  }
 }else compareLayer(reused.layer,prepared);
 if(!changed){
- // A matching prepared-only product does not require another BVP workspace,
- // including matching terminal components and the original finite tolerance.
+
+
  p.wallModel.model=ugkwp::gaswall::BoundaryLayerModel::ReactingSst;
  in.wallContext.workspace=nullptr;calls=0;GasWallResult withoutWorkspace;
  assert(evaluateGasWall(in,id,p,withoutWorkspace)&&calls==0);compareLayer(withoutWorkspace.layer,prepared);

@@ -16,12 +16,12 @@ def main():
     def replace(m):
         source=root/m[3]
         if not source.exists():ambiguous.append((int(m[2]),m[3],'missing file'));return m[0]
-        if int(m[2])==1:return m[0] # Runtime CUDA errors share recordCudaFailure.
+        if int(m[2])==1:return m[0]
         lines=[i+1 for i,line in enumerate(source.read_text().splitlines())
                if re.search(r'(?<![\w.])'+m[2]+r'(?![\w.])',line) and not line.lstrip().startswith('//') and '.sources.push_back' not in line]
         if not lines:ambiguous.append((int(m[2]),m[3],lines));return m[0]
-        # Repeated literals describe branches of a shared site. Record the
-        # first emitting statement, never a stale registration line.
+
+
         if lines[0]!=int(m[4]):changes.append((int(m[2]),int(m[4]),lines[0]))
         return m[1]+str(lines[0])+m[5]
     updated=re.sub(pattern,replace,text)

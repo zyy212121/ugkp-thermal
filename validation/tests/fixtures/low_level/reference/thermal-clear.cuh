@@ -1,4 +1,4 @@
-// Immutable fa71f477 reference for old/new regression, never production.
+
 __global__ void clearPoissonThermalPoolKernel(DeviceState* sp)
 {
     DeviceState& s = *sp;

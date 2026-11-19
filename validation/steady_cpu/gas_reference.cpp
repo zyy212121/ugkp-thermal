@@ -1,4 +1,4 @@
-// Included after the shared host CUDA-index shim by build.py. No physics copies.
+
 #include <fstream>
 #include <iomanip>
 #include <string>
@@ -38,7 +38,7 @@ template<class F>void cells(DeviceState&s,F fn){for(int c=0;c<s.nCells;++c){thre
 template<class F>void faces(DeviceState&s,F fn){for(int f=0;f<s.nFaces;++f){threadIdx.x=f;fn();}}
 void initialise(DeviceState&s,const Input&a){
  const int n=a.cells,storage=4*n+8;
- // GENERATED_ALLOCATIONS
+
  s.nCells=n;s.nFaces=n+1;s.nInternalFaces=n-1;s.gammaGas=1.4;s.Rgas=287;s.gasCp=1004.5;s.rhoMin=1e-12;s.TgasMin=1e-9;
  s.gasMu=a.mu;s.gasPrClamped=s.gasPr=.7;s.turbulentPrandtl=.9;s.gasFluxScheme=a.scheme;s.gasReconstruction=a.reconstruction;s.gasLimiter=a.limiter;
  s.sstConfigured=a.sst;s.turbulenceModel=a.sst?3:0;s.sstCoefficients=ugkwp::defaultSstCoefficients();s.sstKMin=1e-12;s.sstOmegaMin=1e-9;s.sstWallKappa=.41;s.sstWallE=9.8;s.sstWallCmu=.09;
@@ -94,7 +94,7 @@ void output(DeviceState&s,std::ostream&out,int iteration){
  rawFlux(s);cells(s,[&](){steadyGasSpatialResidualKernel(&s);});
  for(int c=0;c<s.nCells;++c){out<<iteration<<','<<c<<','<<s.Cx[c]<<','<<s.V[c]<<','<<s.rho[c]<<','<<s.rhoUx[c]<<','<<s.rhoUy[c]<<','<<s.rhoUz[c]<<','<<s.rhoE[c]<<','<<s.Ux[c]<<','<<s.Uy[c]<<','<<s.Uz[c]<<','<<s.p[c]<<','<<s.Tgas[c]<<','<<s.k[c]<<','<<s.omega[c]<<','<<s.nut[c]<<','<<(s.gasSpecies.rho?s.gasSpecies.rho[c]:0)<<','<<(s.gasSpecies.rho?s.gasSpecies.rho[s.nCells+c]:0)<<','<<(s.gasPseudoDt?s.gasPseudoDt[c]:0);for(int j=0;j<9;++j)out<<','<<s.gasSteadyResidual[j*s.nCells+c];out<<','<<s.gasSpecies.cellStatus[c]<<'\n';}
 }
-// PARTICLE_FRAGMENT
+
 #ifdef STEADY_CPU_PARTICLES
 #include "applications/gasUGKPSteady/private_backend/SteadySamplingMoments.cuh"
 void outputWindow(ParticleState&s,std::ostream&out,int iteration,double duration){

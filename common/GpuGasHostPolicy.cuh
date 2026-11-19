@@ -1,9 +1,9 @@
 #pragma once
 
-// Host-only policies: retain the application's time and RK storage precision.
-// These types never enter DeviceState or a device-kernel parameter list.
-// The caller supplies its own host-state type; neither policy owns gas or
-// particle storage. CUDA consumers already compile as C++17.
+
+
+
+
 template<class TimeValue, class WeightValue>
 struct GasHostWithoutWallEnergy
 {

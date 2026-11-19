@@ -2,21 +2,32 @@
 #include "gasStencilDiagnostics.cuh"
 #include "GpuCellNeighbour.cuh"
 #include "gasTransport/GasConservativeMatching.H"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<class GasState>
+__device__ GasPrimDevice gradientCellPrimitive(const GasState& s,int c)
+{
+    auto cell=gasCellPrimitive(s,c);
+    cell.T=clampMin(finiteOr(s.Tgas[c],cell.T),s.TgasMin);
+    return cell;
+}
+
+template<class GasState,bool stencilChecked=false>
 __device__ GasPrimDevice riemannFacePrimitiveForGradient
 (
     const GasState& s,
     const int c,
     const int f,
-    const bool nativeRefinement=false
+    const bool nativeRefinement=false,
+    const GasPrimDevice* cachedCentre=nullptr
 )
 {
     const GasPrimDevice invalid={GPU_OPERATOR_REAL(NAN),GPU_OPERATOR_REAL(NAN),GPU_OPERATOR_REAL(NAN),
         GPU_OPERATOR_REAL(NAN),GPU_OPERATOR_REAL(NAN),GPU_OPERATOR_REAL(NAN)};
-    if(c<0 || c>=s.nCells){gasStencilIndexFailure(s,c,c,30040);return invalid;}
-    if(!gasStencilFaceCouplingValid(s,c,f))return invalid;
-    if(!gasProducerScalarValid(s,c,s.Tgas[c],30041,true))return invalid;
+    if constexpr(!stencilChecked) {
+        if(c<0 || c>=s.nCells){gasStencilIndexFailure(s,c,c,30040);return invalid;}
+        if(!gasStencilFaceCouplingValid(s,c,f))return invalid;
+        if(!gasProducerScalarValid(s,c,s.Tgas[c],30041,true))return invalid;
+    }
     if(f>=s.nInternalFaces && !isPeriodicFace(s,f))
     {
         const int kind=s.riemannBoundaryKind[f];
@@ -27,11 +38,10 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
                 ||!gasProducerScalarValid(s,c,s.riemannBoundaryUy[f],30112)
                 ||!gasProducerScalarValid(s,c,s.riemannBoundaryUz[f],30113)))return invalid;
     }
-    GasPrimDevice centre = gasCellPrimitive(s,c);
-    centre.T = clampMin(finiteOr(s.Tgas[c], centre.T), s.TgasMin);
+    const auto centre=stencilChecked?*cachedCentre:gradientCellPrimitive(s,c);
     if (f < s.nInternalFaces || isPeriodicFace(s, f))
     {
-        if(!gasStencilFaceValid(s,c,f))return invalid;
+        if constexpr(!stencilChecked)if(!gasStencilFaceCellsValid(s,c,f))return invalid;
         const int own = s.faceOwner[f];
         const int nei = s.faceNeighbour[f];
         const int other = oppositeCellAcrossFace(c, own, nei);
@@ -40,12 +50,7 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
             gasStencilIndexFailure(s,c,other,30044);return invalid;
         }
         if(!gasProducerScalarValid(s,c,s.Tgas[other],30045,true))return invalid;
-        GasPrimDevice adjacent = gasCellPrimitive(s,other);
-        adjacent.T = clampMin
-        (
-            finiteOr(s.Tgas[other], adjacent.T),
-            s.TgasMin
-        );
+        const auto adjacent=gradientCellPrimitive(s,other);
         const GPU_OPERATOR_REAL ownerWeight = clampRange(s.faceWeight[f], GPU_OPERATOR_R(0.0), GPU_OPERATOR_R(1.0));
         const GPU_OPERATOR_REAL wc = c == own ? ownerWeight : GPU_OPERATOR_R(1.0) - ownerWeight;
         if(ugkwp::mixtureGasActive(s))
@@ -93,7 +98,7 @@ __device__ GasPrimDevice riemannFacePrimitiveForGradient
         face.ux -= un*nx;
         face.uy -= un*ny;
         face.uz -= un*nz;
-        // Slip constrains velocity, not the independent thermal boundary.
+
         if (s.riemannBoundaryTFix[f] != 0)
         {
             face.T = clampMin(finiteOr(s.riemannBoundaryT[f], centre.T), s.TgasMin);

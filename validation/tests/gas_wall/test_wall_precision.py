@@ -110,9 +110,9 @@ int main(){
  if(!evaluateWallModel(in,c,w,o,s)){std::cerr<<int(s.code)<<" iteration "<<s.iteration;return 2;}
  assert(o.traceMassFraction[9]>.1);GpuReal sum=0;for(int j=0;j<10;++j){assert(o.traceMassFraction[j]>=0);sum+=o.traceMassFraction[j];}
  assert(near(sum,1));for(int j=1;j<9;++j)assert(o.traceMassFraction[j]<(1e-12));
- // At a simplex corner the global dependent reactant is exhausted while
- // eight independent inert species are exactly zero. A tangent basis using
- // the local nonzero species must still yield a valid Jacobian.
+
+
+
  const auto computeInput=detail::wallComputationInput(in);const auto computeConfig=detail::wallComputationConfig(c);
  detail::LayerContext<WallReal,10> ctx;detail::makeContext(computeInput,computeConfig,ctx);
  for(int i=0;i<c.nodes;++i){for(int j=0;j<9;++j)w.state[i][3+j]=0;w.state[i][11]=1;}

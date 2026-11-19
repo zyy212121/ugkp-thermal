@@ -1,4 +1,4 @@
-# Source this file to use the applications built inside this checkout.
+
 _ugkp_source_root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 if [[ -z ${WM_PROJECT_DIR:-} ]]; then
     source "${OPENFOAM_BASHRC:-/opt/openfoam10/etc/bashrc}"

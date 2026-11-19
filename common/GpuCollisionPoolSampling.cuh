@@ -1,6 +1,6 @@
 #pragma once
 #include "wall/GpuColdWall1DHandles.cuh"
-// Shared Gaussian sampling and weighted moments; native contact metadata remains an extension.
+
 template<bool AtomicMoments = true>
 __device__ void sampleOnePoissonPoolParticle
 (

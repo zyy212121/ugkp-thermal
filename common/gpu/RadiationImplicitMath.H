@@ -11,7 +11,7 @@
 namespace ugkp { namespace gpu { namespace radiationMath {
 constexpr RadiationReal radiationDoubleMinimum=std::numeric_limits<RadiationReal>::min();
 constexpr RadiationReal radiationDoubleEpsilon=std::numeric_limits<RadiationReal>::epsilon();
-// Preserve std::min/max operand order, including unordered IEEE comparisons.
+
 template<class T> UGKP_RADIATION_HD inline T radiationMaximum(T a,T b){return a<b?b:a;}
 template<class T> UGKP_RADIATION_HD inline T radiationMinimum(T a,T b){return b<a?b:a;}
 struct ImplicitTemperatureRootResult

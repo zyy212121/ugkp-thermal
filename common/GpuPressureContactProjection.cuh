@@ -1,8 +1,8 @@
 #pragma once
 #include "ParticleResidentInterval.H"
-// Free cells use the gas reference analytic target. Only cells containing a
-// constrained particle retain the contact moment closure. No host decision or
-// per-cell device transfer is needed for either directory layout.
+
+
+
 template<PressureDirectory Directory, bool Compact>
 __device__ bool pressureDirectoryContainsContact(const DeviceState& s,int c)
 {

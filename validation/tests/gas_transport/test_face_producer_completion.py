@@ -31,7 +31,7 @@ int main(int argc,char**argv){ck(argc==2,"scenario");State s;initialise(s);const
   s.riemannBoundaryKind[1]=0;s.riemannBoundaryPFix[1]=s.riemannBoundaryTFix[1]=1;s.riemannBoundaryP[1]=101325;s.riemannBoundaryT[1]=0;s.riemannBoundaryUFix[1]=1;s.riemannBoundaryUx[1]=2;s.riemannBoundaryUy[1]=3;s.riemannBoundaryUz[1]=inf;
   const auto out=riemannBoundaryState(s,1,gasCellPrimitive(s,0));ck(s.gasSpecies.faceStatus[1]!=0,"boundary status");ck(std::isinf(out.rho)&&out.p==101325&&out.T==0&&out.ux==2&&out.uy==3&&std::isinf(out.uz),"boundary EOS/velocity incomplete");
  }else if(!std::strcmp(test,"boundary_total")){
-  // The mixture total-inlet operator is unavailable; no approximate continuation.
+
   s.riemannBoundaryKind[1]=0;s.riemannBoundaryUFix[1]=3;s.riemannBoundaryP[1]=101325;s.riemannBoundaryT[1]=900;
   ugkp::diagnostics::DeviceContext diagnostics{};s.diagnostics=&diagnostics;
   const auto owner=gasCellPrimitive(s,0),out=riemannBoundaryState(s,1,owner);
@@ -59,8 +59,8 @@ int main(int argc,char**argv){ck(argc==2,"scenario");State s;initialise(s);const
   s.gasSpecies.thermo.coefficientCount=1;Real Y[2]={.25,.75},grad[2]={1,-1},D[2]={.01,.03},out[2]={-11,-12},energy=-13;
   ck(!ugkwp::correctedSpeciesDiffusion(Y,grad,Real(2),D,Real(0),Real(.8),Real(700),s.gasSpecies.thermo,out,energy),"metadata diffusion status");Real raw0=-Real(2)*D[0],raw1=Real(2)*D[1],j=raw0-Y[0]*(raw0+raw1);field(out[0],j,"actual metadata diffusion");field(out[1],-j,"actual closure");field(energy,Real(-3000000)*j,"actual supplied enthalpies");
  }else if(!std::strcmp(test,"face_count_labels")){
-  // All cell fields still have the original eight allocated elements. Only
-  // the declared cell count is changed; no pointer leaves its real backing.
+
+
   s.gasSpecies.mode=ugkwp::GasMode::SingleLegacy;s.nCells=1;s.faceOwner[1]=1;s.riemannBoundaryKind[1]=0;Real out[5]={-11,-12,-13,-14,-15};computeRiemannGasFaceFluxDevice<false>(s,1,out[0],out[1],out[2],out[3],out[4]);ck(out[0]==0&&out[1]==-s.p[1]&&out[2]==0&&out[3]==0&&out[4]==0,"actual allocated owner refused by count label");
   s.faceOwner[0]=0;s.faceNeighbour[0]=1;s.gasSpecies.faceStatus[0]=0;for(int k=0;k<5;++k)out[k]=-21-k;computeRiemannGasFaceFluxDevice<false>(s,0,out[0],out[1],out[2],out[3],out[4]);ck(out[0]==0&&out[1]==s.p[0]&&out[2]==0&&out[3]==0&&out[4]==0,"actual allocated neighbour refused by count label");
  }else if(!std::strcmp(test,"face_metadata")){
@@ -99,7 +99,7 @@ int main(int argc,char**argv){ck(argc==2,"scenario");State s;initialise(s);const
   ugkwp::SpeciesThermoData<Real> data[2]={s.gasSpecies.thermo.species[0],s.gasSpecies.thermo.species[1]};Real nasa[14]={3.5,.001,0,0,0,10,4,4.5,.002,0,0,0,20,5};auto full=s.gasSpecies.thermo;
   if(!std::strcmp(test,"partial_nasa_enthalpy")){for(int k=0;k<2;++k){data[k].model=ugkwp::SpeciesThermoModel::NASA7;data[k].coefficientOffset=7*k;data[k].midTemperature=1000;}full.species=data;full.coefficients=nasa;full.coefficientCount=14;}
   auto partial=full;partial.coefficientCount=full.coefficientCount-1;if(!std::strcmp(test,"partial_nasa_enthalpy"))partial.coefficientCount=12;
-  // The original successful Cp-only/scalar and generic-bundle selectors stay.
+
   field(ugkwp::speciesCp(1,Real(700),partial),ugkwp::speciesCp(1,Real(700),full),"partial original Cp success");ck(std::isnan(ugkwp::speciesH(1,Real(700),partial)),"original partial scalar h changed");ugkwp::gasThermoDetail::SpeciesValues<Real> values;bool propertyEvaluated=false;ck(ugkwp::gasThermoDetail::evaluateSpecies(1,Real(700),partial,values,&propertyEvaluated)==ugkwp::ThermoStatus::Success&&propertyEvaluated&&std::isnan(values.h),"generic partial bundle changed");
   Real y[2]={.25,.75},grad[2]={1,-1},D[2]={.01,.03},flux[2]={-31,-32},heat=-33,ref[2]={-41,-42},expected=-43;bool evaluated=false;ck(ugkwp::correctedSpeciesDiffusion(y,grad,Real(2),D,Real(0),Real(.8),Real(700),full,ref,expected),"full enthalpy reference");ck(!ugkwp::correctedSpeciesDiffusion(y,grad,Real(2),D,Real(0),Real(.8),Real(700),partial,flux,heat,false,&evaluated)&&evaluated,"partial enthalpy certificate/availability");for(int k=0;k<2;++k)field(flux[k],ref[k],"partial actual diffusion flux");field(heat,expected,"partial actual backed enthalpy");if(!std::strcmp(test,"partial_linear_enthalpy"))field(heat,Real(90000),"linear actual 90000 heat");
   Real energy=-61;bool energyEvaluated=false;ck(ugkwp::evaluateMixtureInternalEnergy(y,Real(700),partial,energy,&energyEvaluated)!=ugkwp::ThermoStatus::Success&&energyEvaluated,"selected partial energy certificate/availability");field(energy,ugkwp::mixtureEnergy(y,Real(700),full),"selected actual partial energy");
@@ -181,8 +181,8 @@ int main(){State s;initialise(s);s.gasReconstruction=1;s.rhoMin=2;
  ck(reconstructGasMixtureFace(s,0,1,out,y)&&attempts==65,"direct 65-attempt complete fallback");
  ck(out.rho==1&&out.p==s.p[0]&&out.T==s.p[0]/(out.rho*ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo)),"final centre EOS evaluated");
  attempts=0;out={-11,-12,-13,-14,-15,-16};y[0]=-21;y[1]=-22;ck(!reconstructGasMixtureFace(s,0,1,out,y,true)&&attempts==65&&out.rho==-11&&y[0]==-21,"strict 65 attempts/transaction changed");
- // Same original last-complete selection as the independent continuation test:
- // the centre EOS is undefined, and a complete slope candidate precedes it.
+
+
  initialise(s);auto* meta=const_cast<ugkwp::SpeciesThermoData<Real>*>(s.gasSpecies.thermo.species);meta[1].molarMass=Real(2)*meta[0].molarMass;s.gasSpecies.rho[0]=-1;s.gasSpecies.rho[2]=2;s.gasReconstruction=1;s.gasSpecies.limiter[0]=1;s.gasSpecies.gradX[0]=1;
  attempts=0;out={-11,-12,-13,-14,-15,-16};y[0]=-21;y[1]=-22;ck(reconstructGasMixtureFace(s,0,0,out,y)&&attempts==65,"old fallback iteration budget changed");ck(y[0]>Real(-1)&&y[0]<0&&y[1]==1-y[0]&&std::isfinite(out.T)&&out.T==out.p/(out.rho*ugkwp::mixtureGasConstant(y,s.gasSpecies.thermo)),"last complete fallback lineage changed");
 }
@@ -212,8 +212,9 @@ template<class S>__device__ void faces(S&s){
 __global__ void face2(CudaState<2>*s){faces(*s);}
 __global__ void face10(CudaState<10>*s){faces(*s);}
 __global__ void faceLegacy(CudaLegacy*s){faces(*s);}
-template __global__ void computeGasPrimitiveGradientsKernel<CudaState<2>>(CudaState<2>*,const bool,const bool);
+template __global__ void computeGasPrimitiveGradientsKernel<CudaState<2>>(CudaState<2>*,const bool);
 template __global__ void computeGasGradientLimiterKernel<CudaState<2>>(CudaState<2>*,const bool);
+template __global__ void computeGasGradientLimiterKernel<CudaState<2>,true>(CudaState<2>*,const bool);
 template __global__ void computeGasInternalFaceFluxKernel<true,CudaState<2>>(CudaState<2>*,const GPU_OPERATOR_TIME,const bool);
 template __global__ void enforcePeriodicGasFluxAntisymmetryKernel<CudaState<2>>(CudaState<2>*,const bool);
 template __global__ void computeGasFluxPositivityScaleKernel<CudaState<2>>(CudaState<2>*,const GPU_OPERATOR_TIME);

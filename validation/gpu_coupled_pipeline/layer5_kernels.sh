@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Independent frozen CPU oracles and CUDA memory/synchronization checks.
+
 set -euo pipefail
 if [[ $# != 3 ]]; then echo "usage: $0 SOURCE_ROOT FROZEN_BASELINE_ROOT NEW_OUTPUT_DIRECTORY" >&2; exit 2; fi
 root=$(realpath "$1")

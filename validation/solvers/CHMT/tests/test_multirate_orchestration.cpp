@@ -1,5 +1,5 @@
-// Host transaction unit test with scripted participant responses. This verifies
-// orchestration/rollback only; it does not mock a CFD run or establish accuracy.
+
+
 #include "io/MultirateEvolution.H"
 #include "gpu/Backend.H"
 #include "gpu/GasWindowProgram.H"
@@ -75,7 +75,7 @@ bool downloadState(const Backend& b,HostState& out,std::string& error){out=b.acc
 bool publishGasWindow(Backend& b,HostState& out,std::string& error){++b.compactPublications;if(b.failInput==2){error="endpoint transfer failed";return false;}out=b.trial;error.clear();return true;}
 bool publishAcceptedState(Backend& b,HostState& out,std::string& error){++b.acceptedPublications;out=b.accepted;error.clear();return true;}
 ResidentMaterialDriveHistory residentGasWindowDriveHistory(const Backend&){return {};}
-std::vector<GasIntervalRecord> releaseGasWindowRecords(Backend& b){return b.history.records();}
+IntervalHistory releaseGasWindowHistory(Backend& b){return std::move(b.history);}
 
 }
 

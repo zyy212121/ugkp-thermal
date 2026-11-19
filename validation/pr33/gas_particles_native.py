@@ -9,8 +9,8 @@ def main():
  out=args.output.resolve();out.mkdir(parents=True,exist_ok=False);report={'runs':[],'budgets':[],'parity':[]}
  def save():(out/'results.json').write_text(json.dumps(report,indent=2))
  def run(case,solver,mesh=False):
-  # Historical archived fixtures are monodisperse. Migrate only the copied
-  # input to the replacement RR spelling; do not rewrite saved evidence.
+
+
   props=case/'constant/particleProperties'
   text=props.read_text()
   if 'dSigma' in text:

@@ -42,7 +42,7 @@ int applyGasGravitySource(DeviceState*,int grid,int block,double dt,bool refinem
 int main(){DeviceState s;Owner owner;s.diagnosticOwner=&owner;
  assert(SharedGasTrialPolicy::beginInterval(&s)==0&&SharedGasTrialPolicy::begin(&s)==0);
  assert(SharedGasTrialPolicy::applySources(&s,.25,true)==0);
- // Stage validation enqueues on the resident stream without host waiting.
+
  assert(SharedGasTrialPolicy::validate(&s)==0&&enqueues==1&&waits==0&&dispatches==0);
  assert(observedStream==s.gasCaptureStream);
  dispatchResult=1;

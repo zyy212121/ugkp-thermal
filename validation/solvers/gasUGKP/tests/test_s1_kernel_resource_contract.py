@@ -71,8 +71,8 @@ class S1KernelResourceContract(unittest.TestCase):
                 self.assertLessEqual(resource["reg"], 48, resource)
 
     def test_active_pressure_cache_kernels_are_spill_free(self) -> None:
-        # Validate this package's active kernels, not an unrelated engineering
-        # installation or the old, no-longer-launched template specialisations.
+
+
         for name, register_limit in (
             ("preparePressureProjectionCacheKernel", 80),
             ("applyCachedPressureProjectionParticlesKernel", 48),

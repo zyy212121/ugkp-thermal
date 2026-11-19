@@ -47,7 +47,7 @@ int main(int argc,char** argv){
         Device<double> dDiagonal(diagonal),dSource(source),dCurrent(expected),dPrevious(count),dResidual(count),dMagnitude(count);
         Device<UpwindIntensityFailure> failures(count);
         for(int sweep=0;sweep<5;++sweep){
-            // Independent literal ordering of the original FV upwind sweep.
+
             for(int cell=0;cell<count;++cell){double rhs=source[cell];for(int f:cellFaces[cell]){
                 if(cell==owner[f]&&flux[f]<0)rhs-=flux[f]*expected[neighbour[f]];
                 else if(cell==neighbour[f]&&flux[f]>0)rhs+=flux[f]*expected[owner[f]];}

@@ -7,7 +7,10 @@ namespace chmt {
 struct Backend;
 struct WindowRadiation {
     virtual ~WindowRadiation()=default;
-    virtual bool advance(Backend&,const WallProgram&,HostState&,Real& externalHeat,std::string&)=0;
+
+    virtual bool due(const CouplingInterval&,const CouplingControls&,const HostState&,bool) const {return true;}
+    virtual bool prepareParent(Backend&,const WallProgram&,const HostState&,std::string&){return true;}
+    virtual bool advance(Backend&,const WallProgram&,HostState&,EnergyReal& externalHeat,std::string&)=0;
 };
 struct MicrostepGeometryReport {
     std::uint64_t microSequence=0;
@@ -19,11 +22,11 @@ struct WindowEvolutionReport {
     Real nextGasDt=0;
     std::vector<MicrostepGeometryReport> geometry{};
 };
-// Advance at most one macro interval toward targetTime. The accepted state is
 
-// failed/replayed window never becomes output or restart authority.
+
+
 bool advanceCoupledWindow(Backend&,CpuMaterialDriver&,const ModelConfig&,
     const CouplingControls&,const CpuMaterialControls&,Real targetTime,
-    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport&,std::string& error,WindowRadiation* radiation=nullptr,bool publishHostState=true);
+    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport&,std::string& error,WindowRadiation* radiation=nullptr,bool publishHostState=true,bool outputBoundary=false);
 }
 #endif

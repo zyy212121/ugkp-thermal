@@ -18,4 +18,4 @@ UGKWP_GAS_HD inline bool conservativeWallCellReady(const S &s, int c) {
   }
   return false;
 }
-} // namespace ugkwp
+}

@@ -6,11 +6,11 @@
 namespace ugkwp
 {
 
-// Non-owning geometry for one Euler stage. The caller binds metrics for this
-// stage interval; a different stage cannot reuse full-window swept volumes.
-// Cell volumes are geometric volumes [m^3]. Face sweeps [m^3] are positive in the
-// owner-outward direction, matching the area vector used by the flux operator.
-// Evaluation areas/centres remain in the ordinary shared gas geometry arrays.
+
+
+
+
+
 template<class Real>
 struct GasGeometryState
 {
@@ -21,8 +21,8 @@ struct GasGeometryState
     Real interval = Real(0);
 
 
-    Real absoluteGeometryTolerance = Real(-1); // swept volume [m^3]
-    Real relativeGeometryTolerance = Real(-1); // dimensionless
+    Real absoluteGeometryTolerance = Real(-1);
+    Real relativeGeometryTolerance = Real(-1);
 };
 
 template<class Real>
@@ -31,7 +31,7 @@ struct GasFaceFrame
     Real nx = Real(0), ny = Real(0), nz = Real(0);
     Real area = Real(0);
     Real wx = Real(0), wy = Real(0), wz = Real(0);
-    Real meshVolumeRate = Real(0); // signed sweep / stage interval [m^3/s]
+    Real meshVolumeRate = Real(0);
 };
 
 enum class GasConservativeStorage : unsigned char { Density, Integral };
@@ -74,11 +74,11 @@ UGKWP_GAS_HD inline bool validStorage(GasConservativeStorage storage)
     return storage == GasConservativeStorage::Density
         || storage == GasConservativeStorage::Integral;
 }
-} // namespace gasGeometryDetail
+}
 
-// Canonical frame uses normal motion only. Optional tangential velocity is a
-// coordinate-frame choice; it must not contribute to normal swept volume.
-// Reversing both area and sweep preserves physical w and reverses face flux.
+
+
+
 
 template<class Real>
 UGKWP_GAS_HD inline bool makeGasFaceFrame
@@ -109,11 +109,11 @@ UGKWP_GAS_HD inline bool makeGasFaceFrame
     return inputsFinite && scale > Real(0) && validFrame(candidate);
 }
 
-// Primitive/Conservative use the existing shared Riemann POD interface:
-// {rho,ux,uy,uz,p} and {q[5]}. Templates keep this policy precision-independent
-// and avoid making geometry a new Riemann solver or thermodynamic owner.
-// Conserved inputs are densities, irrespective of application storage units.
-// E' = E - w dot (rho*u) + rho*|w|^2/2; actual formation energy is untouched.
+
+
+
+
+
 template<class Primitive, class Conservative, class Real>
 UGKWP_GAS_HD inline bool shiftGasStateToFaceFrame
 (
@@ -128,7 +128,7 @@ UGKWP_GAS_HD inline bool shiftGasStateToFaceFrame
         && finite(primitive.ux) && finite(primitive.uy) && finite(primitive.uz);
     Primitive p=primitive;
     Conservative q=conserved;
-    // Preserve legacy fixed-grid values, including signed zeros, bit for bit.
+
     if (frame.wx != Real(0) || frame.wy != Real(0) || frame.wz != Real(0))
     {
         p.ux-=frame.wx; p.uy-=frame.wy; p.uz-=frame.wz;
@@ -145,12 +145,12 @@ UGKWP_GAS_HD inline bool shiftGasStateToFaceFrame
         && validConservative<Real,0>(q.q);
 }
 
-// Transform the SELECTED compatible shared scheme's moving-frame flux back.
-// Fm=Fm', Fp=Fp'+w*Fm', FE=FE'+w dot Fp'+|w|^2*Fm'/2.
-// This is already inertial Euler flux minus mesh transport. Do not subtract
-// meshVolumeRate*U again. Units remain exactly those of input (per-area or
-// area-integrated); scale by face area once at the usual shared flux owner.
-// maxSignalSpeed remains the relative-frame normal spectral radius for CFL.
+
+
+
+
+
+
 template<class FluxResult, class Real>
 UGKWP_GAS_HD inline bool restoreGasFluxFromFaceFrame
 (
@@ -192,16 +192,16 @@ UGKWP_GAS_HD inline bool validateGasEulerGeometry
     return finite(oldVolume) && finite(newVolume);
 }
 
-// Existing time selectors: 1 Euler, 2 SSPRK2, 3 SSPRK3. Moving higher-order RK
-// requires stage-specific base/evaluation/temporary/blended volumes and metric
-// weights. No such contract is implied by stage timestamps or these pointers.
+
+
+
 UGKWP_GAS_HD inline bool validateGasGeometryTimeIntegrator(bool moving, int selector)
 {
     return selector >= 1 && selector <= 3 && (!moving || selector == 1);
 }
 
-// q = [mass, momentum xyz, total energy, Ns species inventories] for Integral;
-// every component divided by V for Density. Never reinterpret rhoY as kg.
+
+
 template<class Real, int Ns>
 UGKWP_GAS_HD inline bool convertGasConservativeStorage
 (
@@ -223,10 +223,10 @@ UGKWP_GAS_HD inline bool convertGasConservativeStorage
     return true;
 }
 
-// Pure conservative Euler cell update. outwardFluxSum is the signed outward
-// sum of area-integrated physical ALE fluxes [inventory/s], already including
-// mesh transport. Storage stays in the selected representation. Whole-trial
-// rejection, EOS admissibility and accepted-state commit remain caller-owned.
+
+
+
+
 template<class Real, int Ns>
 UGKWP_GAS_HD inline bool advanceGasEulerGeometry
 (
@@ -252,4 +252,4 @@ UGKWP_GAS_HD inline bool advanceGasEulerGeometry
         (inventory,newVolume,GasConservativeStorage::Integral,storage,output);
 }
 
-} // namespace ugkwp
+}

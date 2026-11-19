@@ -1,5 +1,5 @@
-// Host transaction unit test with scripted participant responses. This verifies
-// orchestration/rollback only; it does not mock a CFD run or establish accuracy.
+
+
 #include "io/MultirateEvolution.H"
 #include "gpu/Backend.H"
 #include "gpu/GasWindowProgram.H"

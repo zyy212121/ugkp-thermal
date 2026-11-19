@@ -6,7 +6,7 @@ int main(){
  const double initial=1e-8,tail=1e-23,stable=2.5722309259329196e-7,maximum=1e-6;
  auto step=ugkwp::selectGasWindowStep(initial,tail,stable,1.1,maximum,true);
  assert(step.accepted==tail && step.next==initial*1.1);
- // A split macro interval cannot grow or shrink the seed by itself.
+
  auto next=ugkwp::selectGasWindowStep(step.next,1e-6,stable,1.1,maximum,false);
  assert(next.accepted==step.next && next.next==step.next);
  double dt=initial,time=0;

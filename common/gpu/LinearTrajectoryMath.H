@@ -21,9 +21,9 @@ UGKP_LINEAR_TRAJECTORY_HD inline bool positive(extended::Wide value){return valu
 UGKP_LINEAR_TRAJECTORY_HD inline double numeric(extended::Wide value){return extended::value(value);}
 UGKP_LINEAR_TRAJECTORY_HD inline double sphere(extended::Wide){return 4*::acos(-1.);}
 
-// atan2 is homogeneous in its two arguments. Scale both extended values by
-// the same power of two before the final FP64 transcendental, retaining very
-// small determinants/denominators without narrowing their absolute exponent.
+
+
+
 UGKP_LINEAR_TRAJECTORY_HD inline double angle(extended::Wide y,extended::Wide x){
     const int scale=y.high==0?x.exponent:x.high==0?y.exponent:
         (y.exponent>x.exponent?y.exponent:x.exponent);
@@ -32,13 +32,13 @@ UGKP_LINEAR_TRAJECTORY_HD inline double angle(extended::Wide y,extended::Wide x)
     return ::atan2(yy,xx);
 }
 }
-// One cell of the original oriented fan certificate. Vertex CSR must have the
-// canonical sorted/unique order, and topology/manifold validity belongs to the
-// immutable mesh owner. Invoke for every cell when ANY point moves: skipping
-// just locally stationary cells would change the existing trajectory contract.
-// The warning callback preserves the order and values within this cell; its
-// owner decides when to publish diagnostics. No repair or geometric tolerance
-// is substituted for the positivity or single-covering tests.
+
+
+
+
+
+
+
 template<class Extended=extended::Wide,class Vec=Point,class Warning>
 UGKP_LINEAR_TRAJECTORY_HD inline TrajectoryFailure certifyLinearCell(
     int cell,TopologyView topology,const Vec* points,const Vec* endpoint,Warning warning){

@@ -8,14 +8,14 @@
 #define UGKP_INTERVAL_HD
 #endif
 namespace ugkwp {
-// Physical interval state is resident. Continuous equal-dt intervals advance
-// on device; discontinuous intervals receive exact scalar launch metadata.
+
+
 struct GasResidentInterval {
     double dt=0,begin=0,end=0,middle=0;
     bool active=false,frozen=false;
 };
-// Compare launch metadata by value representation, including signed zero.
-// Reusing identical metadata must not perform another host-to-device update.
+
+
 inline bool sameGasResidentInterval(const GasResidentInterval& a,const GasResidentInterval& b){
     return std::memcmp(&a.dt,&b.dt,sizeof(double))==0
         &&std::memcmp(&a.begin,&b.begin,sizeof(double))==0
@@ -23,9 +23,9 @@ inline bool sameGasResidentInterval(const GasResidentInterval& a,const GasReside
         &&std::memcmp(&a.middle,&b.middle,sizeof(double))==0
         &&a.active==b.active&&a.frozen==b.frozen;
 }
-// Continue the physical clock on device only when it reproduces the supplied
-// interval exactly. A changed dt, discontinuous clock, or frozen boundary time
-// retains the absolute-interval path; no tolerance changes the boundary clock.
+
+
+
 inline bool canAdvanceGasResidentInterval(const GasResidentInterval& previous,
     const GasResidentInterval& next){
     if(!previous.active||!next.active||previous.frozen||next.frozen)return false;
@@ -74,5 +74,5 @@ UGKP_INTERVAL_HD inline Time gasResidentStageTime(const State& state,Time value)
     }
     return value;
 }
-} // namespace ugkwp
+}
 #undef UGKP_INTERVAL_HD

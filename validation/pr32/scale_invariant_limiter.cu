@@ -1,4 +1,4 @@
-// The same admissible profile must have the same limiter at every scale.
+
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>

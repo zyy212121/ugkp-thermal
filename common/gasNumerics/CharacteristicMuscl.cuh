@@ -22,7 +22,7 @@ struct Increment
     GpuReal p;
 };
 
-// A failure is arithmetic evidence for the production caller, never a zero slope.
+
 struct Failure
 {
     bool failed = false;

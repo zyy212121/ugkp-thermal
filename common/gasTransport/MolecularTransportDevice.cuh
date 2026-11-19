@@ -3,7 +3,7 @@
 #include <cuda_runtime.h>
 #include <memory>
 namespace ugkwp {
-// Initialization/reconfiguration owner only; no per-step work or host fields.
+
 class MolecularTransportDevice {
     SutherlandSpecies<double>* species_=nullptr;
     PowerLawDiffusivity<double>* diffusion_=nullptr;
@@ -31,4 +31,4 @@ public:
     MolecularViscosityView<double> view()const{return view_;}
     MolecularViscosityView<double> hostView()const{return host_.view();}
 };
-} // namespace ugkwp
+}

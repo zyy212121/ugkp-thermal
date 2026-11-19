@@ -4,8 +4,8 @@
 #include "core/AuditArithmetic.H"
 namespace chmt {
 CHMT_HD inline bool packetFailure(DeviceStatus* status,const ExchangePacket& p,ErrorCode code,Real value,ugkp::diagnostics::DeviceContext* diagnostics=nullptr,ugkp::diagnostics::Code detail=ugkp::diagnostics::Code::InvalidPhysicalState) {
-    // A persistent face is uint64; index carries local film/gas/solid location,
-    // while the host diagnostic below retains the full persistent identifier.
+
+
     int index=p.filmFace>=0?p.filmFace:(p.gasCell>=0?p.gasCell:p.solidCell);
     if(diagnostics){
         using namespace ugkp::diagnostics;
@@ -44,9 +44,9 @@ CHMT_HD inline bool validatePacketMath(const ExchangePacket& p,const Tolerances&
         sum=auditAdd(sum,p.species[s]);scale=auditAdd(scale,absValue(p.species[s]));donor=auditAdd(donor,p.pore[s]);donorScale=auditAdd(donorScale,absValue(p.pore[s]));
     }
     for(int c=0;c<Nc;++c){if(!finite(p.condensed[c]))return packetFailure(status,p,ErrorCode::Nonfinite,p.condensed[c],tol.diagnostics);donor=auditAdd(donor,p.condensed[c]);donorScale=auditAdd(donorScale,absValue(p.condensed[c]));}
-    // Nonfinite audit reductions are reported below; physical components were checked above.
-    // Deposition has no gas receiver and therefore no fictitious gas-species
-    // equivalent. Its actual condensed/pore receiver still closes below.
+
+
+
     if(p.kind==ExchangeKind::ParticleWall){
         if(scale!=0)return packetFailure(status,p,ErrorCode::Composition,scale,tol.diagnostics);
     }else if(!packetClose(sum,p.mass,tol.absoluteMass,tol.relativeMass,scale))packetResidual(tol.diagnostics,sum,p.mass,p.filmFace,p.stage);
@@ -61,7 +61,7 @@ CHMT_HD inline bool validatePacketMath(const ExchangePacket& p,const Tolerances&
     if(!(required&ConsumeFilm)&&p.liquidKineticAdvection!=0)return packetFailure(status,p,ErrorCode::Packet,p.liquidKineticAdvection,tol.diagnostics);
     const Real parts=auditAdd(auditAdd(auditAdd(auditAdd(p.conductive,p.advective),p.pressureWork),p.viscousWork),p.radiation);
     const Real partScale=auditAdd(auditAdd(auditAdd(auditAdd(absValue(p.conductive),absValue(p.advective)),absValue(p.pressureWork)),absValue(p.viscousWork)),absValue(p.radiation));
-    // Overflow of the audit sum or absolute scale cannot invalidate finite packet fields.
+
     if(!packetClose(parts,p.energy,tol.absoluteEnergy,tol.relativeEnergy,partScale))packetResidual(tol.diagnostics,parts,p.energy,p.filmFace,p.stage);
     return true;
 }
@@ -165,8 +165,8 @@ CHMT_HD inline bool applyPacketTransaction(ExchangePacket& packet,GasQ* gas,Soli
         p.consumerMask|=bit;
     }
     if(storage){
-        // Evaluate the same storage identity with its thermal part grouped first;
-        // this avoids stranding a pV roundoff remainder in a completely dry cell.
+
+
         f.enthalpy=(film->enthalpy-storage->oldPV)+packetDelta(packet).film.enthalpy+storage->newPV;
         if(!validFilmInventory(f,false,tolerances.diagnostics))return packetFailure(status,packet,ErrorCode::Inventory,f.enthalpy,tolerances.diagnostics);
     }
@@ -181,5 +181,5 @@ inline bool consumePacketTransaction(ExchangePacket& packet,GasQ* gas,SolidQ* so
     if(!applyPacketTransaction(packet,gas,solid,film,storage,tol,&status)){error=packetError(packet,status);return false;}
     error.clear();return true;
 }
-} // namespace chmt
+}
 #endif

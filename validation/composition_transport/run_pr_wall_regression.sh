@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Correctness-only reproduction; the output directory must be new.
+
 set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
 out=$1

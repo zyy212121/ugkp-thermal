@@ -1,7 +1,7 @@
 #pragma once
 #include "evaluateResidentBoundary.cuh"
 #include "gasTransport/GasResidentInterval.H"
-// One operator implementation; scalar/time adapters are compile-time only.
+
 template<class GasState>
 __global__ void updateLegacyGasBoundaryMirrorKernel
 (

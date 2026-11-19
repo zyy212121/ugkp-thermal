@@ -13,8 +13,8 @@ struct WallNormalHeightGeometry {
 namespace normalHeightDetail {
 template<class P> UGKP_HEIGHT_HD inline Point point(P p){return {p.x,p.y,p.z};}
 }
-// Preserve the arithmetic vertex-centre and oriented polygon normal used by
-// the original relative near-wall spacing constraint, including polygon order.
+
+
 template<class Reference,class Points,class Displacement>
 UGKP_HEIGHT_HD inline WallNormalHeightGeometry wallNormalHeightGeometry(TopologyView topology,int face,
     const Reference* reference,const Points* points,const Displacement* displacement){
@@ -29,9 +29,9 @@ UGKP_HEIGHT_HD inline WallNormalHeightGeometry wallNormalHeightGeometry(Topology
             point(points[w])+point(displacement[w])-result.currentCentre);}
     result.referenceNormal=normalized(a0)*-1;result.currentNormal=normalized(a1)*-1;return result;
 }
-// Returns infinity when this point has no positive resolved reference height.
-// Every accepted contribution uses its own relative height, never an absolute
-// mesh-size allowance shared between low-Re and wall-model grids.
+
+
+
 UGKP_HEIGHT_HD inline double addWallNormalHeight(MotionPenalty& penalty,const WallNormalHeightGeometry& wall,
     Point reference,Point point){
     const double height=dot(reference-wall.referenceCentre,wall.referenceNormal);

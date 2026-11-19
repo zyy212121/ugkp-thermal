@@ -6,8 +6,8 @@
 
 namespace ugkp { namespace diagnostics {
 namespace wire {
-// Little-endian fixed widths, IEEE binary64; independent of compiler padding.
-constexpr std::uint32_t magic = 0x444b4755u; // UGKD
+
+constexpr std::uint32_t magic = 0x444b4755u;
 constexpr std::uint32_t version = 1u;
 inline void u32(std::vector<std::uint8_t>& bytes, std::uint32_t value) {
     for (unsigned i=0;i<4;++i) bytes.push_back(static_cast<std::uint8_t>(value >> (8*i)));
@@ -81,5 +81,5 @@ inline bool decode(const std::uint8_t* data, std::size_t size, Snapshot& output,
     if(!reader.good || reader.offset!=size) {error="truncated or trailing diagnostic envelope bytes";return false;}
     output=std::move(snapshot);error.clear();return true;
 }
-}} // namespace ugkp::diagnostics
+}}
 #endif

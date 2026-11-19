@@ -31,8 +31,8 @@ else
  python3 "$app/../../tool/CHMT/build_info.py" --species-count "${UGKWP_GAS_SPECIES:-2}" --arch "$cuda_arch" --nvcc "$nvcc" --output "$build/generated"
  ugkp_nvcc "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 --expt-relaxed-constexpr -O2 -arch="$cuda_arch" -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -I"$app" -I"$app/../../common" -I"$app/../../common/gasNumerics" -c "$app/gpu/Backend.cu" -o "$build/Backend.o"
  ugkp_nvcc "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false --expt-relaxed-constexpr -arch="$cuda_arch" -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -I"$app" -I"$app/../../common" -I"$app/../../common/gasNumerics" -c "$app/gpu/MaterialBackend.cu" -o "$build/MaterialBackend.o"
- # Shared thermal particle owner is a separate translation unit, not a CHMT
- # implementation copy. Each local application build resolves its own objects.
+
+
  ugkp_nvcc "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false --expt-relaxed-constexpr -arch="$cuda_arch" -DUGKWP_GAS_SPECIES="${UGKWP_GAS_SPECIES:-2}" -I"$app/../../common" -I"$app/../../common/thermal" -c "$app/../../common/thermal/GpuResidentStrict.cu" -o "$build/ParticleResident.o"
  ugkp_nvcc "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false -arch="$cuda_arch" -I"$app/../../common" -c "$app/../../common/thermal/GpuWallEnergy64.cu" -o "$build/ParticleWallEnergy.o"
  ugkp_nvcc "$nvcc" "${ugkp_cuda_flags[@]}" -std=c++17 -O2 --fmad=false -arch="$cuda_arch" -c "$app/../../common/gpu/SparseConjugateGradient.cu" -o "$build/SparseConjugateGradient.o"

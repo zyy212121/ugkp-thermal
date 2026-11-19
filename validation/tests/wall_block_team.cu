@@ -37,7 +37,7 @@ int main(){
     if(i+1<nodes)a.work.delta[i][row]+=a.work.upper[i][row][col]*(.7+std::sin((i+1)*6+col));
    }
   }
-  // Force nontrivial partial pivots, applying the same row permutation to A,b.
+
   for(int i=0;i<nodes;++i)for(int row=0;row+1<n;row+=2){
    for(int col=0;col<n;++col){std::swap(a.work.diagonal[i][row][col],a.work.diagonal[i][row+1][col]);std::swap(a.work.lower[i][row][col],a.work.lower[i][row+1][col]);std::swap(a.work.upper[i][row][col],a.work.upper[i][row+1][col]);}
    std::swap(a.work.delta[i][row],a.work.delta[i][row+1]);

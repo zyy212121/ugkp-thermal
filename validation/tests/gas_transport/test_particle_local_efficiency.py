@@ -310,8 +310,8 @@ int main(){
   auto z=ugkwp::publishFiniteWallThermalHeat(zero,tw,m,parcel,0.,100.,4000.,law);
   assert(z.valid&&z.wallEnergy==0&&zero.temperature==state.temperature&&zero.specificEnthalpyResidual==state.specificEnthalpyResidual);++zeros;
   const long double h0=(long double)law.cp*t+.5L*law.b*t*t+state.specificEnthalpyResidual;
-  // Independent high-precision enthalpy-coordinate scalar equation:
-  // m*q = g*(Tw - inverseH(H0+q)); quadratic caloric inverse is rationalized.
+
+
   auto temperature=[&](long double h){return 2*h/(law.cp+sqrtl((long double)law.cp*law.cp+2*law.b*h));};
   const long double heq=(long double)law.cp*tw+.5L*law.b*tw*tw-h0;
   long double low=std::min(0.L,heq),high=std::max(0.L,heq);

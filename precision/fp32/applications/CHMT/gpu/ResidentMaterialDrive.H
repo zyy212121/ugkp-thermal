@@ -33,6 +33,16 @@ struct ResidentMaterialDriveHistory {
 
 
     void* producerStream=nullptr;
+
+
+    const std::size_t* deviceFrames=nullptr;
+    CHMT_HD ResidentMaterialDriveHistory resolved()const{
+        auto view=*this;
+#if defined(__CUDA_ARCH__)
+        if(deviceFrames)view.frames=*deviceFrames;
+#endif
+        view.deviceFrames=nullptr;return view;
+    }
     CHMT_HD ResidentMaterialDriveRecord record(std::size_t frame)const{
         const auto offset=frame*faces;
         return {surface?surface+offset:nullptr,wall?wall+offset:nullptr,faces,wall?faces:0};

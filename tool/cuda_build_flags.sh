@@ -10,12 +10,12 @@ if [[ "$ugkp_cuda_stack_soft" != unlimited && "$ugkp_cuda_stack_soft" -lt 262144
 fi
 unset ugkp_cuda_stack_soft ugkp_cuda_stack_hard ugkp_cuda_stack_target
 
-# Shared CUDA compilation policy. Requires a toolkit supporting --Ofast-compile.
-# The minimal level curbs expensive compiler passes while retaining the selected
-# optimization level and all precision/FMA options. No automatic retries.
-# Large shared template units can exceed Linux's usual 8 MiB compiler stack.
-# Raise only this build process's soft stack limit, within the inherited hard
-# limit. This reserves address space, not an equivalent resident-memory pool.
+
+
+
+
+
+
 ugkp_cuda_stack_soft=$(ulimit -S -s)
 ugkp_cuda_stack_hard=$(ulimit -H -s)
 if [[ "$ugkp_cuda_stack_soft" != unlimited && "$ugkp_cuda_stack_soft" -lt 65536 ]]; then
@@ -35,10 +35,10 @@ case "${UGKWP_CUDA_FAST_COMPILE:-min}" in
     *) echo 'ERROR: UGKWP_CUDA_FAST_COMPILE must be 0, min, mid or max' >&2; exit 2 ;;
 esac
 
-# ccache's CUDA preprocessor mode keys the compiler, arguments, included
-# contents and relevant environment; never reuse an object by filename alone.
-# An explicit cache command is required to exist. Ordinary builds do not need
-# ccache installed. Both cache hits and misses retain the requested FP flags.
+
+
+
+
 ugkp_nvcc() {
     local compiler="$1"; shift
     local cache="${UGKP_CUDA_CACHE:-}"

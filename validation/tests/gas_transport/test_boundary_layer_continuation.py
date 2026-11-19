@@ -37,10 +37,10 @@ ck(ugkwp::gasBoundaryLayerSlotReady(s,0),"bulk readiness rejected complete outpu
 ck(closure[0].volume==9&&closure[0].ownerDistance==Real(.5),"SST publication absent");
 ck(speciesFlux[0]==-out[0].wallSpeciesFlux[0]&&speciesFlux[1]==-out[0].wallSpeciesFlux[1],"species publication absent");
 ck(std::isfinite(exchange[0].energy)&&exchange[0].energy!=0,"energy publication absent");
-// Finite donor metadata does not veto the actual donor arithmetic.
+
 weights[0]=Real(-.1);owners[1]=0;
 ck(ugkwp::evaluateGasBoundaryLayerSlot(s,0),"signed non-normalized donor weights rejected");
-// Actual inaccessible data remains a specific failure, never a default result.
+
 m.matchingCells=nullptr;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"missing donor storage accepted");
 ck(status[0]==int(ugkwp::GasTransportCode::InvalidStorage)&&!exchange[0].ready,"wrong missing storage status");
 m.matchingCells=matching;matching[0]=34;ck(!ugkwp::evaluateGasBoundaryLayerSlot(s,0),"unaddressable donor accepted");

@@ -16,8 +16,8 @@ class MieOpticalProperties {
 public:
     explicit MieOpticalProperties(const MieOpticalTable&);
     ~MieOpticalProperties();
-    // Quadratic angular work uses linear per-cell storage: retain balanced
-    // factors and reconstruct each probability with the original product order.
+
+
     void balance(const std::vector<MieOpticalQuery>&,const std::vector<RadiationReal>& weights,
         const std::vector<RadiationReal>& directionCosines,RadiationReal tolerance,int maximumIterations,
         std::vector<RadiationReal>& scaling,std::vector<MiePhaseMetrics>&);

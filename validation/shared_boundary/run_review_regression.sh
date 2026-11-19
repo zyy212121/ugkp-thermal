@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Native regression for the reviewed total-pressure and RK boundary-time fixes.
+
 set -euo pipefail
 R=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 O=${1:?usage: run_review_regression.sh NEW_OUTPUT_DIRECTORY}
@@ -21,7 +21,7 @@ python3 -m pytest -q validation/shared_boundary/test_math.py     validation/test
 python3 validation/composition_transport/pr_wall_regression.py "$O/pr-wall-host" > "$O/pr-wall-host.log" 2>&1
 python3 validation/composition_transport/pr_wall_regression.py "$O/pr-wall-cuda" --cuda > "$O/pr-wall-cuda.log" 2>&1
 /usr/local/cuda/bin/compute-sanitizer --tool memcheck --leak-check full --error-exitcode 99     "$O/pr-wall-cuda/probe" > "$O/pr-wall-memcheck.log" 2>&1
-# Leave the checkout with ordinary production executables, without tracing.
+
 env -u NVCC_PREPEND_FLAGS bash tool/build_local.sh > "$O/production-build.log" 2>&1
 python3 validation/shared_boundary/native_smoke.py "$O/smoke" > "$O/smoke.log" 2>&1
 python3 validation/shared_boundary/native_cases.py "$O/chmt" CHMT > "$O/chmt.log" 2>&1

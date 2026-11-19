@@ -1,4 +1,4 @@
-// Preserved CPU transport is linked as a separate translation unit.
+
 #include "materials/MaterialTransport.H"
 #include "materials/MaterialTransportMath.H"
 #if defined(__CUDACC__)
@@ -121,7 +121,7 @@ __global__ void setTransportBindings(MaterialMeshView* mesh,const SolidQ** state
 }
 MaterialTransportDeviceResult deviceEvaluate(const HostMesh&m,const std::vector<SolidQ>&q,const PhysicsConfig&p,const std::vector<Real>&swept,MaterialTransportResult&out){
  DeviceStorage d;const int nc=q.size(),nf=m.owner.size();
- // Independently build a canonical physical-face incidence by explicit lists.
+
  std::vector<std::vector<std::pair<int,int>>> list(nc);
  for(int f=0;f<nf;++f){int right=m.neighbour[f];const auto kind=m.boundaryKind[f];
   if(kind==BoundaryKind::Interface||kind==BoundaryKind::Empty)continue;
@@ -186,8 +186,8 @@ int main(){
   const bool periodic=scenario==2||scenario==4||scenario==7;
   auto m=cube(scenario==7?1:3,scenario?0.45:0,periodic,scenario!=7);
   auto p=physics(scenario);auto q=state(m,p,scenario);std::vector<Real>swept;
-  // Reverse stencil incidence to ensure diffusion stability does not inherit
-  // this order; original diffusion losses always used global face order.
+
+
   for(std::size_t c=0;c<q.size();++c){const int a=m.cellFaceOffsets[c],b=m.cellFaceOffsets[c+1];std::reverse(m.cellFaces.begin()+a,m.cellFaces.begin()+b);std::reverse(m.cellFaceSigns.begin()+a,m.cellFaceSigns.begin()+b);}
   if(scenario==5){for(std::size_t f=0;f<m.owner.size();++f){const auto x=m.faceCentres[f];swept.push_back(.002*dot({.2+.04*x.x,-.3+.07*x.y,.1+.03*x.z},m.areaVectors[f]));}}
   if(scenario==0){for(std::size_t f=0;f<m.owner.size();++f)if(m.neighbour[f]<0)m.boundaryKind[f]=f%2?BoundaryKind::Empty:BoundaryKind::Interface;}
@@ -201,13 +201,13 @@ int main(){
   MaterialTransportResult gpu;auto status=deviceEvaluate(m,q,p,swept,gpu);
   require(!status.errorCode,"GPU status "+std::to_string(status.errorCode)+" entity "+std::to_string(status.entity));
   compare(baseline,gpu,false,maximum);conservation(m,q,p,gpu);
-  // Two simultaneous EOS failures: first cell is deterministic at every run.
+
   if(scenario==1){auto invalid=q;invalid[2].energy=invalid[5].energy=std::numeric_limits<Real>::quiet_NaN();
    for(int repeat=0;repeat<3;++repeat){auto bad=deviceEvaluate(m,invalid,p,swept,gpu);require(bad.errorCode==int(MaterialTransportError::CellEos)&&bad.entity==2&&bad.numerical,"stable first EOS error");}}
 #endif
   if(scenario==3&&Ns>=3){
-   // The preserved algorithm rejects this second-order Darcy/empty-pore
-   // combination with dt=0. Keep that outcome, without changing the limiter.
+
+
    auto emptyDarcy=p;emptyDarcy.permeability=2e-11;emptyDarcy.spatialOrder=2;
    failureParity(m,q,emptyDarcy,swept,MaterialTransportError::InvalidTimestep,-1);
   }

@@ -17,8 +17,8 @@ template<class T> void mem(T*&p,int n){if(cudaMallocManaged(&p,sizeof(T)*n)!=cud
 int main(){setvbuf(stdout,nullptr,_IONBF,0);
 DeviceState*s=new DeviceState{};
 '''
-# Conditional backend fields (e.g. the steady-only workspace) must be selected
-# by C++ capability detection, not by the unpreprocessed source inventory.
+
+
 allocators='\n'.join(f'template<class S> auto allocate_{name}(S*s,int)->decltype(s->{name},void()){{mem(s->{name},129);}}\ntemplate<class S> void allocate_{name}(S*,long){{}}' for typ,name in ptr)
 txt=txt.replace('int main(){',allocators+'\nint main(){')
 txt+='\n'.join(f'allocate_{name}(s,0);' for typ,name in ptr)

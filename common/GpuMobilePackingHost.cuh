@@ -1,9 +1,9 @@
 #pragma once
 #include "GpuParticleExecutionContext.H"
 
-// Mobile-packing launch/error protocol. Requires GasHostPolicy::Time/Weight,
-// DeviceState and the mobile-packing kernels. The cooperative argument keeps
-// the original time type; this header does not own the device projection math.
+
+
+
 int applyMobilePackingProjection
 (
     DeviceState* s,

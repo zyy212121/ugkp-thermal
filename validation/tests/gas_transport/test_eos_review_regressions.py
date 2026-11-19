@@ -48,7 +48,7 @@ int main(int argc,char**argv){assert(argc==2);
  SpeciesThermoView<double,1> declared;declared.species=species;declared.coefficients=linear;declared.coefficientCount=6;
  int index=0;double T=700;double nasa[14]={3,0,0,0,0,10,7,4,0,0,0,0,20,8};
  if(!std::strcmp(argv[1],"count"))declared.coefficientCount=1;
- else if(!std::strcmp(argv[1],"index"))index=1; // allocated species[1], despite declared Ns=1
+ else if(!std::strcmp(argv[1],"index"))index=1;
  else if(!std::strcmp(argv[1],"offset")){declared.coefficients=linear+3;species[0].coefficientOffset=-3;declared.coefficientCount=3;}
  else if(!std::strcmp(argv[1],"nasa")){species[0].model=SpeciesThermoModel::NASA7;species[0].midTemperature=1000;declared.coefficients=nasa;declared.coefficientCount=7;T=2000;}
  else return 2;

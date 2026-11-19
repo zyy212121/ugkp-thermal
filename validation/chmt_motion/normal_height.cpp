@@ -13,7 +13,7 @@ int main(){
   std::vector<MotionPenalty> penalty(4);addNormalHeight(penalty[1],{0,1,0},recession*h,h);
   HarmonicPointMotion owner(p,rows,adj,fixed,1e-14*h,20000,penalty);const auto out=owner.solve(b);
   assert(out.errorPoint<0&&out.residual<=1e-14*h);
-  // Independent scalar 2x2 stationarity solve for the two free points.
+
   const double w01=1/h,w12=1/(2*h),w23=1/(4*h),k=1000/h;
   const double a=w01+w12+k,bb=-w12,c=w12+w23;
   const double rhs=(w01+k)*recession*h;
@@ -25,7 +25,7 @@ int main(){
   assert(out.points[0].y==b[0].y&&out.points[3].y==p[3].y);
   std::cout<<std::setprecision(17)<<h<<' '<<recession<<' '<<ratio<<' '<<out.residual/h<<'\n';
  }
- // Two independent normals at a corner; no determinant-based cancellation.
+
  MotionPenalty q;addNormalHeight(q,{1,0,0},.3,1e-4);addNormalHeight(q,{0,1,0},-.2,2e-4);
  const auto v=motionUpdate({2,4,6},2,q);assert(std::abs(v.x-(2+3e6)/(2+1e7))<1e-14);
  assert(std::abs(v.y-(4-1e6)/(2+5e6))<1e-14&&std::abs(v.z-3)<1e-14);

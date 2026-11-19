@@ -38,7 +38,7 @@ int main(int argc,char**argv){
  input.prepare(runTime,mesh,temperature);input.configureResident(nullptr);
  pointField changed(mesh.points());for(auto&p:changed)p.x()*=2;mesh.movePoints(changed);
  input.prepare(runTime,mesh,temperature);input.configureResident(nullptr);
- // No writeNow: writeTime is not permission to serialize actual diagnostics.
+
  runTime.setTime(.375,1);input.writeDiagnostics(runTime,nullptr);
 }
 '''

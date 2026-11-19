@@ -1,7 +1,7 @@
 #pragma once
 #include "GpuPoolSelection.cuh"
 #include "GpuCollisionProbability.cuh"
-// Common atomic pool traversal and publication; native probability/scalar policies remain.
+
 template<bool PoissonMode>
 __global__ void accumulateParticlePoolAtomicKernel
 (

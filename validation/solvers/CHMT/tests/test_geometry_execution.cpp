@@ -82,8 +82,8 @@ void exercise(HostMesh m,int rounding,bool empty=false) {
 int main() {
 #ifdef _OPENMP
     omp_set_dynamic(0);
-    // Seed persistent workers with different environments. The geometry caller
-    // must neither inherit these modes nor overwrite them after its computation.
+
+
 #pragma omp parallel
     {std::fesetround(omp_get_thread_num()%2?FE_DOWNWARD:FE_UPWARD);
      std::feclearexcept(FE_ALL_EXCEPT);std::feraiseexcept(FE_INVALID);errno=EDOM;}
@@ -93,7 +93,7 @@ int main() {
         exercise(boxes(1),rounding);exercise(boxes(3,.001,11.125,true),rounding);
         exercise(boxes(2,0x1p-8,0x1p20),rounding);exercise(boxes(2,0x1p10,-0x1p20,true),rounding);
         exercise(boxes(2,1,0,false,true),rounding,true);exercise(HostMesh{},rounding);
-        // More than 65536 ordered triangle queries enters the parallel path.
+
         exercise(boxes(128),rounding);exercise(boxes(128,.125,7.25,true),rounding);
         auto invalid=boxes(128,1,0,false,false,true);check(invalid,invalid.points,rounding);
         invalid=boxes(2);invalid.facePoints[2]=invalid.facePoints[1];check(invalid,invalid.points,rounding);
@@ -101,7 +101,7 @@ int main() {
         end=m.points;end[0].x=std::numeric_limits<Real>::quiet_NaN();check(m,end,rounding);
         end=m.points;for(auto& p:end){p.x=-p.x;p.y=-p.y;}check(m,end,rounding);
         check(m,m.points,rounding,0);Tolerances tol;tol.absoluteGeometry=-1;check(m,m.points,rounding,.125,tol);
-        // Noncanonical signed zero and interpolation-roundoff fixtures.
+
         m=boxes(1,.1,.2);m.points[0].z=-0.;check(m,m.points,rounding);
     }
 #ifdef _OPENMP

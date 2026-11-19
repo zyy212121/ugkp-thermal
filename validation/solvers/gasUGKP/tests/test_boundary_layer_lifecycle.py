@@ -41,11 +41,11 @@ def test_sst_configuration_precedes_boundary_layer_without_changing_legacy_recon
     main=r'''int main(){DeviceState s;s.gasSpecies.mode=ugkwp::GasMode::MixtureFrozen;
  double k[]={1,1},omega[]={2,2},distance[]={.1,.1},boundary[]={0,0};int mode[]={0,0};
  auto configure=[&](int family){return ugkwpGpuResidentStrictConfigureSst(&s,1,1,1,1,.075,.083,.09,.55,.44,.31,1,10,1e-12,1e-12,.25,family,.41,9.8,.09,k,omega,distance,mode,mode,boundary,boundary);};
- assert(configure(2)==0&&s.sstWallTreatment==2&&s.k[0]==1); // legal startup SST setup
+ assert(configure(2)==0&&s.sstWallTreatment==2&&s.k[0]==1);
  s.gasBoundaryLayer.enabled=true;s.k[0]=7;const int before=copies;
  for(int family:{0,1,2}){assert(configure(family)==0);assert(s.sstWallTreatment==family&&s.k[0]==7);}
  assert(copies==before+15&&initializations==1);
- // A separate legacy resident retains its historical repeat-configuration path.
+
  DeviceState legacy;s=legacy;s.deviceState=&s;s.gasSpecies.mode=ugkwp::GasMode::SingleLegacy;
  assert(configure(1)==0&&s.sstWallTreatment==1);k[0]=3;
  assert(configure(0)==0&&s.sstWallTreatment==0&&s.k[0]==3);
@@ -93,8 +93,8 @@ def _publication_probe():
     scrub = _native_function(backend, 'void scrubHostCalculationScalars(')
     sync = _native_function(backend, 'int syncDeviceState(')
     declaration = pre[pre.index('struct DeviceState {'):pre.index('DeviceState* asState')]
-    # Import every scrubbed field, rather than testing only mu/Pr and overlooking
-    # future additions to the real resident's deliberately device-owned scalars.
+
+
     missing = [name for name in re.findall(r's->(\w+)\s*=', scrub)
                if not re.search(r'\b'+name+r'\b', declaration)]
     fields = ''.join(('ugkwp::SstCoefficients ' if name=='sstCoefficients' else 'double ')
@@ -150,8 +150,8 @@ int main(int argc,char**argv){assert(argc==4);const int model=std::atoi(argv[1])
  state.gammaGas=1.4;state.Rgas=287;state.gasCp=1000;state.rhoMin=1e-12;state.TgasMin=1e-9;
  state.sstCoefficients=ugkwp::defaultSstCoefficients();state.sstKMin=state.sstOmegaMin=1e-12;
  state.hostTurbulenceModel=model?3:0;device=state;const DeviceState before=device;
- // Actual production lifecycle: upload valid device state, scrub the host copy,
- // then call the public wall configuration ABI. No restoration of scrubbed data.
+
+
  scrubHostCalculationScalars(&state);assert(state.gasMu==0&&state.gasPrClamped==0&&state.gasFluxScheme==0);
  residentTarget=&device;residentBytes=sizeof(device);if(failPublication==-2)state.deviceState=nullptr;
  ugkwpGpu::BoundaryLayerConfigV1 cfg;cfg.reservedAudit=audit;cfg.model=model;cfg.nodes=32;cfg.speciesCount=2;cfg.wallCount=1;cfg.quadratureCount=1;cfg.matchingCount=1;cfg.workspaceSlots=1;

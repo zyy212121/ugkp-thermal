@@ -1,11 +1,11 @@
 #pragma once
 #include "ChemistryTypes.H"
-// Row-equilibrated partial-pivot LU retained for multiple Newton right-hand
-// sides. Trial corrections reuse this factorization; no Jacobian is rebuilt.
+
+
 namespace ugkwp { namespace gasChemistryDetail {
-// Detect an unrepresentable quotient without executing a trapping division.
-// Normalized same-precision mantissas cannot lie in the half-ulp gap between
-// max() and its overflow boundary, so the exponent/tie comparison is exact.
+
+
+
 template<class R> UGKWP_GAS_HD inline bool newtonQuotient(R a,R b,R& result){
  if(!gasFinite(a)||!gasFinite(b)||b==0){result=b==0?std::numeric_limits<R>::infinity():(!gasFinite(a)?a:b);return false;}
  if(a==0){result=a/b;return true;}
@@ -20,9 +20,9 @@ template<class R> UGKWP_GAS_HD inline bool newtonDifferenceProduct(R a,R b,R c,R
  if(!gasFinite(a)||!gasFinite(b)||!gasFinite(c)){result=!gasFinite(a)?a:(!gasFinite(b)?b:c);return false;}
  const R limit=::ldexp(R(1),std::numeric_limits<R>::max_exponent/4);
  if(gasThermoDetail::absValue(a)<=std::numeric_limits<R>::max()/R(4)&&gasThermoDetail::absValue(b)<limit&&gasThermoDetail::absValue(c)<limit){result=a-b*c;return gasFinite(result);}
- // Power-of-two scaling plus FMA preserves a finite cancellation even when
- // forming b*c first would overflow. Only a genuinely unrepresentable final
- // result is reported as infinity; the normal path keeps its old arithmetic.
+
+
+
  int ea=0,eb=0,ec=0;const R ma=::frexp(a,&ea),mb=::frexp(b,&eb),mc=::frexp(c,&ec);
  const int productExponent=eb+ec,exponent=ea>productExponent?ea:productExponent;
  const R scaled=::fma(-::ldexp(mb,productExponent-exponent),mc,::ldexp(ma,ea-exponent));

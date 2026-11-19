@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reproducible isolated native builds; source OpenFOAM before calling.
+
 set -euo pipefail
 if [[ $# -lt 2 ]]; then echo "usage: $0 SOURCE_ROOT OUTPUT_DIRECTORY [CHMT CHT]" >&2; exit 2; fi
 source_root=$(realpath "$1")
@@ -11,11 +11,11 @@ mkdir -p "$out/bin" "$out/build"
 export FOAM_USER_APPBIN="$out/bin" CHMT_BUILD="$out/build/chmt"
 export CHMT_CUDA_ARCH=sm_89 UGKWP_CUDA_ARCH=sm_89 UGKWP_GAS_SPECIES=2
 export CUDA_HOME=${CUDA_HOME:-/usr/local/cuda}
-# Set GPU_COUPLED_BUILD_MODE=standard to retain the repository optimization.
-# Fast mode is confined to validation builds on memory-constrained hosts.
+
+
 mode=${GPU_COUPLED_BUILD_MODE:-fast}
 fast_level=${GPU_COUPLED_FAST_LEVEL:-max}
-# The separate material TU can retain production optimization with fast gas builds.
+
 material_mode=${GPU_COUPLED_MATERIAL_BUILD_MODE:-$mode}
 thermal_mode=${GPU_COUPLED_THERMAL_BUILD_MODE:-standard}
 case "$thermal_mode" in fast|standard) ;; *) echo "GPU_COUPLED_THERMAL_BUILD_MODE must be fast or standard" >&2; exit 2 ;; esac

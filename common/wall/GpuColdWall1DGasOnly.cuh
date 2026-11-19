@@ -1,8 +1,8 @@
 #pragma once
 #include <type_traits>
 
-// No contact geometry is constructed here. Gas exchange spans the physical
-// step even when finite contact ends or the midpoint footprint vanishes.
+
+
 __device__ inline bool advanceColdWall1DGasOnlyGroup
 (
     DeviceState& s,
@@ -33,8 +33,8 @@ __device__ inline bool advanceColdWall1DGasOnlyGroup
     const int nodeBase = Foam::gpuWall::coldWallSlot(s,particleI)*coldWallAxialNodeCount;
     const int ringBase = Foam::gpuWall::coldWallSlot(s,particleI)*coldWallRadialRingCount;
 #ifdef GPU_PAIRED_PARTICLE_HEAT
-    // Gas heat has already been paired and uniformly published. This route
-    // only refreshes derived phase/history; zero heat never rewrites nodes.
+
+
     const double effectiveH = double(s.pColdNodeSpecificEnthalpy[nodeBase+lane]);
     const double temperature = coldWallCarryTemperature(effectiveH,s.coldWallSolidificationParameters);
     const double meanH = coldWall1DGroupSum(double(s.pColdNodeSpecificEnthalpy[nodeBase+lane])/8.0,mask);
@@ -76,9 +76,9 @@ __device__ inline bool advanceColdWall1DGasOnlyGroup
     gasIncrement = __shfl_sync(mask, gasIncrement, 0, 8);
     const GpuReal candidateEnthalpy = oldEnthalpy + gasIncrement;
     const auto storedEnthalpy = static_cast<typename std::remove_reference<decltype(s.pColdNodeSpecificEnthalpy[0])>::type>(candidateEnthalpy);
-    // A completed but pinned contact can persist as a deposit. Retain its
-    // footprint history, but apply the existing melt-down scaling to ring
-    // masses; no new solid mass or pinning is assigned without a wet geometry.
+
+
+
     if (gasIncrement > GPU_R(0.0))
     {
         GpuReal connectedFraction = coldWallSolidFraction

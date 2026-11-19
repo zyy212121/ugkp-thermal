@@ -20,7 +20,7 @@ struct Model {
 bool near(double a,double b,double r=1e-10){return std::abs(a-b)<1e-12+r*std::abs(b);}
 
 #include "common/chemistry/LocalStiffIntegrator.H"
-// The official result is one two-stage SDIRK step, not two half-steps.
+
 int main()
 {
     Model model;
@@ -41,7 +41,7 @@ int main()
     assert(near(result.speciesMass[0],expected,1e-10));
     assert(near(result.speciesMass[0]+result.speciesMass[1],.028));
 
-    // Legacy adaptive controls cannot change the official requested interval.
+
     controls.maximumSteps=0;
     controls.maximumRejectedSteps=0;
     controls.minimumStep=100;
@@ -51,7 +51,7 @@ int main()
     assert(available && status.attemptedSteps==1);
     assert(result.speciesMass[0]==second.speciesMass[0]);
 
-    // Fatal input must not be reported as an evaluated numerical result.
+
     input.internalEnergy=std::numeric_limits<double>::quiet_NaN();
     status=advanceClosedReactor(input,.25,model.t,model.m,controls,result,&available);
     assert(!status && !available);

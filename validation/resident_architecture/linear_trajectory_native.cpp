@@ -1,4 +1,4 @@
-// Compile the CPU oracle from a frozen pre-migration Geometry.C include root.
+
 #define main unused_polyhedral_geometry_main
 #include "../gpu_coupled_pipeline/polyhedral_geometry_cuda.cpp"
 #undef main
@@ -9,8 +9,8 @@ void compareTrajectory(HostMesh mesh,const std::vector<Vec3>& endpoint,bool expe
     ugkp::diagnostics::DeviceContext diagnostic{};
     const bool expected=chmt::certifyLinearTrajectory(mesh,endpoint,error,&diagnostic);
     const auto& warning=diagnostic.warnings[1];
-    // Independently compare the shared host specialization to the frozen
-    // original function, including exact warning sample and count.
+
+
     const auto csr=topology(mesh);const auto before=points(mesh.points),after=points(endpoint);
     const device::TopologyView view{csr.faceOffsets.data(),csr.facePoints.data(),csr.cellOffsets.data(),csr.cellFaces.data(),
         csr.cellSigns.data(),csr.vertexOffsets.data(),csr.vertices.data()};
@@ -69,7 +69,7 @@ int main(){
     }
     auto star=multipleCover();compareTrajectory(star,star.points);
     auto endpoint=star.points;for(auto& p:endpoint)p.x+=.01;compareTrajectory(star,endpoint);
-    // A stationary non-star cell must still be checked if another cell moves.
+
     auto mesh=multipleCover();const auto cube=boxes(1,1.,false);const int offset=mesh.points.size();
     mesh.points.insert(mesh.points.end(),cube.points.begin(),cube.points.end());
     for(std::size_t f=0;f<cube.owner.size();++f){for(int k=cube.faceOffsets[f];k<cube.faceOffsets[f+1];++k)mesh.facePoints.push_back(offset+cube.facePoints[k]);

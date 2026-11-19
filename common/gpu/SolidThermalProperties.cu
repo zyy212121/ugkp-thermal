@@ -24,7 +24,7 @@ __global__ void aitkenRelaxation(int n,const double* residual,const double* prev
     if(!havePrevious){if(!threadIdx.x)*result=relaxation;return;}
     extern __shared__ double aitkenScratch[]; auto* products=aitkenScratch; auto* squares=products+blockDim.x;
     double numerator=0,denominator=0;
-    // Coalesced reads and products, followed by the unchanged ordered sum.
+
     for(int first=0;first<n;first+=blockDim.x){
         const int i=first+threadIdx.x;
         if(i<n){const double difference=residual[i]-previous[i];
@@ -101,35 +101,7 @@ __global__ void propertyDiagnosticValues(int n,const ThermalPropertyResult* resu
     ThermalPropertyDiagnostic d;if(indices[0]<n){d.firstError=indices[0];d.error=result[d.firstError].status;}
     if(indices[1]<n){d.firstExtrapolation=indices[1];d.extrapolation=result[d.firstExtrapolation].status;}*out=d;
 }
-__device__ void mergeConvergence(SolidThermalConvergence& a,const SolidThermalConvergence& b){
-    a.enthalpyChange.merge(b.enthalpyChange);a.externalEnergy.merge(b.externalEnergy);a.interfaceEnergy.merge(b.interfaceEnergy);
-    a.temperatureChange=fmax(a.temperatureChange,b.temperatureChange);a.surfaceChange=fmax(a.surfaceChange,b.surfaceChange);
-    a.surfaceFluxChange=fmax(a.surfaceFluxChange,b.surfaceFluxChange);
-}
-__global__ void thermalConvergenceParts(int cells,int surfaces,int boundary,const ThermalPropertyResult* properties,const double* volume,
-    const int* surfaceIndex,const double* flux,const double* temperature,double* previous,const double* gradient,
-    const double* energy,const double* area,double interval,SolidThermalConvergence* partial,const double* deviceInterval=nullptr){
-    if(deviceInterval)interval=*deviceInterval;
-    extern __shared__ __align__(16) unsigned char storage[];auto* values=reinterpret_cast<SolidThermalConvergence*>(storage);const int i=blockIdx.x*blockDim.x+threadIdx.x;SolidThermalConvergence v;
-    if(i<cells){const auto value=properties[surfaces+i];v.enthalpyChange.product(volume[i],value.energy);v.temperatureChange=value.relativeChange;}
-    if(i<boundary){const int source=surfaceIndex[i];
-        if(source==-2)v.externalEnergy.product(-interval,flux[i]);
-        else v.interfaceEnergy.add(energy[i]);
-        if(source>=0){const double T=temperature[i],old=previous[i];
-            v.surfaceChange=fabs(T-old)/fmax(fmax(fabs(T),fabs(old)),1.0);
-            const double prescribed=energy[i]/(area[i]*interval),actual=properties[source].conductivity*gradient[i];
-            v.surfaceFluxChange=fabs(actual-prescribed)/fmax(fmax(fabs(actual),fabs(prescribed)),1.0);}
-        previous[i]=temperature[i];}
-    values[threadIdx.x]=v;__syncthreads();
-    for(int active=blockDim.x;active>1;active=(active+1)/2){const int offset=(active+1)/2;if(threadIdx.x<active-offset)mergeConvergence(values[threadIdx.x],values[threadIdx.x+offset]);__syncthreads();}
-    if(!threadIdx.x)partial[blockIdx.x]=values[0];
-}
-__global__ void thermalConvergenceFinish(int count,const SolidThermalConvergence* partial,SolidThermalConvergence* result){
-    extern __shared__ __align__(16) unsigned char storage[];auto* values=reinterpret_cast<SolidThermalConvergence*>(storage);SolidThermalConvergence v;
-    for(int i=threadIdx.x;i<count;i+=blockDim.x)mergeConvergence(v,partial[i]);values[threadIdx.x]=v;__syncthreads();
-    for(int active=blockDim.x;active>1;active=(active+1)/2){const int offset=(active+1)/2;if(threadIdx.x<active-offset)mergeConvergence(values[threadIdx.x],values[threadIdx.x+offset]);__syncthreads();}
-    if(!threadIdx.x)*result=values[0];
-}
+#include "SolidThermalConvergence.cuh"
 
 __global__ void contactThermalState(int count,const int* cells,const double* input,const ThermalPropertyTable* tables,
     const double* knots,int knotsCount,double* temperature,double* conductivity,ThermalPropertyResult* status){
@@ -163,7 +135,7 @@ __global__ void contactConvergenceParts(int primary,int auxiliary,const double* 
     if(!threadIdx.x)parts[blockIdx.x]={temperature[0],difference[0],scale[0]};
 }
 __global__ void contactConvergenceFinish(int count,const SolidContactConvergence* parts,SolidContactConvergence* output){
-    // Only compact block summaries reach this ordered final reduction.
+
     SolidContactConvergence result;
     for(int i=0;i<count;++i)mergeContactConvergence(result,parts[i]);*output=result;
 }
@@ -181,6 +153,7 @@ struct SolidThermalProperties::Implementation {
     std::vector<std::unique_ptr<EvaluationPlan>> evaluationPlans;
     Array<int> interfaceFaces,interfaceContact;Array<double> interfaceTemperature,interfaceEffusivity,interfaceEmissivity;Array<ThermalPropertyResult> interfaceStatus;
     std::vector<int> cachedInterfaceFaces,cachedInterfaceContact;
+    int interfaceCount=0;bool interfaceIncludesEmissivity=false;
     Array<int> contactCells;Array<double> contactTemperature,contactConductivity;Array<ThermalPropertyResult> contactStatus;
     std::vector<int> cachedContactCells;int contactCount=0;
     Array<int> diagnosticIndices,convergenceSurfaceIndex;Array<ThermalPropertyDiagnostic> diagnosticResult;
@@ -366,29 +339,52 @@ ThermalSolidContactDeviceView SolidThermalProperties::contactState(const std::ve
     d.transfers.finish();return view;
 }
 
-ThermalInterfaceStateDeviceView SolidThermalProperties::interfaceState(const std::vector<int>& faces,
-    const std::vector<int>& contact,const double* temperature,void* ownerStream,std::vector<ThermalPropertyResult>& status,bool includeEmissivity,diagnostics::DeviceContext* context,void* diagnosticStream){
-    auto& d=*data_;if(!temperature)return {};
+ThermalInterfaceStateDeviceView SolidThermalProperties::prepareResidentInterface
+(const std::vector<int>& faces,const std::vector<int>& contact,bool includeEmissivity){
     if(faces.size()!=contact.size())throw std::runtime_error("solid interface contact map size mismatch");
-    PinnedTransferQueue::Operation operation(d.transfers);d.waitFor(ownerStream);const int n=faces.size();
+    auto& d=*data_;PinnedTransferQueue::Operation operation(d.transfers);const int n=faces.size();
     if(d.cachedInterfaceFaces!=faces){d.interfaceFaces.upload(faces.data(),n,d.transfers);d.cachedInterfaceFaces=faces;}
     if(d.cachedInterfaceContact!=contact){d.interfaceContact.upload(contact.data(),n,d.transfers);d.cachedInterfaceContact=contact;}
-    d.interfaceTemperature.reserve(n);d.interfaceEffusivity.reserve(n);d.interfaceStatus.reserve(n);if(context)status.clear();else status.resize(n);
-    d.interfaceEmissivity.reserve(n);
-    if(context)d.waitFor(diagnosticStream);
-    if(n){interfaceThermalState<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(n,d.interfaceFaces.ptr,d.interfaceContact.ptr,temperature,
-        d.tables.ptr,d.knots.ptr,d.knotCount,d.interfaceTemperature.ptr,d.interfaceEffusivity.ptr,d.interfaceStatus.ptr,
-            includeEmissivity,d.interfaceEmissivity.ptr);
-        if(!context)d.transfers.download(status.data(),d.interfaceStatus.ptr,n*sizeof(ThermalPropertyResult));}
+    d.interfaceTemperature.reserve(n);d.interfaceEffusivity.reserve(n);d.interfaceStatus.reserve(n);
+    d.interfaceEmissivity.reserve(n);d.diagnosticIndices.reserve(2);d.diagnosticResult.reserve(1);
+    d.interfaceCount=n;d.interfaceIncludesEmissivity=includeEmissivity;
+    return residentInterface();
+}
+ThermalInterfaceStateDeviceView SolidThermalProperties::residentInterface()const{
+    const auto& d=*data_;return {true,d.interfaceCount,d.interfaceTemperature.ptr,d.interfaceEffusivity.ptr,
+        d.interfaceContact.ptr,d.stream,d.interfaceIncludesEmissivity?d.interfaceEmissivity.ptr:nullptr};
+}
+void SolidThermalProperties::enqueueResidentInterface(const double* temperature,
+    diagnostics::DeviceContext* context,void* executionStream){
+    auto& d=*data_;const int n=d.interfaceCount;const auto stream=static_cast<cudaStream_t>(executionStream);
+    if(n&&!temperature)throw std::runtime_error("solid interface temperature storage is unavailable");
+    if(n)interfaceThermalState<<<(n+workPlan().thermalBlockThreads-1)/workPlan().thermalBlockThreads,workPlan().thermalBlockThreads,0,stream>>>(
+        n,d.interfaceFaces.ptr,d.interfaceContact.ptr,temperature,d.tables.ptr,d.knots.ptr,d.knotCount,
+        d.interfaceTemperature.ptr,d.interfaceEffusivity.ptr,d.interfaceStatus.ptr,d.interfaceIncludesEmissivity,d.interfaceEmissivity.ptr);
     if(context){
-        status.clear();d.diagnosticIndices.reserve(2);d.diagnosticResult.reserve(1);
-        initializePropertyDiagnostic<<<1,1,0,d.stream>>>(n,d.diagnosticIndices.ptr);
-        if(n)propertyDiagnosticIndices<<<(n+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,d.stream>>>(n,d.interfaceStatus.ptr,d.diagnosticIndices.ptr);
-        propertyDiagnosticValues<<<1,1,0,d.stream>>>(n,d.interfaceStatus.ptr,d.diagnosticIndices.ptr,d.diagnosticResult.ptr);
-        publishPropertyDiagnostic<<<1,1,0,d.stream>>>(d.diagnosticResult.ptr,context);
-    }else d.transfers.finish();
-    return {true,n,d.interfaceTemperature.ptr,d.interfaceEffusivity.ptr,d.interfaceContact.ptr,d.stream,
-        includeEmissivity?d.interfaceEmissivity.ptr:nullptr};
+        initializePropertyDiagnostic<<<1,1,0,stream>>>(n,d.diagnosticIndices.ptr);
+        if(n)propertyDiagnosticIndices<<<(n+workPlan().thermalBlockThreads-1)/workPlan().thermalBlockThreads,workPlan().thermalBlockThreads,0,stream>>>(
+            n,d.interfaceStatus.ptr,d.diagnosticIndices.ptr);
+        propertyDiagnosticValues<<<1,1,0,stream>>>(n,d.interfaceStatus.ptr,d.diagnosticIndices.ptr,d.diagnosticResult.ptr);
+        publishPropertyDiagnostic<<<1,1,0,stream>>>(d.diagnosticResult.ptr,context);
+    }
+    checked(cudaGetLastError());
+}
+ThermalInterfaceStateDeviceView SolidThermalProperties::interfaceState(const std::vector<int>& faces,
+    const std::vector<int>& contact,const double* temperature,void* ownerStream,std::vector<ThermalPropertyResult>& status,
+    bool includeEmissivity,diagnostics::DeviceContext* context,void* diagnosticStream){
+    auto& d=*data_;if(!temperature)return {};
+    PinnedTransferQueue::Operation operation(d.transfers);d.waitFor(ownerStream);
+    const auto view=prepareResidentInterface(faces,contact,includeEmissivity);
+    if(context)d.waitFor(diagnosticStream);
+    enqueueResidentInterface(temperature,context,d.stream);
+    if(context)status.clear();
+    else{
+        status.resize(faces.size());
+        if(!status.empty())d.transfers.download(status.data(),d.interfaceStatus.ptr,status.size()*sizeof(ThermalPropertyResult));
+        d.transfers.finish();
+    }
+    return view;
 }
 
 SolidThermalDeviceFields SolidThermalProperties::deviceFields()const{

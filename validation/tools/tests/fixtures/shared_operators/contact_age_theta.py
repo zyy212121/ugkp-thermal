@@ -77,10 +77,10 @@ int main() {
     s->couplingTgasOld[0]=2800;
     double* result;alloc(result,4);
     bool foundLeak=false;
-    // Feed a consistent post-sampling state into the actual native correction kernels.
-    // Two equal masses, sampled velocities +/-speed, zero pool mean, scale=1.
-    // Cases 0,1 are the two transient states; 2 is a long-deposit negative control;
-    // case 3 is transient damage below the detachment threshold (age must survive).
+
+
+
+
     for(int scenario=0;scenario<4;++scenario) {
         const bool deposited=scenario==2;
         const bool shouldDetach=scenario!=3;
@@ -125,7 +125,7 @@ int main() {
         correctPoissonThermalizedStuckParticlesKernel<<<1,32>>>(s,0);deviceSynchronizeChecked();
         const bool detached=s->pStuck[0]==Foam::gpuThermal::particleWallMobile;
         if(detached!=shouldDetach){std::printf("UNEXPECTED_TRANSITION case=%d detached=%d required=%.17g sample=%.17g\n",scenario,detached,required,sampleSpecific);return 4;}
-        // Same next consumer as the full step; drag/particle-gas heat disabled by valid configuration.
+
         relaxMobileParticlesToResidentGasKernelStatic<<<1,32>>>(s,1e-6,ugkwpGpuDrag::SchillerNaumannDrag{});deviceSynchronizeChecked();
         observe<<<1,1>>>(s,result);deviceSynchronizeChecked();
         const double storedAge=AGE_READ;

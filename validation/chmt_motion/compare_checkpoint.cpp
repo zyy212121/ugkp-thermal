@@ -32,8 +32,8 @@ int main(int argc,char** argv){if(argc!=3&&argc!=4)return 2;auto a=load(argv[1])
   std::cout<<"OPTIONAL_ZERO_PACKET_COUNT "<<a.budget.consumedPackets<<" "<<b.budget.consumedPackets<<"\n";
   a.budget.consumedPackets=b.budget.consumedPackets;
  }
- // Dry CHMT deliberately marks the inactive legacy film auxiliary temperature
- // unavailable. Only this paired sentinel is excluded from the finite check.
+
+
  assert(a.filmAux.size()==b.filmAux.size());
  for(size_t f=0;f<a.filmAux.size();++f)
   if(std::isnan(a.filmAux[f].temperature)&&std::isnan(b.filmAux[f].temperature))

@@ -28,11 +28,11 @@ int main(){
  exchange[0].ready=exchange[1].ready=true;state.gasBoundaryLayerStageTime=1.125;
  assert(ugkwpGpuResidentStrictDownloadBoundaryLayerProfilesV1(&state,2,24,2,rows,&stageTime)==0);
  assert(stageTime==1.125);for(int i=0;i<2*24*9;++i)assert(rows[i]==.5+i);
- state.gasBoundaryLayer.exchange=nullptr; // stack-owned shim readiness array
+ state.gasBoundaryLayer.exchange=nullptr;
  assert(releaseBoundaryLayerStorage(state)==0&&allocations==0);
  assert(!model.profile&&state.gasBoundaryLayerLaunch==&launchBoundaryLayer<false>);
  assert((state.gasBoundaryLayerSnapshot==&sharedGasTrialDetail::snapshotWallRecords<false,DeviceState>));
- // Reconfigure without requesting output: no profile allocation or capture.
+
  state.gasBoundaryLayer.enabled=true;state.gasBoundaryLayer.count=1;
  assert(!model.profile&&state.gasBoundaryLayerLaunch==&launchBoundaryLayer<false>);
  assert(releaseBoundaryLayerStorage(state)==0&&allocations==0);
