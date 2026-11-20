@@ -149,7 +149,16 @@ bool bindGasWindowMaterial(Backend& b,MaterialBackend& material,std::string& err
     if(!bindResidentMaterialEndpointGasFraction(material,b.storage.hostView().gasVolumeFraction,b.gasCaptureStream,error))return false;
     b.windowMaterial=&material;error.clear();return true;
 }
+bool gasWindowHasResidentRadiation(const Backend& b){return b.windowTransport!=nullptr;}
+bool bindImplicitGasWindowMaterial(Backend& b,MaterialBackend& material,bool appendSolve,std::string& error){
+    if((appendSolve&&!b.windowBatchPrepared)||b.windowBatchPending||b.windowMaterial||b.windowImplicit){
+        error="gas window has no unused implicit material binding";return false;
+    }
+    if(!b.windowBatchPrepared)orderImplicitWindow(material,b.gasCaptureStream);
+    b.windowImplicit=&material;b.windowImplicitSolve=appendSolve;error.clear();return true;
+}
 static void orderGasMaterialInputs(Backend& b){
+    if(b.windowImplicit)orderImplicitWindow(*b.windowImplicit,b.gasCaptureStream);
     if(!b.windowMaterial)return;
     using ugkp::gpu::executionGraphDetail::checked;
     cudaEvent_t ready=nullptr;checked(cudaEventCreateWithFlags(&ready,cudaEventDisableTiming));
@@ -176,6 +185,31 @@ static cudaGraphNode_t appendGasWindowGeometry(Backend& b,cudaGraph_t graph,cuda
             throw std::runtime_error(b.error);
     });
     return complete;
+}
+
+namespace gas_window_detail {
+__global__ void selectImplicitMaterial(const GasWindowProgress* progress,const int* radiationStage,
+    const ugkp::diagnostics::DeviceContext* diagnostics,cudaGraphConditionalHandle condition){
+    if(!threadIdx.x&&!blockIdx.x)cudaGraphSetConditional(condition,progress->stop==GasWindowStop::Complete
+        &&(!radiationStage||*radiationStage==3)&&!ugkp::diagnostics::hasFatal(diagnostics));
+}
+}
+
+static ugkp::gpu::ExecutionGraphNode appendGasWindowImplicitSolve(Backend& b,ugkp::gpu::ExecutionGraph graph,
+    ugkp::gpu::ExecutionGraphNode dependency){
+    if(!b.windowImplicitSolve)return dependency;
+    using namespace ugkp::gpu;using namespace executionGraphDetail;
+    auto& material=*b.windowImplicit;const auto stream=b.gasCaptureStream;
+    const auto stage=b.windowTransport?b.windowRadiationStage.data():nullptr;
+    cudaGraphConditionalHandle condition;checked(cudaGraphConditionalHandleCreate(&condition,graph,0,cudaGraphCondAssignDefault));
+    const auto selected=appendRecorded(graph,{dependency},stream,[&]{
+        gas_window_detail::selectImplicitMaterial<<<1,1,0,stream>>>(b.windowProgress.data(),stage,b.diagnostics.device(),condition);
+    });
+    cudaGraph_t body=nullptr;const auto done=addIf(graph,condition,{selected},body);
+    appendImplicitMaterialSolve(material,stage?b.windowRadiation.data():nullptr,body,nullptr,stream);
+    return appendRecorded(graph,{done},stream,[&]{
+        gas_window_detail::propagateMaterialFatal<<<1,1,0,stream>>>(implicitWindowDiagnostics(material),b.diagnostics.device());
+    });
 }
 
 ugkp::gpu::ExecutionGraphNode appendGasWindowBatch(Backend& b,ugkp::gpu::ExecutionGraph graph,ugkp::gpu::ExecutionGraphNode dependency){
@@ -260,8 +294,17 @@ ugkp::gpu::ExecutionGraphNode appendGasWindowBatch(Backend& b,ugkp::gpu::Executi
         gas_window_detail::accept<<<1,1,0,stream>>>(b.deviceState,b.windowProgress.data(),b.windowControls.data(),
             b.coupledInterval.data(),frame.interval,loop);
     });
-    const auto radiated=appendGasWindowRadiation(b,graph,completed);
-    const auto material=appendGasWindowMaterial(b,graph,radiated);
+    auto exchanged=completed;
+    if(b.windowImplicit){
+        exchanged=appendImplicitMaterialExchange(*b.windowImplicit,ResidentMaterialDriveHistory{frame.surface,frame.wall,frame.interval,b.windowBatch.capacity,b.interfaceFaces.size(),
+                stream,&b.windowProgress.data()->batchFrames},b.windowProgress.data(),
+            b.particles.active(),graph,exchanged,stream);
+        exchanged=appendRecorded(graph,{exchanged},stream,[&]{
+            gas_window_detail::propagateMaterialFatal<<<1,1,0,stream>>>(implicitWindowDiagnostics(*b.windowImplicit),b.diagnostics.device());
+        });
+    }
+    const auto radiated=appendGasWindowRadiation(b,graph,exchanged);
+    const auto material=b.windowImplicit?appendGasWindowImplicitSolve(b,graph,radiated):appendGasWindowMaterial(b,graph,radiated);
     if(!b.particles.active())return material;
     return appendRecorded(graph,{material},stream,[&]{
         if(ugkp::thermal::enqueueBoundParticleMirror(b.particles.owner(),b.windowParticleMirror.data(),stream))
@@ -288,17 +331,23 @@ static void buildGasWindowBatch(Backend& b,Backend::WindowGraph& graph){
     }
     std::swap(graph.graph,next.graph);
     graph.storage=b.windowBatch.storage.interval;
+    graph.radiationOwner=b.windowTransport;
     graph.radiationRevision=b.windowTransport?b.windowTransport->executionRevision():0;
+    graph.implicitOwner=b.windowImplicit;graph.implicitSolve=b.windowImplicitSolve;
+    graph.implicitRevision=b.windowImplicit?implicitWindowRevision(*b.windowImplicit):0;
 }
 
 static bool submitGasWindowBatch(Backend& b,std::string& error){
     using ugkp::gpu::executionGraphDetail::checked;
     const auto slot=(b.windowBatch.first/CoupledHistoryArchive::slabFrames)%2;
     auto& graph=b.windowGraph[slot];
-    if(!graph.executable||graph.storage!=b.windowBatch.storage.interval||
-        graph.radiationRevision!=(b.windowTransport?b.windowTransport->executionRevision():0))buildGasWindowBatch(b,graph);
+    if(!graph.executable||graph.storage!=b.windowBatch.storage.interval||graph.radiationOwner!=b.windowTransport
+        ||graph.radiationRevision!=(b.windowTransport?b.windowTransport->executionRevision():0)
+        ||graph.implicitOwner!=b.windowImplicit||graph.implicitSolve!=b.windowImplicitSolve
+        ||graph.implicitRevision!=(b.windowImplicit?implicitWindowRevision(*b.windowImplicit):0))buildGasWindowBatch(b,graph);
     orderGasRadiationInputs(b);orderGasMaterialInputs(b);checked(cudaGraphLaunch(graph.executable,b.gasCaptureStream));
     acceptGasRadiationExecution(b,b.gasCaptureStream);
+    if(b.windowImplicit)acceptImplicitWindowExecution(*b.windowImplicit,b.gasCaptureStream);
     if(b.windowMaterial)acceptResidentMaterialLocalExecution(*b.windowMaterial,b.gasCaptureStream);
     b.windowBatchPending=true;return true;
 }
@@ -355,6 +404,7 @@ bool acceptGasWindowExecution(Backend& b,void* producer,std::string& error){
         checked(cudaStreamWaitEvent(b.gasCaptureStream,ready,0));
         checked(cudaEventDestroy(ready));ready=nullptr;
         acceptGasRadiationExecution(b,producer);
+        if(b.windowImplicit)acceptImplicitWindowExecution(*b.windowImplicit,producer);
         if(b.windowMaterial)acceptResidentMaterialLocalExecution(*b.windowMaterial,producer);
         b.windowBatchPending=true;error.clear();return true;
     }catch(const std::exception& exception){if(ready)cudaEventDestroy(ready);b.poisoned=true;error=exception.what();return false;}
@@ -423,6 +473,7 @@ bool collectGasWindow(Backend& b,GasMicroReport& report,std::string& error){
                     orderGasRadiationInputs(b);orderGasMaterialInputs(b);
                     ugkp::gpu::executionGraphDetail::checked(cudaGraphLaunch(graph.executable,b.gasCaptureStream));
                     acceptGasRadiationExecution(b,b.gasCaptureStream);
+                    if(b.windowImplicit)acceptImplicitWindowExecution(*b.windowImplicit,b.gasCaptureStream);
                     if(b.windowMaterial)acceptResidentMaterialLocalExecution(*b.windowMaterial,b.gasCaptureStream);continue;
                 }
             }

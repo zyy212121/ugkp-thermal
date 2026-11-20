@@ -4,6 +4,7 @@ struct MaterialConductionWorkspace {
     ugkp::gpu::ImplicitDiffusion diffusion;
     const Foam::fvMesh* origin=nullptr;
     std::uint64_t topology=0;
+    bool implicitConfigured=false;
     std::vector<Vec3> points;
     Foam::wordList temperatureTypes;
     Foam::string boundaryDefinition;
@@ -24,7 +25,10 @@ struct MaterialConductionWorkspace {
             if(points[i].x!=state.points[i].x||points[i].y!=state.points[i].y||points[i].z!=state.points[i].z)return false;
         return true;
     }
-    void clearFields(){temperature.reset();capacity.reset();conductivity.reset();source.reset();}
+    void clearFields(){
+        temperature.reset();capacity.reset();conductivity.reset();source.reset();
+        implicitConfigured=false;
+    }
 };
 bool prepareConductionWorkspace(Foam::fvMesh& acceptedMesh,const HostState& next,
     const PhysicsConfig& p,MaterialConductionWorkspace& workspace,std::string& error){
@@ -53,6 +57,7 @@ bool prepareConductionWorkspace(Foam::fvMesh& acceptedMesh,const HostState& next
             const bool fixed=next.solidMesh.boundaryKind[face]!=BoundaryKind::Interface&&fixedTemperature(next.solidMesh.thermalBoundary.empty()?nullptr:next.solidMesh.thermalBoundary.data(),face);
             hasFixed=hasFixed||fixed;hasFree=hasFree||!fixed;}if(hasFixed&&hasFree){error="mixed per-face material thermal policy within one native patch";return false;}if(hasFixed)patchTypes[patch]=Foam::fixedValueFvPatchScalarField::typeName;}}
     if(!workspace.temperature||workspace.temperatureTypes!=patchTypes){
+        workspace.implicitConfigured=false;
         workspace.temperature.reset(new Foam::volScalarField(Foam::IOobject("CHMTMaterialTemperature",mesh.time().timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE,false),mesh,
             Foam::dimensionedScalar("initial",Foam::dimTemperature,300),patchTypes));
         workspace.temperatureTypes=patchTypes;

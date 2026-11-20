@@ -1,6 +1,6 @@
-#include "materials/ImplicitMaterialMass.H"
 #include "materials/CpuMaterialDriver.H"
 #include "gpu/MaterialBackend.H"
+#include "gpu/ImplicitMaterialWindow.H"
 #include "gpu/ResidentMaterialDrive.H"
 #include "gpu/MaterialThermalBackend.H"
 #include "../../../common/gpu/FoamSparseSolve.H"
@@ -67,6 +67,7 @@ bool nativeConduction(Foam::fvMesh& acceptedMesh,const HostState& old,HostState&
     Real dt,const CpuMaterialControls& controls,CpuMaterialReport& report,std::string& error,ugkp::gpu::SparseConjugateGradient& sparse,MaterialBackend& thermal,
     MaterialConductionWorkspace& workspace,bool* preparedParent=nullptr){
     if(preparedParent)*preparedParent=false;
+    workspace.implicitConfigured=false;
     auto& residentDiffusion=workspace.diffusion;
     const std::size_t n=next.solidMesh.volumes.size();if(n==0)return true;
     next.solid.resize(n);

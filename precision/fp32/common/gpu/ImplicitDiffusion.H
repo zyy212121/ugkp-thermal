@@ -59,6 +59,7 @@ public:
     void enqueueResidentWindowSnapshot(void* executionStream);
     void enqueueResidentWindowRestore(void* executionStream);
     void enqueueResidentBoundaryTemperature(void* executionStream);
+    void enqueueResidentFlux(void* executionStream,bool boundaryOnly);
     void enqueueResidentBoundaryFlux(void* executionStream);
     void enqueueResidentInterfaceEnergy(void* executionStream);
     void configureBoundaryJumpSchedule(const boundary::Definition&,const std::vector<int>& signs,double initialTime);

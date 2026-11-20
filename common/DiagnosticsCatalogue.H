@@ -7,6 +7,15 @@ namespace ugkp { namespace diagnostics {
 inline const std::vector<SourceDescriptor>& sourceCatalogue() {
 
     static const std::vector<SourceDescriptor> catalogue{
+        {38520,"applications/CHMT/gpu/ImplicitMaterialExchange.cuh","accumulateExchange",20,"accepted material exchange batch or radiation balance"},
+        {38521,"applications/CHMT/gpu/ImplicitMaterialIteration.cuh","startCells",48,"inadmissible material window initial or trial inventory"},
+        {38522,"applications/CHMT/gpu/ImplicitMaterialIteration.cuh","transportRates",106,"material pore pressure or face transport evaluation failed"},
+        {38523,"applications/CHMT/gpu/ImplicitMaterialIteration.cuh","massColor",142,"invalid implicit material face mass correction"},
+        {38524,"applications/CHMT/gpu/ImplicitMaterialIteration.cuh","reactCells",149,"invalid implicit material reaction correction"},
+        {38525,"applications/CHMT/gpu/ImplicitMaterialIteration.cuh","energyColor",156,"invalid implicit material caloric or face energy correction"},
+        {38526,"applications/CHMT/gpu/ImplicitMaterialIteration.cuh","recoverConservativeEnergy",192,"invalid conservative material energy or solved temperature"},
+        {38527,"applications/CHMT/gpu/ImplicitMaterialIteration.cuh","finishIteration",264,"material conduction linear residual or boundary energy"},
+        {38528,"applications/CHMT/gpu/ImplicitMaterialIteration.cuh","finishIteration",308,"implicit material iteration budget exhausted, accepted bounded iterate"},
         {42004,"common/thermal/GpuResidentStrict.cu","ugkwpGpuResidentStrictDownloadSourceResidualMass",3778,"particle source residual download needs a count and enough destination storage"},
         {36006,"common/thermal/GpuResidentStrict.cu","ugkwpGpuResidentStrictUploadParticleRestartMirror",6490,"selected contact model requires actual cold-profile enthalpy; particle and node identify missing/invalid input"},
         {36010,"common/gpu/SparseConjugateGradient.cu","preconditioner publication",1008,"AMG construction unavailable; diagonal Jacobi used within the same bounded linear solve; observed is affected block count"},

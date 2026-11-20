@@ -88,7 +88,10 @@ def test_material_and_window_sources_have_no_replay_or_terminal_route():
     assert "advanceMaterialReactionsMath(" in transport
     reaction_substeps = (APP / "materials/MaterialReactionMath.H").read_text()
     assert "while(elapsed<interval)" in reaction_substeps
-    assert window.index("collectMaterialWindowExchange(") < window.index("advanceImplicitWindow(")
+    assert window.index("bindImplicitGasWindowMaterial(") < window.index("enqueuePreparedGasWindow(")
+    assert "collectMaterialWindowExchange" not in window
+    implicit = (APP / "materials/ImplicitMaterialWindow.inl").read_text()
+    assert ".residual()" not in implicit and "equation.solve(" not in implicit
     assert "material.advanceCandidate(" not in window
 
 
@@ -189,14 +192,14 @@ void checkWindowSum(){
     }else assert(sum.value()==1);
 }
 
-void solve(bool darcy,bool diffusion,bool reverse){
+void solve(bool darcy,bool diffusion,bool reverse,PhysicalReal tableMin=10){
     PhysicsConfig p;
     p.spatialOrder=1;
     p.gasConductivity=0;
     p.permeability=darcy?PhysicalReal(1)/PhysicalReal(300):PhysicalReal(0);
     p.poreViscosity=1;
-    for(auto& phase:p.condensed){phase.rho=2;phase.cp0=1;phase.Tmin=10;phase.Tmax=6000;}
-    for(auto& gas:p.species){gas.R=1;gas.cp0=2;gas.Tmin=10;gas.Tmax=6000;}
+    for(auto& phase:p.condensed){phase.rho=2;phase.cp0=1;phase.Tmin=tableMin;phase.Tmax=6000;}
+    for(auto& gas:p.species){gas.R=1;gas.cp0=2;gas.Tmin=tableMin;gas.Tmax=6000;}
     if(diffusion){
         p.poreEffectiveDiffusivity[0]=p.poreEffectiveDiffusivity[1]=darcy?PhysicalReal(.1):PhysicalReal(.5);
         p.species[1].cp0=3;
@@ -274,11 +277,33 @@ void solve(bool darcy,bool diffusion,bool reverse){
     }
 }
 
+void checkCoolingLimits(){
+    MaterialCaloric law;
+    law.a0=-600;law.a1=-10;law.a2=EnergyReal(.1);
+    law.minimumTemperature=300;
+    implicitMaterial::CellThermal thermal;
+    assert(implicitMaterial::prepareThermalCell(law,PhysicalReal(300),thermal));
+    assert(near(thermal.minimum,law.energy(100)));
+    assert(thermal.minimum<law.energy(0));
+
+    law={};law.a1=1;law.pore[0]=1;
+    auto& gas=law.gas[0];
+    gas.model=ugkwp::SpeciesThermoModel::NASA7;gas.R=1;gas.Tmin=300;gas.Tmid=1000;gas.Tmax=6000;
+    gas.nasa7[0]=2;gas.nasa7[1]=EnergyReal(-.03);gas.nasa7[2]=EnergyReal(.0001);
+    for(int i=0;i<7;++i)gas.nasa7[7+i]=gas.nasa7[i];
+    assert(implicitMaterial::prepareThermalCell(law,PhysicalReal(300),thermal));
+    assert(near(thermal.minimum,law.energy(200)));
+    assert(thermal.minimum<thermal.anchor);
+}
+
 int main(){
+    checkCoolingLimits();
     checkWindowSum<PhysicalReal>();
     checkWindowSum<EnergyReal>();
     solve(true,false,false);
     solve(true,false,true);
+    solve(true,false,false,PhysicalReal(300));
+    solve(true,false,true,PhysicalReal(300));
     solve(false,true,false);
     solve(true,true,false);
 }

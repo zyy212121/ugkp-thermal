@@ -7,6 +7,7 @@
 #include "gpu/AcceptedStateSnapshot.H"
 #include "../../../common/gpu/FrozenReadback.cuh"
 #include "gpu/MaterialBackend.H"
+#include "gpu/ImplicitMaterialWindow.H"
 #include "../../../common/thermal/ThermalEventApi.H"
 #include "../../../common/gpu/DiscreteOrdinateRadiation.H"
 #include "../../../common/gpu/ParticleRadiationMaterial.H"
@@ -104,6 +105,8 @@ struct Backend {
     CoupledHistoryArchive::Batch windowBatch{};
     bool windowBatchPrepared=false,windowBatchPending=false,windowBatchRetired=false,windowMaterialHistoryReady=false;
     MaterialBackend* windowMaterial=nullptr;
+    MaterialBackend* windowImplicit=nullptr;
+    bool windowImplicitSolve=false;
     ugkp::gpu::DiscreteOrdinateRadiation* windowTransport=nullptr;
     ugkp::gpu::ParticleRadiationMaterial* windowRadiationMaterial=nullptr;
     Buffer<int> windowRadiationStage;
@@ -300,6 +303,8 @@ bool archiveCoupledRecord(Backend& b){
     enqueueCoupledSurfaceArchive(b.interfaceRecords.data(),count,b.interfaceFaces.data(),b.particles.wallExchange(),
         {records,walls,nullptr},b.interfaceFailure.data(),int(b.accepted.solid.size()),int(b.accepted.film.size()),
         b.diagnostics.device(),b.fixedFaceBlockThreads,b.gasCaptureStream);
+    if(b.windowImplicit)enqueueImplicitMaterialFrame(*b.windowImplicit,records,count,b.historyFrameCount+1,
+        b.particles.active(),b.gasCaptureStream);
     if(!b.surfaceTransferFault.check(cudaGetLastError(),"archive accepted coupled exchange")){
         b.error=b.surfaceTransferFault.message;return false;
     }
@@ -452,6 +457,7 @@ bool loadGasWindowState(Backend& b,const HostState& snapshot,std::string& error)
     if(b.windowBatchPending){error="gas window still owns active device buffers";return false;}
     for(auto& graph:b.windowGraph)graph.storage=nullptr;
     b.windowTransport=nullptr;b.windowRadiationMaterial=nullptr;b.windowMaterial=nullptr;
+    b.windowImplicit=nullptr;b.windowImplicitSolve=false;
     b.windowBatchPrepared=false;b.windowBatchRetired=false;b.windowMaterialHistoryReady=false;
     b.storage.beginOperation();
     b.wallDiagnosticsReady=false;b.historyFrameCount=0;b.historyPublishedFrames=0;b.historyArchive.reset();
@@ -812,6 +818,7 @@ static bool publishMaterialGasState(Backend& b,HostState& state,std::string& err
     return true;
 }
 static bool publishGasWindowImpl(Backend& b,HostState& out,std::string& error,bool full){
+    if(b.windowImplicit&&!b.windowBatchRetired)acceptImplicitWindowExecution(*b.windowImplicit,b.gasCaptureStream);
     const bool publishHistory=b.historyPublishedFrames!=b.historyFrameCount;
     const auto faces=b.interfaceRecords.size();
     if(publishHistory&&b.historyArchive)b.historyArchive->seal(b.gasCaptureStream);
@@ -869,7 +876,6 @@ static bool publishGasWindowImpl(Backend& b,HostState& out,std::string& error,bo
     const bool published=gasWindowStageGeometry(b,out.gasStages,out.solidStages,error);
     b.gasEndpointPublished=published;return published;
 }
-#include "gpu/MaterialWindowExchange.inl"
 bool downloadGasWindow(Backend& b,HostState& out,std::string& error){return publishGasWindowImpl(b,out,error,true);}
 bool publishGasWindow(Backend& b,HostState& out,std::string& error){return publishGasWindowImpl(b,out,error,false);}
 static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& error,bool preservePublishedEndpoint,

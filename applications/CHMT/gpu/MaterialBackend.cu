@@ -9,6 +9,7 @@
 #include "../../../common/gpu/StableRowIndex.cuh"
 #include "ablation/SurfaceDonorAllocation.H"
 #include "gpu/MaterialBackend.H"
+#include "gpu/ImplicitMaterialWindowStorage.cuh"
 #include "gpu/HostTransferQueue.H"
 #include "gpu/MaterialTransportKernels.cuh"
 #include "gpu/MaterialSourceKernels.cuh"
@@ -231,6 +232,7 @@ struct MaterialBackend {
     std::uint64_t sequence=0,step=0;Real time=0;
     Buffer<PhysicsConfig> devicePhysics,quietSurfacePhysics;
     Buffer<SolidQ> current,next,initial,gasChange,candidateGasChange,donor;
+    ImplicitWindowStorage implicit;
 
 
 
@@ -497,6 +499,7 @@ bool beginMaterialWindow(MaterialBackend& b,const HostState& state,const Physics
     b.operation(state.time);
     return collectDiagnostics?b.finish(error):true;
 }
+#include "gpu/ImplicitMaterialWindow.cuh"
 bool prepareResidentMaterialConduction(MaterialBackend& b,const HostMesh& mesh,
     const std::vector<Real>& nativeVolumes,std::vector<MaterialThermalInput>& input,
     std::string& error,bool& numerical,bool publishInput){

@@ -11,7 +11,6 @@ namespace Foam {class fvMesh;}
 namespace chmt {
 struct ResidentMaterialDriveHistory;
 struct MaterialBackend;
-struct MaterialWindowExchange;
 class CoupledHistoryArchive;
 enum class MaterialFailureOrigin { None,ConductionNumerical,ReactionNumerical,FilmNumerical,SurfaceNumerical,GeometryNumerical,TransportNumerical,OwnerNumerical,LocalSourceNumerical };
 struct CpuMaterialControls {
@@ -32,13 +31,14 @@ struct CpuMaterialControls {
 struct CpuMaterialReport {
     MaterialFailureOrigin failureOrigin=MaterialFailureOrigin::None;
     std::uint64_t materialSteps=0,sourceAuditSamples=0,sourceAuditPopulation=0;
-    int implicitIterations=0,geometrySolves=0;
+    int implicitIterations=0,geometrySolves=0,materialLinearSolves=0,materialLinearIterations=0;
     bool implicitConverged=false;
     Real massResidual=0,thermalResidual=0,recessionVolume=0,gclResidual=0;
     bool recoverable=false,geometryCorrection=false;Real eventTime=0,eventDuration=0;
     MaterialDonorPlan donorPlan{};
     WallProgramComparison wallComparison{};
     bool streamedWallComparison=false;MaterialWindowCommit deviceCommit{};
+    std::uint64_t exchangePackets=0,exchangeFrames=0;
 };
 
 
@@ -56,8 +56,11 @@ public:
     CpuMaterialDriver& operator=(const CpuMaterialDriver&)=delete;
     bool predictWall(const HostState&,const CouplingInterval&,WallProgram&,std::string&,CpuMaterialReport* diagnostics=nullptr)const;
     bool predictWindowWall(const HostState&,const CouplingInterval&,WallProgram&,std::string&,CpuMaterialReport*,bool holdRecession)const;
-    bool advanceImplicitWindow(const HostState&,const HostState&,const CouplingInterval&,const MaterialWindowExchange&,
-        const CpuMaterialControls&,HostState&,CpuMaterialReport&,std::string&);
+    bool prepareImplicitParent(const HostState&,const CouplingInterval&,const CpuMaterialControls&,
+        bool deferRadiation,MaterialBackend*&,bool& appendSolve,std::string&);
+    bool finishImplicitParent(const HostState&,const HostState&,const CouplingInterval&,
+        const CpuMaterialControls&,const IntervalRadiationDeviceView&,bool inParent,HostState&,CpuMaterialReport&,std::string&);
+    bool commitImplicitInventory(const HostState&,std::string&);
     bool prepareParentWindow(const HostState&,const WallProgram&,const ResidentMaterialDriveHistory&,
         const IntervalRadiationDeviceView&,const CpuMaterialControls&,MaterialBackend*&,std::string&);
     bool advanceCandidate(const HostState&,const HostState& geometryEndpoint,

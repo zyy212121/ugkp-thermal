@@ -470,9 +470,10 @@ void ImplicitDiffusion::flux(const std::vector<double>& neighbour,const std::vec
     if(download){d.faceFlux.download(output,count,d.transfers);d.transfers.finish();}
 }
 
-void ImplicitDiffusion::enqueueResidentBoundaryFlux(void* stream){
-    auto& d=*data_;const int nf=d.owner.size(),count=nf-d.internal;
-    if(count)matrixFaceFlux<<<(count+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,static_cast<cudaStream_t>(stream)>>>(nf,d.internal,d.internal,d.deviceOwner.ptr,d.deviceNeighbour.ptr,
+void ImplicitDiffusion::enqueueResidentBoundaryFlux(void* stream){enqueueResidentFlux(stream,true);}
+void ImplicitDiffusion::enqueueResidentFlux(void* stream,bool boundaryOnly){
+    auto& d=*data_;const int nf=d.owner.size(),start=boundaryOnly?d.internal:0,count=nf-start;
+    if(count)matrixFaceFlux<<<(count+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,static_cast<cudaStream_t>(stream)>>>(nf,d.internal,start,d.deviceOwner.ptr,d.deviceNeighbour.ptr,
         d.upper.ptr,d.asymmetric?d.lower.ptr:d.upper.ptr,d.boundaryDiagonal.ptr,d.boundarySource.ptr,d.flux.ptr,
         d.solution.ptr,d.neighbourTemperature.ptr,d.coupled.ptr,d.fluxAdjacentCells.ptr,d.fluxJump.ptr,d.faceFlux.ptr,d.physicalValues());
 }

@@ -1,6 +1,5 @@
 #include "io/MultirateEvolution.H"
 #include "gpu/Backend.H"
-#include "materials/MaterialWindowExchange.H"
 #include "coupling/IntervalAudit.H"
 #include "DiagnosticsFoam.H"
 #include <algorithm>
@@ -24,14 +23,17 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         if(!material.predictWindowWall(base,interval,program,error,&prediction,true))return false;
         if(!beginGasWindow(backend,program,error))return false;
         Real gasTime=interval.begin;WindowTime gasElapsed{};
-
-
-
-
+        bool materialInParent=false;
 
         if(!retainStageGeometry){
             if(radiate&&!radiation->prepareParent(backend,program,base,error))return false;
             if(!prepareGasWindow(backend,controls.gasMaxDt,error))return false;
+        }
+        MaterialBackend* bound=nullptr;
+        const bool deferMaterial=retainStageGeometry||(radiate&&!gasWindowHasResidentRadiation(backend));
+        if(!material.prepareImplicitParent(base,interval,materialControls,deferMaterial,bound,materialInParent,error)
+            ||(bound&&!bindImplicitGasWindowMaterial(backend,*bound,materialInParent,error)))return false;
+        if(!retainStageGeometry){
             GasMicroReport completed;
             if(!enqueuePreparedGasWindow(backend,error)||!collectGasWindow(backend,completed,error))return false;
             report.nextGasDt=completed.nextGasDt;gasTime=completed.time;gasElapsed=completed.localTime;
@@ -43,12 +45,10 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
             report.nextGasDt=micro.nextGasDt;
             if(micro.microSequence%1000==0)std::cout<<"CHMT_GAS window="<<interval.identity.sequence
                 <<" microstep="<<micro.microSequence<<" time="<<micro.time<<" nextDt="<<micro.nextGasDt<<std::endl;
-            if(retainStageGeometry) {
-                MicrostepGeometryReport geometry;geometry.microSequence=micro.microSequence;
-                geometry.begin=gasTime;geometry.end=micro.time;
-                if(!gasWindowStageGeometry(backend,geometry.gas,geometry.solid,error))return false;
-                report.geometry.push_back(std::move(geometry));
-            }
+            MicrostepGeometryReport geometry;geometry.microSequence=micro.microSequence;
+            geometry.begin=gasTime;geometry.end=micro.time;
+            if(!gasWindowStageGeometry(backend,geometry.gas,geometry.solid,error))return false;
+            report.geometry.push_back(std::move(geometry));
             gasTime=micro.time;gasElapsed=micro.localTime;
         }
 
@@ -58,20 +58,26 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         const IntervalHistory& history=gasWindowHistory(backend);
         EnergyReal externalRadiationHeat=0;
         if(radiate&&!radiation->advance(backend,program,gasEndpoint,externalRadiationHeat,error))return false;
-        MaterialWindowExchange exchange(base);
-        if(!collectMaterialWindowExchange(backend,exchange,error))return false;
         HostState candidate;CpuMaterialReport cpu;
         ++report.materialSolves;
-        if(!material.advanceImplicitWindow(base,gasEndpoint,interval,exchange,materialControls,candidate,cpu,error))return false;
+        if(!material.finishImplicitParent(base,gasEndpoint,interval,materialControls,history.externalRadiationDevice(),
+            materialInParent,candidate,cpu,error))return false;
         report.acceptedGasMicrosteps=history.records().size();
+        if(!base.solid.empty()&&cpu.exchangeFrames!=report.acceptedGasMicrosteps){
+            error="implicit material window did not consume all accepted gas frames";return false;
+        }
         if(!finalizeReleasedIntervalLedger(releaseGasWindowHistory(backend),candidate,error))return false;
-        if(!acceptCoupledWindow(backend,candidate,cpu.deviceCommit,externalRadiationHeat,report.nextGasDt,error))return false;
+        if(!acceptCoupledWindow(backend,candidate,cpu.deviceCommit,externalRadiationHeat,report.nextGasDt,error)
+            ||!material.commitImplicitInventory(candidate,error))return false;
         std::cout<<"CHMT_IMPLICIT_WINDOW window="<<interval.identity.sequence
             <<" materialSteps="<<cpu.materialSteps<<" nonlinearIterations="<<cpu.implicitIterations
             <<" converged="<<cpu.implicitConverged<<" geometrySolves="<<cpu.geometrySolves
-            <<" exchangePackets="<<exchange.packets<<" massResidualRatio="<<cpu.massResidual
+            <<" exchangePackets="<<cpu.exchangePackets<<" massResidualRatio="<<cpu.massResidual
             <<" energyResidualRatio="<<cpu.thermalResidual<<" recessionVolume="<<cpu.recessionVolume
-            <<" gclResidual="<<cpu.gclResidual<<std::endl;
+            <<" gclResidual="<<cpu.gclResidual<<" exchangeFrames="<<cpu.exchangeFrames
+            <<" linearSolves="<<cpu.materialLinearSolves<<" linearIterations="<<cpu.materialLinearIterations
+            <<" materialExecution="<<(materialInParent?"parent_graph":"continuation_graph")
+            <<std::endl;
         accepted=std::move(candidate);error.clear();return true;
     } catch(const Foam::error&) {
 

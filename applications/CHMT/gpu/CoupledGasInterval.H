@@ -30,7 +30,7 @@ CHMT_HD inline CoupledGasInterval prepareCoupledWallInterval(ResidentWallClock& 
     return interval;
 }
 #if defined(__CUDACC__)
-__global__ void advanceCoupledWallClock(ResidentWallClock* clock,const ResidentWallKnotTime* knots,
+static __global__ void advanceCoupledWallClock(ResidentWallClock* clock,const ResidentWallKnotTime* knots,
     int count,Real dt,std::uint64_t geometry,CoupledGasInterval* output){
     if(!blockIdx.x&&!threadIdx.x)*output=prepareCoupledWallInterval(*clock,knots,count,dt,geometry);
 }
