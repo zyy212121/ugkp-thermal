@@ -1,6 +1,7 @@
 #ifndef CHMT_ABLATION_WALLCLOSUREHOST_H
 #define CHMT_ABLATION_WALLCLOSUREHOST_H
 #include "ablation/InterfaceMath.H"
+#include "mesh/MeshGeometryCache.H"
 #include "coupling/IntervalContracts.H"
 #include "../../../common/gasWall/WallGeometryBuilder.H"
 #include <memory>
@@ -49,14 +50,15 @@ class WallClosureHost {
         }
     }
     std::vector<int> faces_;
-    std::uint64_t version_=0;bool ready_=false;
+    MeshGeometryCache geometry_;
+    bool ready_=false;
 public:
     const ugkwp::gaswall::WallStatus& failureStatus()const{return failureStatus_;}
-    void clearGeometry(){ready_=false;cache_.clear();physicalDistance_.clear();physicalWeight_.clear();}
+    void clearGeometry(){ready_=false;geometry_.clear();cache_.clear();physicalDistance_.clear();physicalWeight_.clear();}
     const std::vector<ugkwp::gaswall::WallGeometryDescriptor<Real>>& descriptors()const{return cache_.descriptors;}
-    bool matchesGeometry(std::uint64_t version,const std::vector<int>& faces,const ugkwp::gaswall::WallModelConfig<PhysicalReal>& config)const{
+    bool matchesGeometry(const HostMesh& mesh,const std::vector<int>& faces,const ugkwp::gaswall::WallModelConfig<PhysicalReal>& config)const{
         const auto options=geometryOptions(config);
-        return ready_&&version_==version&&faces_==faces
+        return ready_&&faces_==faces&&geometry_.matches(mesh)
             &&geometryOptions_.relativeTolerance==options.relativeTolerance&&geometryOptions_.maxRayCells==options.maxRayCells
             &&geometryOptions_.constructQuadrature==options.constructQuadrature
             &&geometryOptions_.quadratureRefinement==options.quadratureRefinement&&geometryOptions_.profileNodes==options.profileNodes
@@ -65,7 +67,7 @@ public:
     bool prepareGeometry(const HostMesh& mesh,const std::vector<int>& faces,std::string& error,
         const ugkwp::gaswall::WallModelConfig<PhysicalReal>& config=defaultWallModel(),
         ugkp::diagnostics::DeviceContext* diagnostics=nullptr){
-        if(matchesGeometry(mesh.geometryVersion,faces,config)){error.clear();return true;}
+        if(matchesGeometry(mesh,faces,config)){error.clear();return true;}
         auto options=geometryOptions(config);options.diagnostics=diagnostics;
         ugkwp::gaswall::WallGeometryMesh<Real> input;input.geometryVersion=mesh.geometryVersion;
         input.volumes=mesh.volumes;input.owner=mesh.owner;input.neighbour=mesh.neighbour;
@@ -77,14 +79,15 @@ public:
         input.physicalWall.resize(mesh.owner.size());
         for(std::size_t f=0;f<mesh.owner.size();++f)input.physicalWall[f]=mesh.boundaryKind[f]==BoundaryKind::NoSlip||mesh.boundaryKind[f]==BoundaryKind::Interface;
         ugkwp::gaswall::WallStatus status;
-        if(!cache_.rebuild(input,faces,status,options)){error="boundaryLayer unsupported geometry at face "+std::to_string(status.node)+" code "+std::to_string(int(status.code));return false;}
-        physicalDistance_.resize(cache_.descriptors.size());physicalWeight_.resize(cache_.descriptors.size());
-        for(std::size_t f=0;f<cache_.descriptors.size();++f){
-            const auto& d=cache_.descriptors[f];
+        decltype(cache_) rebuilt;
+        if(!rebuilt.rebuild(input,faces,status,options)){error="boundaryLayer unsupported geometry at face "+std::to_string(status.node)+" code "+std::to_string(int(status.code));return false;}
+        physicalDistance_.resize(rebuilt.descriptors.size());physicalWeight_.resize(rebuilt.descriptors.size());
+        for(std::size_t f=0;f<rebuilt.descriptors.size();++f){
+            const auto& d=rebuilt.descriptors[f];
             physicalDistance_[f].assign(d.distance.begin(),d.distance.end());
             physicalWeight_[f].assign(d.volumeWeight.begin(),d.volumeWeight.end());
         }
-        faces_=faces;version_=mesh.geometryVersion;geometryOptions_=options;ready_=true;error.clear();return true;
+        cache_=std::move(rebuilt);faces_=faces;geometry_.remember(mesh);geometryOptions_=options;ready_=true;error.clear();return true;
     }
     template<class Read> bool sampleWith(Read read,bool sst,std::vector<GasWallMatchingSample>& output,std::string& error)const{
         if(!ready_){error="wall geometry is not prepared";return false;}

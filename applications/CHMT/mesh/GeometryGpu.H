@@ -1,6 +1,6 @@
 #ifndef CHMT_MESH_GEOMETRY_GPU_H
 #define CHMT_MESH_GEOMETRY_GPU_H
-#include "core/HostState.H"
+#include "mesh/Geometry.H"
 #include "mesh/GeometryDiagnostics.H"
 #include "gpu/PolyhedralGeometry.H"
 #include "gpu/InterfaceGasStage.H"
@@ -109,7 +109,7 @@ template<class Result> inline bool publishStageGeometry(const HostMesh& accepted
     }
     HostMesh candidate=accepted;unpack(points,candidate.points);
     candidate.oldPoints=accepted.points;candidate.oldVolumes=result.oldVolume;
-    candidate.geometryVersion=accepted.geometryVersion+1;unpack(result.velocity,candidate.meshVelocity);
+    candidate.geometryVersion=accepted.geometryVersion+!identicalPoints(accepted.points,candidate.points);unpack(result.velocity,candidate.meshVelocity);
     const auto& geometry=result.endpoint;
     candidate.areaVectors.resize(geometry.faces.size());candidate.faceCentres.resize(geometry.faces.size());
     for(std::size_t f=0;f<geometry.faces.size();++f){candidate.areaVectors[f]=unpack(geometry.faces[f].area);candidate.faceCentres[f]=unpack(geometry.faces[f].centre);}

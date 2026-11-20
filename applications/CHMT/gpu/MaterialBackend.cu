@@ -1,3 +1,4 @@
+#include "mesh/MeshGeometryCache.H"
 #include "gpu/ResidentMaterialLocalLoop.cuh"
 #include "gpu/StreamedMaterialLoop.cuh"
 #include "gpu/CoupledHistoryArchive.cuh"
@@ -354,8 +355,8 @@ struct MaterialBackend {
     Buffer<ugkwp::GasStoichTerm<Real>> mechanismReactants,mechanismProducts;
     Buffer<ugkwp::GasColliderEfficiency<Real>> mechanismEfficiencies;
     ugkwp::GasMechanismView<Real,Ns> deviceMechanism{};
-    bool mechanismReady=false,meshReady=false;
-    std::uint64_t geometryVersion=0,topologyHash=0;
+    bool mechanismReady=false;
+    MeshGeometryCache meshGeometry;
     int cells=0,faces=0;
     cudaEvent_t conductionReady=nullptr;
     ~MaterialBackend(){if(localCompletion.valid()){try{localCompletion.get();}catch(...){}}stream.sync();if(localReady)cudaEventDestroy(localReady);if(conductionReady)cudaEventDestroy(conductionReady);}
@@ -414,13 +415,13 @@ struct MaterialBackend {
         w.faceFlux=faceFlux.data();w.rates=rates.data();w.cellErrors=cellErrors.data();w.faceErrors=faceErrors.data();return w;
     }
     bool configureMesh(const HostMesh& m,std::string& error){
-        if(current.size()==0){cells=faces=0;return true;}
+        if(current.size()==0){cells=faces=0;meshGeometry.clear();return true;}
+        if(m.volumes.size()==current.size()&&meshGeometry.matches(m))return true;
         if(!validateMaterialTransportMesh(m,current.size(),error))return false;
-        if(meshReady&&geometryVersion==m.geometryVersion&&topologyHash==m.topologyHash)return true;
         cells=int(m.volumes.size());faces=int(m.owner.size());
         if(!upload(volumes,m.volumes)||!upload(centres,m.cellCentres)||!upload(areas,m.areaVectors)
             ||!upload(faceCentres,m.faceCentres))return failure(error);
-        if(!meshReady||topologyHash!=m.topologyHash){
+        if(!meshGeometry.topologyMatches(m)){
             if(!upload(owner,m.owner)||!upload(neighbour,m.neighbour)||!upload(periodic,m.periodicPartner)
                 ||!upload(boundary,m.boundaryKind)||!upload(cellOffsets,m.cellFaceOffsets)
                 ||!upload(cellFaces,m.cellFaces)||!upload(cellSigns,m.cellFaceSigns))return failure(error);
@@ -443,7 +444,7 @@ struct MaterialBackend {
             ||!allocate(gradientSensitivity,cells)||!allocate(stabilityRate,cells)||!allocate(cellDt,cells)
             ||!allocate(lossLeft,faces)||!allocate(lossRight,faces)||!allocate(faceFlux,faces)||!allocate(rates,cells)
             ||!allocate(cellErrors,cells)||!allocate(faceErrors,faces)||!allocate(transportResult,1))return failure(error);
-        geometryVersion=m.geometryVersion;topologyHash=m.topologyHash;meshReady=true;return true;
+        meshGeometry.remember(m);return true;
     }
     bool configureMechanism(const ugkwp::GasMechanismView<Real,Ns>& m,std::string& error){
         if(mechanismReady&&deviceMechanism.mechanismHash==m.mechanismHash

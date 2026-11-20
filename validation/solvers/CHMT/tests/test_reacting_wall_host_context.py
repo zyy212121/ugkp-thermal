@@ -19,29 +19,38 @@ int main(){
  gas[0].pressure=120000;gas[1].pressure=90000;gas[0].temperature=600;gas[1].temperature=800;gas[2].temperature=1000;
  std::vector<chmt::SstPrimitive> sst(3);sst[1].k=.4;sst[1].omega=12;
  std::vector<chmt::GasWallMatchingSample> samples;
- assert(host.sample(gas,sst,true,samples,error));assert(samples.size()==1);assert(samples[0].state.temperature==800);assert(samples[0].state.k==.4);assert(samples[0].pressure==90000);assert(samples[0].mechanicalPressure==120000);
+ assert(host.sample(gas,sst,true,samples,error));assert(samples.size()==1);assert(samples[0].state.temperature==800);assert(samples[0].state.k==chmt::PhysicalReal(.4));assert(samples[0].pressure==90000);assert(samples[0].mechanicalPressure==120000);
+ ugkwp::GasMechanismView<chmt::PhysicalReal,chmt::Ns> mechanism;
  std::vector<chmt::GasWallClosureContext> contexts;
- p.wallModel.model=BoundaryLayerModel::ConstantTransport;assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(!contexts[0].workspace);
+ p.wallModel.model=BoundaryLayerModel::ConstantTransport;assert(host.contexts(samples,mechanism,p.wallModel,contexts,error));assert(!contexts[0].workspace);
  p.wallModel.model=BoundaryLayerModel::ReactingSst;
- for(int nodes:{2,3}){p.wallModel.nodes=nodes;assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(contexts[0].workspaceCapacity==24);}
- for(int nodes:{0,1,129}){p.wallModel.nodes=nodes;assert(!host.contexts(samples,{},p.wallModel,contexts,error));}
+ for(int nodes:{2,3}){p.wallModel.nodes=nodes;assert(host.contexts(samples,mechanism,p.wallModel,contexts,error));assert(contexts[0].workspaceCapacity==24);}
+ for(int nodes:{0,1,129}){p.wallModel.nodes=nodes;assert(!host.contexts(samples,mechanism,p.wallModel,contexts,error));}
  p.wallModel.nodes=96;
- assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(contexts[0].workspace);assert(contexts[0].workspaceCapacity==128);assert(contexts[0].matchingDistance>1);
+ assert(host.contexts(samples,mechanism,p.wallModel,contexts,error));assert(contexts[0].workspace);assert(contexts[0].workspaceCapacity==128);assert(contexts[0].matchingDistance>1);
  assert(contexts[0].quadrature.volume==1&&contexts[0].quadrature.count==0);assert(contexts[0].matching.temperature==800);assert(contexts[0].matchingPressure==90000);assert(contexts[0].mechanicalPressure==120000);
  auto* workspace=contexts[0].workspace;gas[1].temperature=850;gas[0].pressure=130000;
- assert(host.sample(gas,sst,true,samples,error));assert(host.contexts(samples,{},p.wallModel,contexts,error));assert(contexts[0].workspace==workspace);assert(contexts[0].matching.temperature==850);assert(contexts[0].mechanicalPressure==130000);
- samples[0].mechanicalPressure=0;assert(!host.contexts(samples,{},p.wallModel,contexts,error));
+ assert(host.sample(gas,sst,true,samples,error));assert(host.contexts(samples,mechanism,p.wallModel,contexts,error));assert(contexts[0].workspace==workspace);assert(contexts[0].matching.temperature==850);assert(contexts[0].mechanicalPressure==130000);
+ samples[0].mechanicalPressure=0;assert(!host.contexts(samples,mechanism,p.wallModel,contexts,error));
  gas[0].pressure=0;assert(host.sample(gas,sst,true,samples,error));assert(samples[0].mechanicalPressure==0);gas[0].pressure=130000;
 
  assert(host.descriptors()[0].distance.empty());auto config=p.wallModel;
  config.family=WallFamily::BoundaryLayer;config.model=BoundaryLayerModel::ReactingSst;config.enableSst=true;config.nodes=24;config.stretch=2;
  assert(host.prepareGeometry(mesh,{0},error,config));assert(host.descriptors()[0].distance.empty());
- auto invalid=mesh;invalid.boundaryKind.clear();assert(host.prepareGeometry(invalid,{0},error,config));
- config.nodes=48;config.stretch=3;assert(host.prepareGeometry(invalid,{0},error,config));
- ++invalid.geometryVersion;assert(!host.prepareGeometry(invalid,{0},error,config));
- ++mesh.geometryVersion;for(auto& point:mesh.points)point.z*=1.01;for(auto& centre:mesh.cellCentres)centre.z*=1.01;for(auto& volume:mesh.volumes)volume*=1.01;
- assert(host.prepareGeometry(mesh,{0},error,config));assert(host.descriptors()[0].distance.empty());assert(near(host.descriptors()[0].volume,1.01));
- samples.clear();assert(!host.contexts(samples,{},p.wallModel,contexts,error));
+ const auto* descriptor=host.descriptors().data();
+ ++mesh.geometryVersion;config.nodes=48;config.stretch=3;
+ assert(host.prepareGeometry(mesh,{0},error,config));
+ assert(host.descriptors().data()==descriptor);
+ auto invalid=mesh;invalid.boundaryKind.clear();
+ assert(!host.prepareGeometry(invalid,{0},error,config));
+ assert(host.prepareGeometry(mesh,{0},error,config));assert(host.descriptors().data()==descriptor);
+ auto moved=mesh;
+ for(auto& point:moved.points)point.z*=1.01;
+ for(auto& centre:moved.cellCentres)centre.z*=1.01;
+ for(auto& volume:moved.volumes)volume*=1.01;
+ moved.geometryVersion=host.descriptors()[0].geometryVersion;
+ assert(host.prepareGeometry(moved,{0},error,config));assert(host.descriptors()[0].distance.empty());assert(near(host.descriptors()[0].volume,1.01));
+ samples.clear();assert(!host.contexts(samples,mechanism,p.wallModel,contexts,error));
 }
 '''
     src=tmp_path/'context.cpp';src.write_text(fixture+body);exe=tmp_path/'context'

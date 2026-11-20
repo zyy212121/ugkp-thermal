@@ -3,6 +3,7 @@
 #include "../../../common/gpu/WorkPlan.H"
 #include "gasNumerics/GasWindowStep.H"
 #include "gpu/Backend.H"
+#include "materials/MaterialWindowExchange.H"
 #include "gpu/AcceptedStateSnapshot.H"
 #include "../../../common/gpu/FrozenReadback.cuh"
 #include "gpu/MaterialBackend.H"
@@ -62,8 +63,6 @@ struct Backend {
     std::vector<int> hostGasCellAddressing;
     std::vector<HostGasPublication> hostGasStaging;
     std::unique_ptr<WallClosureHost> hostWallGeometry;
-    std::vector<Vec3> hostWallPoints;
-    std::uint64_t hostWallTopology=0;
     std::vector<GpuReal> hostGasFraction;
     Buffer<Real> acceptedOldPhaseVolume,acceptedNewPhaseVolume;
     Buffer<AcceptedWindowSlot> coupledSlot;
@@ -112,7 +111,7 @@ struct Backend {
     bool poisoned=false;std::string error;
     GasIntervalRecord record;
     Real microDt=0,microTime=0,stageTime=0,stagePacketDt=0;
-    bool movingWindow=false;
+    bool movingWindow=false,residentTrajectoryAdvanced=false,acceptedGeometryChanged=false;
     std::uint64_t gasSteps=0;Real cachedCourantRate=0;bool courantReady=false;
     WindowTime elapsed{};Real nextGasSeed=0;bool microGeometryPrepared=false;int gasStageIndex=0;
     int nCells=0,nFaces=0,nInternalFaces=0,fixedCellBlockThreads=ugkp::gpu::workPlan().cellBlockThreads,fixedFaceBlockThreads=ugkp::gpu::workPlan().faceBlockThreads;
@@ -459,18 +458,16 @@ bool loadGasWindowState(Backend& b,const HostState& snapshot,std::string& error)
 
 
     b.microGeometryPrepared=false;b.preparedWallReady=false;ugkwp::invalidateGasBoundaryLayerPreparation(b);
-    if(b.gasBoundaryLayer.enabled&&b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static)b.storage.invalidateWallGeometry();
     const bool reuse=b.residentAcceptedEndpoint;
     b.residentAcceptedEndpoint=false;b.gasEndpointPublished=false;
     if(reuse){
 
 
-        const bool moving=b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static;
-        if((moving&&!b.storage.uploadGeometry(snapshot.gasMesh,false))
+        if((b.residentTrajectoryAdvanced&&!b.storage.uploadGeometry(snapshot.gasMesh,false))
             ||!b.storage.clearGeometry()||!b.storage.clearTrialStatus()){
             error=b.storage.error();return false;
         }
-        if(moving){
+        if(b.residentTrajectoryAdvanced||b.acceptedGeometryChanged){
             bindSharedGasStorage(b);
             if(!b.particles.retainAcceptedGeometry(b.storage,b.gasCaptureStream,error))return false;
         }
@@ -782,15 +779,8 @@ static bool publishMaterialGasState(Backend& b,HostState& state,std::string& err
     for(int face:state.surface.gasFace)if(face>=0)cells.push_back(state.gasMesh.owner[face]);
     if(b.model.physics.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer){
         if(!b.hostWallGeometry)b.hostWallGeometry.reset(new WallClosureHost);
-        bool changed=b.hostWallTopology!=state.gasMesh.topologyHash||b.hostWallPoints.size()!=state.gasMesh.points.size();
-        for(std::size_t i=0;!changed&&i<b.hostWallPoints.size();++i){
-            const auto& a=b.hostWallPoints[i];const auto& c=state.gasMesh.points[i];
-            changed=a.x!=c.x||a.y!=c.y||a.z!=c.z;
-        }
-        if(changed)b.hostWallGeometry->clearGeometry();
         auto config=b.model.physics.wallModel;config.enableSst=b.model.physics.enableSst;
         if(!b.hostWallGeometry->prepareGeometry(state.gasMesh,state.surface.gasFace,error,config,b.model.physics.diagnostics))return false;
-        if(changed){b.hostWallPoints=state.gasMesh.points;b.hostWallTopology=state.gasMesh.topologyHash;}
         for(const auto& descriptor:b.hostWallGeometry->descriptors()){
             cells.push_back(descriptor.ownerCell);
             cells.insert(cells.end(),descriptor.matchingCells.begin(),descriptor.matchingCells.end());
@@ -879,6 +869,7 @@ static bool publishGasWindowImpl(Backend& b,HostState& out,std::string& error,bo
     const bool published=gasWindowStageGeometry(b,out.gasStages,out.solidStages,error);
     b.gasEndpointPublished=published;return published;
 }
+#include "gpu/MaterialWindowExchange.inl"
 bool downloadGasWindow(Backend& b,HostState& out,std::string& error){return publishGasWindowImpl(b,out,error,true);}
 bool publishGasWindow(Backend& b,HostState& out,std::string& error){return publishGasWindowImpl(b,out,error,false);}
 static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& error,bool preservePublishedEndpoint,
@@ -925,7 +916,7 @@ static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& err
         candidate.particleSourceResidualMass=std::move(endpoint.particleSourceResidualMass);
         candidate.gasMesh.boundaryPrimitive=std::move(endpoint.gasMesh.boundaryPrimitive);b.hostEndpointCurrent=true;
     }
-    if(b.residentAcceptedEndpoint&&b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static){
+    if(b.residentAcceptedEndpoint&&corrected){
         std::vector<Real> oldVolume(candidate.gas.size()),newVolume(candidate.gas.size());
         for(std::size_t c=0;c<oldVolume.size();++c){
             oldVolume[c]=gasPhaseVolume(b.trial,c);newVolume[c]=gasPhaseVolume(candidate,c);
@@ -942,8 +933,7 @@ static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& err
             error=b.surfaceTransferFault.message;return false;
         }
     }
-    if(!b.hostEndpointCurrent&&b.residentAcceptedEndpoint
-        &&(corrected||b.model.physics.meshMotion.policy!=MeshMotionPolicy::Static)){
+    if(!b.hostEndpointCurrent&&b.residentAcceptedEndpoint&&corrected){
         if(!publishMaterialGasState(b,candidate,error))return false;
     }
     if(material){
@@ -975,6 +965,8 @@ static bool commitGasWindowImpl(Backend& b,HostState& candidate,std::string& err
     }else b.hasCoupledReceipt=false;
     HostState newAccepted=candidate,newTrial=candidate;
     newAccepted.ledger.clear();newTrial.ledger.clear();
+    b.residentTrajectoryAdvanced=b.movingWindow&&!corrected;
+    b.acceptedGeometryChanged=b.movingWindow||corrected;
     b.accepted=std::move(newAccepted);b.trial=std::move(newTrial);error.clear();return true;
 }
 bool commitGasWindow(Backend& b,HostState& candidate,std::string& error,bool preservePublishedEndpoint){

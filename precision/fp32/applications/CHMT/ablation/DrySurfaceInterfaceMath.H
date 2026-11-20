@@ -1,5 +1,6 @@
 #ifndef CHMT_ABLATION_DRYSURFACEINTERFACEMATH_H
 #define CHMT_ABLATION_DRYSURFACEINTERFACEMATH_H
+#include "ablation/DrySurfaceComposition.H"
 #include "ablation/InterfaceMath.H"
 #include "coupling/IntervalContracts.H"
 #include "materials/dry/DrySurfaceResponse.H"
@@ -207,13 +208,8 @@ CHMT_HD inline bool evaluateDrySurfaceTemperature(const SurfacePhysicsInput& in,
             for(int s=0;s<Ns;++s)nextY[s]=wallClosure.trace.Y[s];
         }else if (!interfaceComposition(allSpecies,in.bulk.Y,in.bulk.pressure,topT,in.gasDistance,
             p,fluxTolerance,nextY)) return false;
-        PhysicalReal change=0;
-        if(!in.useAcceptedFlux){
-            for (int s=0; s<Ns; ++s) change=energyArithmetic::maximum(change,energyArithmetic::absolute(nextY[s]-Y[s]));
-            for (int s=0; s<Ns; ++s) Y[s]=p.numerics.surface.compositionRelaxation==PhysicalReal(.5)
-                ? PhysicalReal(.5)*(Y[s]+nextY[s])
-                : (PhysicalReal(1)-p.numerics.surface.compositionRelaxation)*Y[s]+p.numerics.surface.compositionRelaxation*nextY[s];
-        }
+        const auto change=relaxDrySurfaceComposition(Y,nextY,
+            PhysicalReal(p.numerics.surface.compositionRelaxation),in.useAcceptedFlux);
         result.gasState=provisional;
         for (int s=0; s<Ns; ++s) {
             result.gasSpecies[s]=trial.gasSpecies[s]; result.poreSpecies[s]=trial.poreSpecies[s];

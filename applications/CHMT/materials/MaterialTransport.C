@@ -8,6 +8,7 @@
 #include "coupling/Coordinator.H"
 #include "mesh/SweepConstraints.H"
 #include <algorithm>
+#include <type_traits>
 namespace chmt {
 bool validateMaterialTransportMesh(const HostMesh& m,std::size_t cells,std::string& error){
     const std::size_t nf=m.owner.size();
@@ -24,24 +25,26 @@ bool validateMaterialTransportMesh(const HostMesh& m,std::size_t cells,std::stri
 }
 bool applyMaterialPacketBatchImpl(const std::vector<SolidQ>& base,const std::vector<ExchangePacket>& packets,std::vector<SolidQ>& output,std::string& error,bool* numericalFailure){
     if(numericalFailure)*numericalFailure=false;
-    std::vector<SolidQ> next=base;
-    std::vector<std::array<long double,Nc+Ns+1>> sum(base.size()),scale(base.size());std::vector<std::size_t> operations(base.size());
+    using MassSum=std::conditional_t<std::is_same_v<PhysicalReal,Real>,long double,PhysicalReal>;
+    using EnergySum=std::conditional_t<std::is_same_v<EnergyReal,Real>,long double,EnergyReal>;
+    std::vector<SolidQ> next=base;std::vector<EnergySum> energy(base.size());
+    std::vector<std::array<MassSum,Nc+Ns>> sum(base.size()),scale(base.size());std::vector<std::size_t> operations(base.size());
     for(std::size_t cell=0;cell<base.size();++cell){for(int c=0;c<Nc;++c){sum[cell][c]=base[cell].condensed[c];scale[cell][c]=absValue(base[cell].condensed[c]);}
-        for(int species=0;species<Ns;++species){sum[cell][Nc+species]=base[cell].pore[species];scale[cell][Nc+species]=absValue(base[cell].pore[species]);}sum[cell][Nc+Ns]=base[cell].energy;}
+        for(int species=0;species<Ns;++species){sum[cell][Nc+species]=base[cell].pore[species];scale[cell][Nc+species]=absValue(base[cell].pore[species]);}energy[cell]=base[cell].energy;}
 
     for(const auto& packet:packets)if(requiredConsumers(packet.kind)&ConsumeSolid){
         if((packet.solidCell<0||static_cast<std::size_t>(packet.solidCell)>=base.size())){if(numericalFailure)*numericalFailure=true;error="material packet owner invalid";return false;}
-        const std::size_t cell=packet.solidCell;const auto delta=packetDelta(packet);++operations[cell];sum[cell][Nc+Ns]+=delta.solid.energy;
+        const std::size_t cell=packet.solidCell;const auto delta=packetDelta(packet);++operations[cell];energy[cell]+=delta.solid.energy;
         for(int c=0;c<Nc;++c){sum[cell][c]+=delta.solid.condensed[c];scale[cell][c]+=absValue(delta.solid.condensed[c]);}
         for(int species=0;species<Ns;++species){sum[cell][Nc+species]+=delta.solid.pore[species];scale[cell][Nc+species]+=absValue(delta.solid.pore[species]);}}
-    for(std::size_t cell=0;cell<base.size();++cell){for(int component=0;component<Nc+Ns;++component){Real value=static_cast<Real>(sum[cell][component]);
-            if(value<0){const long double bound=(operations[cell]+2)*std::numeric_limits<Real>::epsilon()*scale[cell][component];
+    for(std::size_t cell=0;cell<base.size();++cell){for(int component=0;component<Nc+Ns;++component){PhysicalReal value=sum[cell][component];
+            if(value<0){const MassSum bound=PhysicalReal(operations[cell]+2)*std::numeric_limits<PhysicalReal>::epsilon()*scale[cell][component];
                 if(-sum[cell][component]>bound){{if(numericalFailure)*numericalFailure=true;error="material packet batch exceeds physical donor inventory";return false;}}
                 else {value=0;}
             }
             if(!finite(value)){if(numericalFailure)*numericalFailure=true;error="nonfinite material packet result";return false;}
             if(component<Nc)next[cell].condensed[component]=value;else next[cell].pore[component-Nc]=value;}
-        next[cell].energy=static_cast<Real>(sum[cell][Nc+Ns]);if(!finite(next[cell].energy)){if(numericalFailure)*numericalFailure=true;error="nonfinite material packet energy";return false;}}
+        next[cell].energy=energy[cell];if(!finite(next[cell].energy)){if(numericalFailure)*numericalFailure=true;error="nonfinite material packet energy";return false;}}
     output=std::move(next);error.clear();return true;
 }
 bool applyMaterialPacketBatch(const std::vector<SolidQ>& base,const std::vector<ExchangePacket>& packets,std::vector<SolidQ>& output,std::string& error,bool* numericalFailure){
@@ -68,16 +71,21 @@ bool materialSweepsCompatible(const HostMesh& mesh,const SurfaceMesh& surface,co
     return true;
 }
 bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& q,const PhysicsConfig& p,
-    const std::vector<Real>& swept,Real interval,Real cfl,MaterialTransportResult& output,std::string& error,bool* numericalFailure){
+    const std::vector<Real>& swept,Real interval,PhysicalReal cfl,MaterialTransportResult& output,std::string& error,bool* numericalFailure,const std::vector<MaterialPrimitive>* endpoint){
     if(numericalFailure)*numericalFailure=true;
-    if((!(interval>0)||!finite(interval)||!(finite(cfl)&&cfl>0)||(!swept.empty()&&swept.size()!=m.owner.size()))){error="invalid material transport interval/control";return false;}
+    if(!(interval>0)||!finite(interval)||(!endpoint&&!(finite(cfl)&&cfl>0))
+        ||(!swept.empty()&&swept.size()!=m.owner.size())){
+        error="invalid material transport interval/control";return false;
+    }
     if(q.empty()){output=MaterialTransportResult{};error.clear();return true;}
     if(!validateMaterialTransportMesh(m,q.size(),error))return false;
     MaterialTransportResult result;result.rates.resize(q.size());result.poreVelocity.resize(q.size());result.faceFlux.resize(m.owner.size());
-    std::vector<MaterialPrimitive> primitive(q.size());
-    std::vector<Vec3> pressureGradient(q.size());
-    std::vector<Real> gradientSensitivity(q.size()),stabilityRate(q.size()),cellDtLimit(q.size());
-    std::vector<Real> lossLeft(m.owner.size()),lossRight(m.owner.size());
+    if(endpoint&&endpoint->size()!=q.size()){error="implicit material endpoint extent mismatch";return false;}
+    std::vector<MaterialPrimitive> primitive=endpoint?*endpoint:std::vector<MaterialPrimitive>(q.size());
+    std::vector<PhysicalVec3> pressureGradient(q.size());
+    std::vector<PhysicalReal> gradientSensitivity(q.size()),stabilityRate(q.size());
+    std::vector<Real> cellDtLimit(q.size());
+    std::vector<PhysicalReal> lossLeft(m.owner.size()),lossRight(m.owner.size());
 
 
 
@@ -107,21 +115,29 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
     for(int species=0;species<Ns;++species)if(!finite(p.poreEffectiveDiffusivity[species])||p.poreEffectiveDiffusivity[species]<0){
         error="invalid material effective pore diffusivity";return false;
     }
-    for(int c=0;c<mesh.cells;++c)if(!accepted(materialTransport::recoverCell(mesh,q.data(),p,c,w),c))return false;
+    if(!endpoint)
+        for(int c=0;c<mesh.cells;++c)if(!accepted(materialTransport::recoverCell(mesh,q.data(),p,c,w),c))return false;
     for(int c=0;c<mesh.cells;++c)if(!accepted(materialTransport::pressureCell(mesh,p,c,w),c))return false;
-    for(int c=0;c<mesh.cells;++c)if(!accepted(materialTransport::stabilityCell(mesh,q.data(),p,sweep,interval,c,w),c))return false;
+    if(!endpoint)
+        for(int c=0;c<mesh.cells;++c)if(!accepted(materialTransport::stabilityCell(mesh,q.data(),p,sweep,interval,c,w),c))return false;
     for(int f=0;f<mesh.faces;++f)if(!accepted(materialTransport::face(mesh,q.data(),p,sweep,interval,f,w),f))return false;
-    for(int c=0;c<mesh.cells;++c){materialTransport::gatherCell(mesh,q.data(),p,cfl,c,w);result.dtLimit=minValue(result.dtLimit,cellDtLimit[c]);}
-    if((!finite(result.dtLimit)||result.dtLimit<=0)){error="invalid material transport timestep";return false;}
+    if(!endpoint){
+        for(int c=0;c<mesh.cells;++c){
+            materialTransport::gatherCell(mesh,q.data(),p,cfl,c,w);
+            result.dtLimit=minValue(result.dtLimit,cellDtLimit[c]);
+        }
+        if(!finite(result.dtLimit)||result.dtLimit<=0){error="invalid material transport timestep";return false;}
+    }
+    result.faceLossLeft=std::move(lossLeft);result.faceLossRight=std::move(lossRight);
     output=std::move(result);if(numericalFailure)*numericalFailure=false;error.clear();return true;
 }
 bool evaluateMaterialTransport(const HostMesh& m,const std::vector<SolidQ>& q,const PhysicsConfig& p,
-    const std::vector<Real>& swept,Real interval,Real cfl,MaterialTransportResult& output,std::string& error,bool* numericalFailure){
-    return evaluateMaterialTransportImpl(m,q,p,swept,interval,cfl,output,error,numericalFailure);
+    const std::vector<Real>& swept,Real interval,PhysicalReal cfl,MaterialTransportResult& output,std::string& error,bool* numericalFailure,const std::vector<MaterialPrimitive>* endpoint){
+    return evaluateMaterialTransportImpl(m,q,p,swept,interval,cfl,output,error,numericalFailure,endpoint);
 }
 
 bool advanceMaterialReactionsImpl(const SolidQ& base,Real volume,const PhysicsConfig& p,Real interval,
-    Real maxStep,Real cfl,int maximum,SolidQ& out,std::uint64_t& accepted,std::string& error,bool* numericalFailure){
+    Real maxStep,PhysicalReal cfl,int maximum,SolidQ& out,std::uint64_t& accepted,std::string& error,bool* numericalFailure){
     const auto status=advanceMaterialReactionsMath(base,volume,p,interval,maxStep,cfl,maximum,out);
     if(numericalFailure)*numericalFailure=status.numericalFailure;
     error=materialReactionMessage(status.code);
@@ -130,7 +146,7 @@ bool advanceMaterialReactionsImpl(const SolidQ& base,Real volume,const PhysicsCo
 }
 
 bool advanceMaterialReactions(const SolidQ& base,Real volume,const PhysicsConfig& p,Real interval,
-    Real maxStep,Real cfl,int maximum,SolidQ& out,std::uint64_t& accepted,std::string& error,bool* numericalFailure){
+    Real maxStep,PhysicalReal cfl,int maximum,SolidQ& out,std::uint64_t& accepted,std::string& error,bool* numericalFailure){
     return advanceMaterialReactionsImpl(base,volume,p,interval,maxStep,cfl,maximum,out,accepted,error,numericalFailure);
 }
 

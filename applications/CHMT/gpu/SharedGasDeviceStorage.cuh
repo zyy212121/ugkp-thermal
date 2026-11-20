@@ -79,7 +79,7 @@ class SharedGasDeviceStorage {
     std::unique_ptr<WallClosureHost> wallGeometry_;
     std::vector<int> wallFaces_;
     std::vector<ugkwp::gaswall::WallInput<Real,Ns>> wallHostInput_;
-    std::uint64_t wallGeometryVersion_=0;bool wallGeometryReady_=false,wallModelFailed_=false,wallInputDirty_=false;
+    bool wallGeometryReady_=false,wallModelFailed_=false,wallInputDirty_=false;
     Buffer<int> wallFaceSlot_,wallOwnerSlot_,wallStatus_,wallFaceList_,wallMatchOffsets_,wallMatchCells_;
     Buffer<Real> wallSpecies_,wallDistance_,wallWeights_,wallMatchWeights_;
     Buffer<ugkwp::GasBoundaryLayerExchange<Real>> wallExchange_;
@@ -213,7 +213,7 @@ class SharedGasDeviceStorage {
             wallAcceptedHistory_.swap(other.wallAcceptedHistory_);wallCandidateHistory_.swap(other.wallCandidateHistory_);
             wallAcceptedFrame_.swap(other.wallAcceptedFrame_);wallCandidateFrame_.swap(other.wallCandidateFrame_);
             wallGeometry_.swap(other.wallGeometry_);wallFaces_.swap(other.wallFaces_);wallHostInput_.swap(other.wallHostInput_);
-            std::swap(wallGeometryVersion_,other.wallGeometryVersion_);std::swap(wallGeometryReady_,other.wallGeometryReady_);std::swap(wallModelFailed_,other.wallModelFailed_);std::swap(wallInputDirty_,other.wallInputDirty_);
+            std::swap(wallGeometryReady_,other.wallGeometryReady_);std::swap(wallModelFailed_,other.wallModelFailed_);std::swap(wallInputDirty_,other.wallInputDirty_);
         }
         rebindOwners();other.rebindOwners();
     }
@@ -361,7 +361,6 @@ public:
         output=std::move(candidate);return true;
     }
     template<class T>bool write(T* pointer,const std::vector<T>& values){return upload(pointer,values);}
-    void invalidateWallGeometry(){if(wallGeometry_)wallGeometry_->clearGeometry();wallGeometryReady_=false;}
     const WallClosureHost* wallGeometry()const{return wallGeometry_.get();}
     bool runtimeFailure()const{return fault_.runtimeFailure;}
     void beginOperation(){fault_.message.clear();fault_.runtimeFailure=false;}
@@ -569,8 +568,8 @@ public:
     }
     bool prepareWallGeometry(const HostMesh& mesh){
         if(!wallGeometry_||!view_.gasBoundaryLayer.enabled)return true;
-        if(wallGeometryReady_&&wallGeometryVersion_==mesh.geometryVersion
-            &&wallGeometry_->matchesGeometry(mesh.geometryVersion,wallFaces_,view_.gasBoundaryLayerModel.config))return true;
+        if(wallGeometryReady_
+            &&wallGeometry_->matchesGeometry(mesh,wallFaces_,view_.gasBoundaryLayerModel.config))return true;
         if(!transfers_.drain())return false;
         std::string error;if(!wallGeometry_->prepareGeometry(mesh,wallFaces_,error,view_.gasBoundaryLayerModel.config,geometryTolerances_.diagnostics)){fault_.message=error;return false;}
         const auto& geometry=wallGeometry_->descriptors();const int count=int(geometry.size());
@@ -606,7 +605,7 @@ public:
             layer.acceptedFrame=wallAcceptedFrame_.data();layer.candidateFrame=wallCandidateFrame_.data();
         }
         layer.faces=wallFaceList_.data();layer.matchingOffsets=wallMatchOffsets_.data();layer.matchingCells=wallMatchCells_.data();layer.matchingWeights=wallMatchWeights_.data();
-        wallInputDirty_=false;wallGeometryReady_=true;wallGeometryVersion_=mesh.geometryVersion;
+        wallInputDirty_=false;wallGeometryReady_=true;
         return wallExchange_.zero(transfers_.stream())&&wallStatus_.zero(transfers_.stream())&&wallModelStatus_.zero(transfers_.stream());
     }
     bool prepareWallBoundary(const WallKnot& knot,const SurfaceMesh& surface,std::string& error){

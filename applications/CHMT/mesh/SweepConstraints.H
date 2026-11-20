@@ -151,16 +151,20 @@ bool constrainFaceSweeps(const HostMesh&, const std::vector<int>& faces,
 
 
 
+struct CoupledMeshSweeps {
+    std::vector<Real> gas,solid;
+};
+
 bool moveCoupledMeshesConstrained(const HostState&, const std::vector<FilmAux>&,
     const std::vector<Real>& solidTargetSweeps, std::size_t materialCellCount, Real interval,
     HostMesh& gas, HostMesh& solid, SurfaceMesh&, SweepConstraintReport&,
     std::string& error, const SweepConstraintControls& controls=SweepConstraintControls{},
-    const Tolerances& tolerances=Tolerances{},bool* numericalFailure=nullptr);
+    const Tolerances& tolerances=Tolerances{},bool* numericalFailure=nullptr,CoupledMeshSweeps* sweeps=nullptr);
 
 bool moveCoupledMeshesConstrained(const HostState&, const std::vector<FilmAux>&,
     const std::vector<Real>& solidTargetSweeps, Real interval,
     HostMesh& gas, HostMesh& solid, SurfaceMesh&, SweepConstraintReport&,
     std::string& error, const SweepConstraintControls& controls=SweepConstraintControls{},
-    const Tolerances& tolerances=Tolerances{},bool* numericalFailure=nullptr);
+    const Tolerances& tolerances=Tolerances{},bool* numericalFailure=nullptr,CoupledMeshSweeps* sweeps=nullptr);
 }
 #endif

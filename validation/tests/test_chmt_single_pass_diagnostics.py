@@ -85,4 +85,74 @@ def test_material_and_window_sources_have_no_replay_or_terminal_route():
     assert "while(elapsed<windowEnd)" in driver
     assert "while(gasElapsed<intervalDuration(interval))" in window
     assert "for(int iteration=" in driver
-    assert "while(elapsed<interval)" in transport
+    assert "advanceMaterialReactionsMath(" in transport
+    reaction_substeps = (APP / "materials/MaterialReactionMath.H").read_text()
+    assert "while(elapsed<interval)" in reaction_substeps
+    assert window.index("collectMaterialWindowExchange(") < window.index("advanceImplicitWindow(")
+    assert "material.advanceCandidate(" not in window
+
+
+def test_implicit_reaction_uses_the_window_inventory_once(tmp_path):
+    compiler = shutil.which("g++")
+    if not compiler:
+        pytest.skip("g++ unavailable")
+    probe = r'''
+#include "materials/ImplicitMaterialMass.H"
+#include <cassert>
+#include <vector>
+using namespace chmt;
+int main(){
+    HostState base;
+    base.solid.resize(1);
+    base.solid[0].condensed[0]=1;
+    base.solidMesh.volumes={.001};
+    base.solidMesh.cellCentres={{0,0,0}};
+    base.solidMesh.cellFaceOffsets={0,0};
+    base.surface.solidFace={0};
+    base.surface.solidCell={0};
+
+    PhysicsConfig physics;
+    physics.enableReactions=true;
+    physics.nReactions=1;
+    for(auto& phase:physics.condensed){
+        phase.rho=1000;phase.cp0=1000;phase.Tmin=100;phase.Tmax=3000;
+    }
+    auto& reaction=physics.reactions[0];
+    reaction.A=12;reaction.order[0]=1;
+    reaction.condensedNu[0]=-1;reaction.condensedNu[1]=1;
+
+    MaterialWindowExchange input(base);
+    ExchangePacket accepted;
+    accepted.kind=ExchangeKind::GasSolid;
+    accepted.solidCell=0;
+    accepted.condensed[0]=PhysicalReal(.25);
+    std::string error;
+    assert(input.append(0,accepted,base.surface,error));
+
+    ImplicitMaterialMass mass;
+    assert(mass.begin(base,base.solidMesh,input,physics.tolerances,error));
+    std::vector<Real> temperature{500};
+    std::vector<SolidQ> endpoint(1);
+    std::vector<MaterialCaloric> caloric(1);
+    std::vector<MaterialPrimitive> primitive(1);
+    for(int i=0;i<4;++i){
+        mass.reconstruct(physics);
+        Real residual=0;
+        assert(mass.react(base.solidMesh,physics,temperature,.25,residual,error));
+        assert(mass.prepare(temperature,base.solidMesh.volumes,physics,endpoint,caloric,primitive,error));
+        const auto& state=endpoint[0];
+        assert(std::abs(state.condensed[0]-.1875)<1e-7&&std::abs(state.condensed[1]-.5625)<1e-7);
+        assert(std::abs(state.progress[0]-.5625)<1e-7);
+        if(i>0)assert(residual<=1);
+        temperature[0]+=25;
+    }
+    assert(base.solid[0].condensed[0]==1&&base.solid[0].progress[0]==0);
+}
+'''
+    source = tmp_path / "implicit-window.cpp"
+    source.write_text(probe)
+    binary = tmp_path / "implicit-window"
+    subprocess.run([compiler, "-std=c++17", "-O0", "-DUGKWP_GAS_SPECIES=2",
+                    "-I" + str(APP), "-I" + str(ROOT / "common"), str(source),
+                    str(APP / "materials/MaterialTransport.C"), "-o", str(binary)], check=True)
+    subprocess.run([str(binary)], check=True)

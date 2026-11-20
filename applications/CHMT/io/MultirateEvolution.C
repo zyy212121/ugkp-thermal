@@ -1,5 +1,6 @@
 #include "io/MultirateEvolution.H"
 #include "gpu/Backend.H"
+#include "materials/MaterialWindowExchange.H"
 #include "coupling/IntervalAudit.H"
 #include "DiagnosticsFoam.H"
 #include <algorithm>
@@ -7,7 +8,7 @@
 #include <iostream>
 
 namespace chmt {
-bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const ModelConfig& model,
+bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const ModelConfig&,
     const CouplingControls& controls,const CpuMaterialControls& materialControls,Real targetTime,
     bool retainStageGeometry,HostState& accepted,WindowEvolutionReport& report,std::string& error,WindowRadiation* radiation,bool publishHostState,bool outputBoundary) {
     report=WindowEvolutionReport{};
@@ -20,11 +21,8 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
             outputBoundary || ugkp::gpu::reachedEventTime(interval.end,targetTime,interval.end-interval.begin));
         WallProgram program;
         CpuMaterialReport prediction;
-        if(!material.predictWall(base,interval,program,error,&prediction))return false;
+        if(!material.predictWindowWall(base,interval,program,error,&prediction,true))return false;
         if(!beginGasWindow(backend,program,error))return false;
-        auto executionControls=materialControls;
-        executionControls.retainWallProgram=false;
-        executionControls.retainDonorHistory=false;
         Real gasTime=interval.begin;WindowTime gasElapsed{};
 
 
@@ -34,10 +32,6 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         if(!retainStageGeometry){
             if(radiate&&!radiation->prepareParent(backend,program,base,error))return false;
             if(!prepareGasWindow(backend,controls.gasMaxDt,error))return false;
-            MaterialBackend* materialOwner=nullptr;
-            if(!material.prepareParentWindow(base,program,pendingGasWindowDriveHistory(backend),
-                gasWindowHistory(backend).externalRadiationDevice(),executionControls,materialOwner,error))return false;
-            if(materialOwner&&!bindGasWindowMaterial(backend,*materialOwner,error))return false;
             GasMicroReport completed;
             if(!enqueuePreparedGasWindow(backend,error)||!collectGasWindow(backend,completed,error))return false;
             report.nextGasDt=completed.nextGasDt;gasTime=completed.time;gasElapsed=completed.localTime;
@@ -64,26 +58,20 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         const IntervalHistory& history=gasWindowHistory(backend);
         EnergyReal externalRadiationHeat=0;
         if(radiate&&!radiation->advance(backend,program,gasEndpoint,externalRadiationHeat,error))return false;
-        HostState candidate;WallProgram corrected;CpuMaterialReport cpu;
+        MaterialWindowExchange exchange(base);
+        if(!collectMaterialWindowExchange(backend,exchange,error))return false;
+        HostState candidate;CpuMaterialReport cpu;
         ++report.materialSolves;
-        const auto residentHistory=residentGasWindowDriveHistory(backend);
-        if(!material.advanceCandidate(base,gasEndpoint,history,executionControls,candidate,corrected,cpu,error,&program,&residentHistory,gasWindowHistoryArchive(backend)))return false;
-        candidate.radiationTime=gasEndpoint.radiationTime;
-        WallProgramComparison comparison;
-        if(cpu.streamedWallComparison)comparison=cpu.wallComparison;
-        else if(!compareWallPrograms(program,corrected,model.physics.tolerances,comparison,error))return false;
-        const Real residual=std::max(comparison.geometryError,std::max(comparison.thermalError,comparison.massPredictionError));
-        if(!comparison.regimeMatches||residual>1) {
-            using namespace ugkp::diagnostics;
-            auto record=makeRecord(Code::AccuracyResidual,4001,4,0,EntityKind::None,-1,-1,residual,1,residual,Quantity::Accuracy);
-            record.operationSequence=base.commitSequence+1;record.step=base.acceptedSteps;record.simulationTime=interval.end;
-            Snapshot snapshot;snapshot.warnings.push_back({record,1,false});
-            snapshot.sources.push_back({4001,"applications/CHMT/io/MultirateEvolution.C","advanceCoupledWindow",__LINE__,"single-pass wall waveform/regime mismatch; computed result retained"});
-            dispatch(snapshot,makeFoamSink());
-        }
+        if(!material.advanceImplicitWindow(base,gasEndpoint,interval,exchange,materialControls,candidate,cpu,error))return false;
         report.acceptedGasMicrosteps=history.records().size();
         if(!finalizeReleasedIntervalLedger(releaseGasWindowHistory(backend),candidate,error))return false;
         if(!acceptCoupledWindow(backend,candidate,cpu.deviceCommit,externalRadiationHeat,report.nextGasDt,error))return false;
+        std::cout<<"CHMT_IMPLICIT_WINDOW window="<<interval.identity.sequence
+            <<" materialSteps="<<cpu.materialSteps<<" nonlinearIterations="<<cpu.implicitIterations
+            <<" converged="<<cpu.implicitConverged<<" geometrySolves="<<cpu.geometrySolves
+            <<" exchangePackets="<<exchange.packets<<" massResidualRatio="<<cpu.massResidual
+            <<" energyResidualRatio="<<cpu.thermalResidual<<" recessionVolume="<<cpu.recessionVolume
+            <<" gclResidual="<<cpu.gclResidual<<std::endl;
         accepted=std::move(candidate);error.clear();return true;
     } catch(const Foam::error&) {
 

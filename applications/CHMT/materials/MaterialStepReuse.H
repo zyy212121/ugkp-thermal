@@ -12,12 +12,10 @@ class MaterialStepReuse {
     CpuSurfaceResult surface_;
 public:
     bool useStationaryGeometry(const HostState& state,const std::vector<Vec3>& gasPoints,
-        const std::vector<Vec3>& solidPoints,HostState& trial,std::vector<Real>& gasSweep,std::vector<Real>& solidSweep){
+        const std::vector<Vec3>& solidPoints,std::vector<Real>& gasSweep,std::vector<Real>& solidSweep){
         const bool stationary=identicalPoints(state.gasMesh.points,gasPoints)
             &&identicalPoints(state.solidMesh.points,solidPoints);
         if(!std::exchange(previousImposedGeometryStationary_,stationary)||!stationary)return false;
-        ++trial.gasMesh.geometryVersion;
-        ++trial.solidMesh.geometryVersion;
         gasSweep.assign(state.gasMesh.owner.size(),0);
         solidSweep.assign(state.solidMesh.owner.size(),0);
         return true;

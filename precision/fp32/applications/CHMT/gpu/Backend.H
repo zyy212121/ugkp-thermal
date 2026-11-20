@@ -15,6 +15,7 @@ namespace ugkp { namespace gpu {class DiscreteOrdinateRadiation;class ParticleRa
 namespace chmt {
 
 struct Backend;
+struct MaterialWindowExchange;
 struct MaterialBackend;
 class CoupledHistoryArchive;
 struct GasExecutionOptions {int fluxScheme=1,reconstruction=0,limiter=0,timeIntegrator=1,turbulenceModel=0;
@@ -53,6 +54,7 @@ std::shared_ptr<CoupledHistoryArchive> gasWindowHistoryArchive(const Backend&);
 ResidentMaterialDriveHistory residentGasWindowDriveHistory(const Backend&);
 IntervalHistory releaseGasWindowHistory(Backend&);
 bool gasWindowStageGeometry(Backend&,std::array<HostStageGeometry,2>&,std::array<HostStageGeometry,2>&,std::string&);
+bool collectMaterialWindowExchange(Backend&,MaterialWindowExchange&,std::string&);
 bool downloadGasWindow(Backend&,HostState&,std::string&);
 bool publishGasWindow(Backend&,HostState&,std::string&);
 bool publishAcceptedState(Backend&,HostState&,std::string&);
