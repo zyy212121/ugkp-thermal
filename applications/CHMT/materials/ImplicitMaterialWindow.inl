@@ -19,7 +19,7 @@ bool prepareWindowRecession(const HostState& base,const MaterialWindowExchange& 
         const bool mobile=surface.ablating.empty()||surface.ablating[f];
         const int c=surface.solidCell[f];
         if(c<0||std::size_t(c)>=base.solid.size()){error="material recession donor missing";return false;}
-        Real condensed[Nc]{};
+        PhysicalReal condensed[Nc]{};
         bool removed=false;
         for(int k=0;k<Nc;++k){
             condensed[k]=exchange.removed[f][k].value();
@@ -65,21 +65,23 @@ bool prepareWindowRecession(const HostState& base,const MaterialWindowExchange& 
 
 bool implicitTemperatureUpdate(HostState& next,MaterialConductionWorkspace& workspace,
     ugkp::gpu::SparseConjugateGradient& sparse,const std::vector<MaterialCaloric>& caloric,
-    const std::vector<MaterialPrimitive>& primitive,const std::vector<Real>& target,
-    std::vector<Real>& temperatures,const PhysicsConfig& p,Real dt,const CpuMaterialControls& controls,
-    Real& thermalResidual,Real& change,Real& boundaryInput,std::string& error){
+    const std::vector<MaterialPrimitive>& primitive,const std::vector<EnergyReal>& target,
+    std::vector<PhysicalReal>& temperatures,std::vector<EnergyReal>& conduction,
+    const PhysicsConfig& p,PhysicalReal dt,const CpuMaterialControls& controls,
+    EnergyReal& thermalResidual,PhysicalReal& change,EnergyReal& boundaryInput,std::string& error){
     using namespace Foam;
     auto& mesh=*workspace.mesh;
     auto& T=*workspace.temperature;auto& k=*workspace.conductivity;
     auto& capacity=*workspace.capacity;auto& source=*workspace.source;
     const auto n=temperatures.size();
     for(std::size_t c=0;c<n;++c){
-        const auto anchor=PhysicalReal(temperatures[c]);
+        const PhysicalReal anchor=temperatures[c];
         T[c]=anchor;k[c]=primitive[c].conductivity;
-        const Real cp=caloric[c].capacity(anchor);
+        const EnergyReal cp=EnergyReal(caloric[c].capacity(anchor));
         if(!(cp>0)||!finite(cp)){error="invalid implicit material caloric capacity";return false;}
-        capacity[c]=cp/mesh.V()[c];
-        source[c]=(target[c]-caloric[c].energy(anchor)+cp*T[c])/(mesh.V()[c]*dt);
+        const EnergyReal volume=EnergyReal(mesh.V()[c]);
+        capacity[c]=cp/volume;
+        source[c]=(target[c]-EnergyReal(caloric[c].energy(anchor))+cp*EnergyReal(anchor))/(volume*EnergyReal(dt));
     }
     T.correctBoundaryConditions();k.correctBoundaryConditions();
     capacity.correctBoundaryConditions();source.correctBoundaryConditions();
@@ -90,52 +92,61 @@ bool implicitTemperatureUpdate(HostState& next,MaterialConductionWorkspace& work
         ugkp::gpu::interpolateThermalField(k,mesh.weights(),faceK.ref(),true);
     auto equation=ugkp::gpu::residentImplicitThermalEquation(workspace.diffusion,sparse,faceK(),T,capacity,source,dt);
     const auto initial=equation.residual();
-    long double residualEnergy=0,scale=0;
+    EnergyReal residualEnergy=0,scale=0;
     for(std::size_t c=0;c<n;++c){
-        residualEnergy+=dt*std::abs(initial()[c]);
+        residualEnergy+=EnergyReal(dt)*std::abs(EnergyReal(initial()[c]));
         scale+=std::abs(target[c]);
     }
     if(!std::isfinite(residualEnergy)||!std::isfinite(scale)){error="nonfinite initial thermal residual";return false;}
-    const auto energyTolerance=controls.energyAbsoluteTolerance+controls.energyRelativeTolerance*std::max(1.L,residualEnergy)
-        +8*std::numeric_limits<EnergyReal>::epsilon()*scale;
-    const Real relativeGoal=residualEnergy>0
-        ?std::min(Real(1),Real(energyTolerance*controls.linearEnergyBudgetFraction/residualEnergy)):1;
+    const EnergyReal energyTolerance=EnergyReal(controls.energyAbsoluteTolerance)
+        +EnergyReal(controls.energyRelativeTolerance)*std::max(EnergyReal(1),residualEnergy)
+        +EnergyReal(8)*std::numeric_limits<EnergyReal>::epsilon()*scale;
+    const EnergyReal relativeGoal=residualEnergy>0
+        ?std::min(EnergyReal(1),energyTolerance*EnergyReal(controls.linearEnergyBudgetFraction)/residualEnergy):EnergyReal(1);
     dictionary linear;
     linear.add("solver",word("PCG"));linear.add("preconditioner",word("jacobi"));
     linear.add("maxIter",label(controls.linearMaxIterations));
-    linear.add("tolerance",std::numeric_limits<Foam::scalar>::min());linear.add("relTol",relativeGoal);
+    linear.add("tolerance",Foam::scalar(std::numeric_limits<EnergyReal>::min()));
+    linear.add("relTol",Foam::scalar(relativeGoal));
     const auto solved=equation.solve(linear);
-    if(!finite(solved.finalResidual())){error="nonfinite coupled thermal linear residual";return false;}
-    const Real linearTarget=std::max(solved.initialResidual()*relativeGoal,std::numeric_limits<Foam::scalar>::min());
-    if(solved.finalResidual()>linearTarget)
+    const EnergyReal initialResidual=EnergyReal(solved.initialResidual()),finalResidual=EnergyReal(solved.finalResidual());
+    if(!finite(initialResidual)||!finite(finalResidual)){error="nonfinite coupled thermal linear residual";return false;}
+    const EnergyReal linearTarget=std::max(initialResidual*relativeGoal,std::numeric_limits<EnergyReal>::min());
+    if(finalResidual>linearTarget)
         materialWarning(next,ugkp::diagnostics::Code::AccuracyResidual,"coupled thermal linear residual",
-            solved.finalResidual(),linearTarget);
+            finalResidual,linearTarget);
     const auto flux=equation.fluxValues(false);
     const auto& geometry=next.solidMesh;
     if(flux.size()!=geometry.owner.size()){error="coupled thermal face flux layout mismatch";return false;}
-    boundaryInput=0;
     for(std::size_t f=0;f<flux.size();++f)
-        if(geometry.neighbour[f]<0&&geometry.boundaryKind[f]!=BoundaryKind::Periodic)boundaryInput-=dt*flux[f];
+        if(geometry.neighbour[f]<0&&geometry.boundaryKind[f]!=BoundaryKind::Periodic)
+            boundaryInput-=EnergyReal(dt)*EnergyReal(flux[f]);
     for(std::size_t c=0;c<n;++c){
-        if(!finite(T[c])||T[c]<=0){error="inadmissible solved material temperature";return false;}
-        long double energy=target[c];
+        const PhysicalReal solvedTemperature=PhysicalReal(T[c]);
+        if(!finite(solvedTemperature)||solvedTemperature<=0){error="inadmissible solved material temperature";return false;}
+        EnergyReal conducted=0;
         for(int i=geometry.cellFaceOffsets[c];i<geometry.cellFaceOffsets[c+1];++i)
-            energy-=static_cast<long double>(dt)*geometry.cellFaceSigns[i]*flux[geometry.cellFaces[i]];
-        auto& q=next.solid[c];q.energy=EnergyReal(energy);
+            conducted-=EnergyReal(dt)*EnergyReal(geometry.cellFaceSigns[i])*EnergyReal(flux[geometry.cellFaces[i]]);
+        conduction[c]=conducted;
+        const EnergyReal energy=target[c]+conducted;
+        auto& q=next.solid[c];q.energy=energy;
         MaterialPrimitive endpoint;
-        if(!std::isfinite(energy)||!recoverMaterial(q,geometry.volumes[c],p,endpoint)){
+        if(!finite(energy)||!recoverMaterial(q,PhysicalReal(geometry.volumes[c]),p,endpoint)
+            ||!finite(endpoint.temperature)||endpoint.temperature<=0){
             error="invalid conservative material energy in cell "+std::to_string(c);return false;
         }
         q.porosity=endpoint.porosity;
-        const Real heatDefect=std::abs(energy-caloric[c].energy(PhysicalReal(T[c])));
-        const Real scale=std::max(Real(1),std::abs(Real(energy)-target[c]));
-        const Real rounding=8*std::numeric_limits<EnergyReal>::epsilon()
-            *std::max(std::abs(Real(energy)),std::abs(target[c]));
-        const Real threshold=controls.energyAbsoluteTolerance+controls.energyRelativeTolerance*scale+rounding;
-        thermalResidual=std::max(thermalResidual,heatDefect/std::max(threshold,std::numeric_limits<Real>::min()));
-        change=std::max(change,std::abs(Real(endpoint.temperature)-temperatures[c])
-            /std::max(Real(1),std::abs(Real(endpoint.temperature))));
-        temperatures[c]=endpoint.temperature;
+        const EnergyReal heatDefect=std::abs(energy-EnergyReal(caloric[c].energy(solvedTemperature)));
+        if(!finite(heatDefect)){error="nonfinite material conduction residual";return false;}
+        const EnergyReal scale=std::max(EnergyReal(1),std::abs(conducted));
+        const EnergyReal rounding=EnergyReal(8)*std::numeric_limits<EnergyReal>::epsilon()
+            *std::max(std::abs(energy),std::abs(target[c]));
+        const EnergyReal threshold=EnergyReal(controls.energyAbsoluteTolerance)+EnergyReal(controls.energyRelativeTolerance)*scale+rounding;
+        thermalResidual=std::max(thermalResidual,heatDefect/std::max(threshold,std::numeric_limits<EnergyReal>::min()));
+        const PhysicalReal physicalTemperature=PhysicalReal(endpoint.temperature);
+        change=std::max(change,std::abs(physicalTemperature-temperatures[c])
+            /std::max(PhysicalReal(1),std::abs(physicalTemperature)));
+        temperatures[c]=physicalTemperature;
     }
     return finite(boundaryInput);
 }
@@ -146,19 +157,22 @@ bool solveImplicitMaterialWindow(const HostState& base,const MaterialWindowExcha
     const CpuMaterialControls& controls,CpuMaterialReport& report,std::string& error){
     const auto n=base.solid.size();
     ImplicitMaterialMass mass;
-    if(!mass.begin(base,next.solidMesh,exchange,p.tolerances,error)
+    if(!mass.begin(base,next.solidMesh,exchange,p.tolerances,error,swept.solid)
         ||!prepareConductionWorkspace(native,next,p,workspace,error))return false;
     next.solid.resize(n);
-    std::vector<Real> temperatures(n),fixedEnergy(n),target(n);
+    const PhysicalReal materialDt=PhysicalReal(dt);
+    if(!finite(materialDt)||materialDt<=0){error="unrepresentable material window duration";return false;}
+    std::vector<PhysicalReal> temperatures(n);
+    std::vector<EnergyReal> fixedEnergy(n),target(n),conduction(n);
     std::vector<MaterialCaloric> caloric(n);
     std::vector<MaterialPrimitive> primitive(n);
     for(std::size_t c=0;c<n;++c){
         MaterialPrimitive initial;
-        if(!recoverMaterial(base.solid[c],base.solidMesh.volumes[c],p,initial)){
+        if(!recoverMaterial(base.solid[c],PhysicalReal(base.solidMesh.volumes[c]),p,initial)){
             error="invalid window initial material EOS in cell "+std::to_string(c);return false;
         }
         temperatures[c]=initial.temperature;
-        auto acceptedEnergy=exchange.cells[c][Nc+Ns];
+        auto acceptedEnergy=exchange.cells[c].energy;
         acceptedEnergy.add(base.solid[c].energy);
         fixedEnergy[c]=acceptedEnergy.value();
         if(!finite(fixedEnergy[c])){error="nonfinite fixed material energy";return false;}
@@ -166,37 +180,44 @@ bool solveImplicitMaterialWindow(const HostState& base,const MaterialWindowExcha
     const bool physicalTransport=p.permeability>0||std::any_of(std::begin(p.poreEffectiveDiffusivity),
         std::end(p.poreEffectiveDiffusivity),[](auto value){return value>0;});
     const bool ale=std::any_of(swept.solid.begin(),swept.solid.end(),[](Real value){return value!=0;});
-    const auto changeGoal=std::max(Real(controls.nonlinearRelativeTolerance),Real(4)*std::numeric_limits<PhysicalReal>::epsilon());
-    Real boundaryInput=0,temperatureResidual=0;
+    const PhysicalReal changeGoal=std::max(controls.nonlinearRelativeTolerance,PhysicalReal(4)*std::numeric_limits<PhysicalReal>::epsilon());
+    EnergyReal boundaryInput=0;
+    PhysicalReal temperatureResidual=0;
     for(int i=0;i<controls.nonlinearMaxIterations;++i){
-        Real massResidual=0,energyResidual=0,change=0;
+        PhysicalReal massResidual=0,change=0;
+        EnergyReal energyResidual=0;
+        boundaryInput=0;
         mass.reconstruct(p);
         target=fixedEnergy;
         if(!mass.prepare(temperatures,next.solidMesh.volumes,p,next.solid,caloric,primitive,error))return false;
+        MaterialTransportResult rates;
         if(physicalTransport||ale){
-            MaterialTransportResult rates;
             if(!evaluateMaterialTransport(next.solidMesh,next.solid,p,swept.solid,dt,controls.transportCfl,rates,error,nullptr,&primitive)
-                ||!mass.transport(next.solidMesh,swept.solid,p,primitive,rates,dt,massResidual,error)){
+                ||!mass.transport(next.solidMesh,swept.solid,p,primitive,rates,materialDt,massResidual,error)){
                 report.failureOrigin=MaterialFailureOrigin::TransportNumerical;return false;
             }
-            const auto& geometry=next.solidMesh;
-            for(std::size_t c=0;c<n;++c){
-                Real power=0;
-                for(int i=geometry.cellFaceOffsets[c];i<geometry.cellFaceOffsets[c+1];++i)
-                    power-=geometry.cellFaceSigns[i]*Real(rates.faceFlux[geometry.cellFaces[i]].energy);
-                Real poreMass=0;
-                for(int species=0;species<Ns;++species)poreMass+=next.solid[c].pore[species];
-                power+=poreMass*dot(p.gravity,rates.poreVelocity[c]);
-                target[c]+=dt*power;
-            }
         }
-        if(!mass.react(next.solidMesh,p,temperatures,dt,massResidual,error)){
+        if(!mass.react(next.solidMesh,p,temperatures,materialDt,massResidual,error)){
             report.failureOrigin=MaterialFailureOrigin::ReactionNumerical;return false;
         }
         if((physicalTransport||ale||p.enableReactions)
             &&!mass.prepare(temperatures,next.solidMesh.volumes,p,next.solid,caloric,primitive,error))return false;
-        if(!implicitTemperatureUpdate(next,workspace,sparse,caloric,primitive,target,temperatures,p,dt,
-            controls,energyResidual,change,boundaryInput,error))return false;
+        if(physicalTransport||ale){
+            for(std::size_t c=0;c<n;++c){
+                PhysicalReal poreMass=0;
+                for(int species=0;species<Ns;++species)poreMass+=next.solid[c].pore[species];
+                target[c]+=EnergyReal(materialDt)*EnergyReal(poreMass)*EnergyReal(dot(p.gravity,rates.poreVelocity[c]));
+            }
+            if(!mass.correctEnergy(p,temperatures,caloric,conduction,target,boundaryInput,error)){
+                report.failureOrigin=MaterialFailureOrigin::TransportNumerical;return false;
+            }
+        }
+        if(!implicitTemperatureUpdate(next,workspace,sparse,caloric,primitive,target,temperatures,conduction,
+            p,materialDt,controls,energyResidual,change,boundaryInput,error))return false;
+        if((physicalTransport||ale)&&!mass.checkEnergy(p,temperatures,next.solid,
+            EnergyReal(controls.energyAbsoluteTolerance),EnergyReal(controls.energyRelativeTolerance),energyResidual,error)){
+            report.failureOrigin=MaterialFailureOrigin::TransportNumerical;return false;
+        }
         report.implicitIterations=i+1;
         report.massResidual=massResidual;report.thermalResidual=energyResidual;
         temperatureResidual=change/changeGoal;
@@ -205,7 +226,7 @@ bool solveImplicitMaterialWindow(const HostState& base,const MaterialWindowExcha
         }
     }
     if(!report.implicitConverged){
-        const Real residual=std::max({report.massResidual,report.thermalResidual,temperatureResidual});
+        const auto residual=std::max({report.massResidual,report.thermalResidual,Real(temperatureResidual)});
         materialWarning(next,ugkp::diagnostics::Code::AccuracyResidual,
             "coupled implicit material window iteration budget exhausted",residual,1);
     }

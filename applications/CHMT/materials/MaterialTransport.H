@@ -2,9 +2,11 @@
 #define CHMT_MATERIALS_MATERIALTRANSPORT_H
 #include "core/HostState.H"
 #include "materials/MaterialCaloric.H"
+#include "materials/MaterialFaceTransport.H"
 namespace chmt {
 struct MaterialTransportResult {
     std::vector<SolidQ> rates,faceFlux;
+    std::vector<MaterialFaceTransport> faceTransport;
     std::vector<PhysicalReal> faceLossLeft,faceLossRight;
     std::vector<PhysicalVec3> poreVelocity;
     Real dtLimit=std::numeric_limits<Real>::max();

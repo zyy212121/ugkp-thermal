@@ -80,6 +80,7 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
     if(q.empty()){output=MaterialTransportResult{};error.clear();return true;}
     if(!validateMaterialTransportMesh(m,q.size(),error))return false;
     MaterialTransportResult result;result.rates.resize(q.size());result.poreVelocity.resize(q.size());result.faceFlux.resize(m.owner.size());
+    if(endpoint)result.faceTransport.resize(m.owner.size());
     if(endpoint&&endpoint->size()!=q.size()){error="implicit material endpoint extent mismatch";return false;}
     std::vector<MaterialPrimitive> primitive=endpoint?*endpoint:std::vector<MaterialPrimitive>(q.size());
     std::vector<PhysicalVec3> pressureGradient(q.size());
@@ -104,7 +105,8 @@ bool evaluateMaterialTransportImpl(const HostMesh& m,const std::vector<SolidQ>& 
         m.owner.data(),m.neighbour.data(),m.areaVectors.data(),m.faceCentres.data(),m.boundaryKind.data(),m.periodicPartner.data(),
         m.cellFaceOffsets.data(),m.cellFaces.data(),m.cellFaceSigns.data(),offsets.data(),diffusionFaces.data(),diffusionSides.data()};
     const MaterialTransportWorkspace w{primitive.data(),pressureGradient.data(),result.poreVelocity.data(),gradientSensitivity.data(),
-        stabilityRate.data(),lossLeft.data(),lossRight.data(),cellDtLimit.data(),result.faceFlux.data(),result.rates.data(),nullptr,nullptr};
+        stabilityRate.data(),lossLeft.data(),lossRight.data(),cellDtLimit.data(),result.faceFlux.data(),result.rates.data(),nullptr,nullptr,
+        endpoint?result.faceTransport.data():nullptr};
     const Real* sweep=swept.empty()?nullptr:swept.data();
     auto accepted=[&](MaterialTransportError code,int entity){
         if(code==MaterialTransportError::None)return true;

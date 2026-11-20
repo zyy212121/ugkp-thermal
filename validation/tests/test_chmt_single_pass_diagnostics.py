@@ -131,13 +131,13 @@ int main(){
 
     ImplicitMaterialMass mass;
     assert(mass.begin(base,base.solidMesh,input,physics.tolerances,error));
-    std::vector<Real> temperature{500};
+    std::vector<PhysicalReal> temperature{500};
     std::vector<SolidQ> endpoint(1);
     std::vector<MaterialCaloric> caloric(1);
     std::vector<MaterialPrimitive> primitive(1);
     for(int i=0;i<4;++i){
         mass.reconstruct(physics);
-        Real residual=0;
+        PhysicalReal residual=0;
         assert(mass.react(base.solidMesh,physics,temperature,.25,residual,error));
         assert(mass.prepare(temperature,base.solidMesh.volumes,physics,endpoint,caloric,primitive,error));
         const auto& state=endpoint[0];
@@ -153,6 +153,140 @@ int main(){
     source.write_text(probe)
     binary = tmp_path / "implicit-window"
     subprocess.run([compiler, "-std=c++17", "-O0", "-DUGKWP_GAS_SPECIES=2",
+                    "-I" + str(APP), "-I" + str(ROOT / "common"), str(source),
+                    str(APP / "materials/MaterialTransport.C"), "-o", str(binary)], check=True)
+    subprocess.run([str(binary)], check=True)
+
+
+def test_implicit_material_face_transfers_close_mass_and_energy_together(tmp_path):
+    compiler = shutil.which("g++")
+    if not compiler:
+        pytest.skip("g++ unavailable")
+    probe = r'''
+#include "materials/ImplicitMaterialMass.H"
+#include <cassert>
+#include <cmath>
+#include <type_traits>
+
+using namespace chmt;
+
+bool near(PhysicalReal x,PhysicalReal y){
+    const auto scale=std::max(PhysicalReal(1),std::abs(y));
+    return std::abs(x-y)<std::max(PhysicalReal(2e-10),PhysicalReal(32)*std::numeric_limits<PhysicalReal>::epsilon())*scale;
+}
+
+template<class Number>
+void checkWindowSum(){
+    MaterialWindowSum<Number> sum;
+    const Number large=Number(16777216);
+    sum.add(large);
+    sum.add(Number(1));
+    sum.add(-large);
+    static_assert(std::is_same_v<decltype(sum.value()),Number>);
+    if constexpr(std::is_same_v<Number,float>){
+        static_assert(sizeof(sum)==sizeof(float));
+        assert(sum.value()==0);
+    }else assert(sum.value()==1);
+}
+
+void solve(bool darcy,bool diffusion,bool reverse){
+    PhysicsConfig p;
+    p.spatialOrder=1;
+    p.gasConductivity=0;
+    p.permeability=darcy?PhysicalReal(1)/PhysicalReal(300):PhysicalReal(0);
+    p.poreViscosity=1;
+    for(auto& phase:p.condensed){phase.rho=2;phase.cp0=1;phase.Tmin=10;phase.Tmax=6000;}
+    for(auto& gas:p.species){gas.R=1;gas.cp0=2;gas.Tmin=10;gas.Tmax=6000;}
+    if(diffusion){
+        p.poreEffectiveDiffusivity[0]=p.poreEffectiveDiffusivity[1]=darcy?PhysicalReal(.1):PhysicalReal(.5);
+        p.species[1].cp0=3;
+    }
+
+    HostState initial;
+    auto& mesh=initial.solidMesh;
+    mesh.volumes={1,1};
+    mesh.cellCentres={{.5,.5,.5},{1.5,.5,.5}};
+    mesh.faceCentres={{1,.5,.5}};
+    mesh.areaVectors={{1,0,0}};
+    mesh.owner={0};mesh.neighbour={1};mesh.periodicPartner={-1};
+    mesh.boundaryKind={BoundaryKind::Internal};
+    mesh.cellFaceOffsets={0,1,2};mesh.cellFaces={0,0};mesh.cellFaceSigns={1,-1};
+    initial.solid.resize(2);
+    const int donor=reverse?1:0,receiver=1-donor;
+    initial.solid[donor].pore[0]=1;
+    initial.solid[receiver].pore[diffusion?1:0]=darcy?PhysicalReal(.1):PhysicalReal(1);
+    for(auto& cell:initial.solid){
+        cell.condensed[0]=1;
+        cell.energy=EnergyReal(300)+(EnergyReal(cell.pore[0])+EnergyReal(2)*EnergyReal(cell.pore[1]))*EnergyReal(300);
+    }
+    const std::vector<EnergyReal> fixed{initial.solid[0].energy,initial.solid[1].energy};
+    const std::vector<EnergyReal> noConduction(2);
+    MaterialWindowExchange accepted(initial);
+    ImplicitMaterialMass balance;
+    std::string error;
+    assert(balance.begin(initial,mesh,accepted,p.tolerances,error));
+    std::vector<PhysicalReal> temperature(2,300);
+    std::vector<SolidQ> state(2);
+    std::vector<MaterialCaloric> caloric(2);
+    std::vector<MaterialPrimitive> primitive(2);
+    bool converged=false;
+    for(int i=0;i<50;++i){
+        balance.reconstruct(p);
+        assert(balance.prepare(temperature,mesh.volumes,p,state,caloric,primitive,error));
+        MaterialTransportResult rates;
+        assert(evaluateMaterialTransport(mesh,state,p,{},1,PhysicalReal(.4),rates,error,nullptr,&primitive));
+        PhysicalReal massResidual=0;
+        assert(balance.transport(mesh,{},p,primitive,rates,PhysicalReal(1),massResidual,error));
+        assert(balance.prepare(temperature,mesh.volumes,p,state,caloric,primitive,error));
+        auto target=fixed;
+        EnergyReal boundary=0;
+        assert(balance.correctEnergy(p,temperature,caloric,noConduction,target,boundary,error));
+        assert(boundary==0);
+        for(int c=0;c<2;++c){
+            state[c].energy=target[c];
+            assert(recoverSolid(state[c],p,temperature[c]));
+            assert(temperature[c]>0);
+        }
+        EnergyReal energyResidual=0;
+        assert(balance.checkEnergy(p,temperature,state,EnergyReal(1e-10),EnergyReal(1e-10),energyResidual,error));
+        assert(near(target[0]+target[1],fixed[0]+fixed[1]));
+        for(int species=0;species<Ns;++species){
+            assert(near(state[0].pore[species]+state[1].pore[species],
+                initial.solid[0].pore[species]+initial.solid[1].pore[species]));
+        }
+        if(i==0&&darcy&&!diffusion){
+            assert(near(state[donor].pore[0],PhysicalReal(5)/PhysicalReal(7)));
+            assert(near(target[donor],450));
+            assert(near(temperature[donor],PhysicalReal(262.5)));
+        }
+        if(massResidual<=1&&energyResidual<=1){converged=true;break;}
+    }
+    assert(converged);
+    MaterialTransportResult physicalRates;
+    assert(evaluateMaterialTransport(mesh,state,p,{},1,PhysicalReal(.4),physicalRates,error));
+    for(int species=0;species<Ns;++species)
+        assert(near(initial.solid[0].pore[species]-state[0].pore[species],physicalRates.faceFlux[0].pore[species]));
+    assert(near(fixed[0]-state[0].energy,physicalRates.faceFlux[0].energy));
+    if(!darcy){
+        assert(near(state[donor].energy,700));
+        assert(near(state[receiver].energy,800));
+        assert(near(temperature[0],300)&&near(temperature[1],300));
+    }
+}
+
+int main(){
+    checkWindowSum<PhysicalReal>();
+    checkWindowSum<EnergyReal>();
+    solve(true,false,false);
+    solve(true,false,true);
+    solve(false,true,false);
+    solve(true,true,false);
+}
+'''
+    source = tmp_path / "implicit-face.cpp"
+    source.write_text(probe)
+    binary = tmp_path / "implicit-face"
+    subprocess.run([compiler, "-std=c++17", "-O2", "-DUGKWP_GAS_SPECIES=2",
                     "-I" + str(APP), "-I" + str(ROOT / "common"), str(source),
                     str(APP / "materials/MaterialTransport.C"), "-o", str(binary)], check=True)
     subprocess.run([str(binary)], check=True)

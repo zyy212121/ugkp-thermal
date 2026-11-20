@@ -1,6 +1,7 @@
 #ifndef CHMT_MATERIALS_MATERIALTRANSPORTMATH_H
 #define CHMT_MATERIALS_MATERIALTRANSPORTMATH_H
 #include "materials/DryMaterialAdapter.H"
+#include "materials/MaterialFaceTransport.H"
 #include "materials/DarcyGradient.H"
 #include "materials/MaterialReconstruction.H"
 #include "materials/EnergyStencilMath.H"
@@ -40,6 +41,7 @@ struct MaterialTransportWorkspace {
     SolidQ* rates=nullptr;
     int* cellErrors=nullptr;
     int* faceErrors=nullptr;
+    MaterialFaceTransport* splitFlux=nullptr;
 };
 struct MaterialTransportDeviceResult {
     Real dtLimit=std::numeric_limits<Real>::max();
@@ -65,7 +67,7 @@ CHMT_HD inline PhysicalVec3 displacement(const MaterialMeshView& m,int cell,int 
 CHMT_HD inline PhysicalReal component(const SolidQ& q,int i){if(i<Nc)return q.condensed[i];i-=Nc;if(i<Ns)return q.pore[i];i-=Ns;if(i<Nr)return q.progress[i];return q.energy;}
 CHMT_HD inline void setComponent(SolidQ& q,int i,PhysicalReal x){if(i<Nc){q.condensed[i]=x;return;}i-=Nc;if(i<Ns){q.pore[i]=x;return;}i-=Ns;if(i<Nr){q.progress[i]=x;return;}q.energy=x;}
 CHMT_HD inline bool reconstruct(const MaterialMeshView& m,const SolidQ* q,const PhysicsConfig& p,
-    int cell,int face,SolidQ& out){
+    int cell,int face,SolidQ& out,MaterialPrimitive* reconstructed=nullptr){
     const int image=m.owner[face]==cell?face:(m.boundaryKind[face]==BoundaryKind::Periodic?m.periodicPartner[face]:face);
     const PhysicalVec3 offset=toPhysical(m.faceCentres[image]-m.cellCentres[cell]);SolidQ density,increment;PhysicalReal bound=1;
     for(int k=0;k<Nc+Ns+Nr;++k){const PhysicalReal value=component(q[cell],k)/PhysicalReal(m.volumes[cell]);setComponent(density,k,value);
@@ -97,6 +99,7 @@ CHMT_HD inline bool reconstruct(const MaterialMeshView& m,const SolidQ* q,const 
     }
     SolidQ candidate=addSolid(density,increment,bound);candidate.porosity=q[cell].porosity;MaterialPrimitive state;
     if(!recoverMaterial(candidate,1,p,state))return false;
+    if(reconstructed)*reconstructed=state;
     candidate.porosity=state.porosity;out=candidate;return true;
 }
 
@@ -141,77 +144,7 @@ CHMT_HD inline MaterialTransportError stabilityCell(const MaterialMeshView& m,co
         w.stabilityRate[c]=pressureRate+sweepRate;
     return MaterialTransportError::None;
 }
-CHMT_HD inline MaterialTransportError face(const MaterialMeshView& m,const SolidQ* q,
-    const PhysicsConfig& p,const Real* swept,Real interval,int f,const MaterialTransportWorkspace& w) {
-    w.faceDiffusionLossLeft[f]=0;w.faceDiffusionLossRight[f]=0;
-    const auto kind=m.boundaryKind[f];const int left=m.owner[f];int right=m.neighbour[f];
-        if(kind==BoundaryKind::Interface||kind==BoundaryKind::Empty){w.faceFlux[f]={};return MaterialTransportError::None;}
-        if(kind==BoundaryKind::Periodic){if(f>m.periodicPartner[f])return MaterialTransportError::None;right=m.owner[m.periodicPartner[f]];}
-        const PhysicalReal area=mag(toPhysical(m.areaVectors[f])),meshRate=swept==nullptr?PhysicalReal(0):PhysicalReal(swept[f])/PhysicalReal(interval);const PhysicalVec3 normal=toPhysical(m.areaVectors[f])/area;
-        if(!finite(meshRate)){return MaterialTransportError::AleSweep;}
-        SolidQ flux;
-        if(meshRate!=0){
-            SolidQ density;if(!reconstruct(m,q,p,meshRate<=0||right<0?left:right,f,density)){return MaterialTransportError::AleReconstruction;}
-            flux=materialAleFlux(density,1,meshRate);
-        }
-        if(right>=0){const PhysicalVec3 dx=displacement(m,left,f,right);const PhysicalReal distance=dot(dx,normal);MaterialPrimitive a=w.primitive[left],b=w.primitive[right];
-            SolidQ physical;
-            PhysicalReal normalPressureGradient=0;
-            if(!darcyNormalPressureGradient<false>(dx,normal,b.pressure-a.pressure,
-                w.pressureGradient[left],w.pressureGradient[right],normalPressureGradient)){
-                return MaterialTransportError::DarcyFace;}
-            PhysicalReal velocity=0;
-            if(p.permeability>0)velocity=dry::darcyVelocity(p.permeability,p.poreViscosity,
-                normalPressureGradient,.5f*(a.poreDensity+b.poreDensity),dot(p.gravity,normal));
-            auto poreLeft=dryAdapter::poreState(q[left],a),poreRight=dryAdapter::poreState(q[right],b);
-            dryAdapter::completePorePair(poreLeft,poreRight);
-
-
-            std::array<PhysicalReal,Ns> diffusivity{};
-            for(int species=0;species<Ns;++species)diffusivity[species]=p.poreEffectiveDiffusivity[species];
-            struct FaceCalorics {
-                const PhysicsConfig& p;
-                const dry::PoreFaceState<Ns>& a;
-                const dry::PoreFaceState<Ns>& b;
-                CHMT_HD EnergyReal enthalpy(std::size_t species,EnergyReal T)const {
-
-                    return (a.density==0&&b.density==0)||(a.massFraction[species]==0&&b.massFraction[species]==0)
-                        ? 0 : speciesH(p.species[species],T);
-                }
-            } calorics{p,poreLeft,poreRight};
-
-
-            auto poreFlux=dry::poreFaceFlux(poreLeft,poreRight,distance,velocity,diffusivity,0,calorics);
-
-
-
-
-            PhysicalReal leftMass=0,rightMass=0;
-            for(int species=0;species<Ns;++species){leftMass+=q[left].pore[species];rightMass+=q[right].pore[species];}
-            if(leftMass>0)w.faceDiffusionLossLeft[f]=area*poreFlux.diffusionLossLeft/leftMass;
-            if(rightMass>0)w.faceDiffusionLossRight[f]=area*poreFlux.diffusionLossRight/rightMass;
-            if(p.spatialOrder==2&&velocity!=0){
-                SolidQ reconstructed;MaterialPrimitive recovered;
-                if(!reconstruct(m,q,p,velocity>=0?left:right,f,reconstructed)||!recoverMaterial<false>(reconstructed,1,p,recovered)){
-                    return MaterialTransportError::DarcyReconstruction;}
-                const auto donor=dryAdapter::poreState(reconstructed,recovered);
-                const std::array<PhysicalReal,Ns> noDiffusion{};
-                const FaceCalorics donorCalorics{p,donor,donor};
-                const auto advective=dry::poreFaceFlux(donor,donor,distance,velocity,noDiffusion,0,donorCalorics);
-                for(int species=0;species<Ns;++species){
-                    const EnergyReal oldEnergy=poreFlux.advection[species]==0?0:EnergyReal(poreFlux.advection[species])*calorics.enthalpy(species,EnergyReal(velocity>=0?a.temperature:b.temperature));
-                    poreFlux.energy+=advective.speciesEnergy[species]-oldEnergy;
-                    poreFlux.species[species]=advective.advection[species]+poreFlux.diffusion[species];
-                }
-            }
-            for(int species=0;species<Ns;++species)physical.pore[species]=area*poreFlux.species[species];
-            physical.energy=EnergyReal(area)*poreFlux.energy;
-            if(!finite(physical.energy)){return MaterialTransportError::DarcyFace;}
-            flux=addSolid(flux,physical);
-        }
-        w.faceFlux[f]=flux;if(kind==BoundaryKind::Periodic)w.faceFlux[m.periodicPartner[f]]=addSolid(SolidQ{},flux,-1);
-    return MaterialTransportError::None;
-}
+#include "materials/MaterialTransportFace.inl"
 CHMT_HD inline void gatherCell(const MaterialMeshView& m,const SolidQ* q,
     const PhysicsConfig& p,PhysicalReal cfl,int c,const MaterialTransportWorkspace& w) {
     w.rates[c]={};SolidQ outgoing;PhysicalReal dtLimit=std::numeric_limits<PhysicalReal>::max();
