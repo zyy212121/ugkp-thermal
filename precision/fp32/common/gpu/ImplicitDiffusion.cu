@@ -3,6 +3,7 @@
 #include "ImplicitDiffusion.H"
 #include "PhysicalDiffusionOperator.cuh"
 #include "ThermalFieldOperators.H"
+#include "ResidentConductivity.H"
 #include "ThermalGradientKernels.cuh"
 #include <cuda_runtime.h>
 #include "PinnedTransferQueue.cuh"
@@ -18,17 +19,6 @@ template<class T> struct Array {
     template<class Host> void upload(const std::vector<Host>& input,PinnedTransferQueue& queue){reserve(input.size());queue.uploadConverted(ptr,input.data(),input.size());}
     template<class Host> void download(std::vector<Host>& output,int n,PinnedTransferQueue& queue){output.resize(n);queue.downloadConverted(output.data(),ptr,n);}
 };
-__global__ void interpolateResidentConductivity(int nf,int ni,const int* owner,const int* neighbour,
-    const GpuReal* cells,const GpuReal* weights,const GpuReal* boundary,const GpuReal* adjacent,
-    const int* coupled,const int* adjacentCells,const GpuReal* jump,const GpuReal* boundaryDevice,bool harmonic,GpuReal* gamma){
-    const int f=blockIdx.x*blockDim.x+threadIdx.x;if(f>=nf)return;
-    ScalarFaceInterpolation value;
-    if(f<ni)value={cells[owner[f]],cells[neighbour[f]],weights[f],0};
-    else{const int b=f-ni;
-        if(coupled[b]==1)value={cells[owner[f]],adjacentCells[b]>=0?cells[adjacentCells[b]]-jump[b]:adjacent[b],weights[f],1};
-        else value={coupled[b]==2?cells[owner[f]]:boundaryDevice?boundaryDevice[b]:boundary[b],0,0,2};}
-    gamma[f]=thermalScalarInterpolation(value,harmonic);
-}
 __global__ void residentTemperatureFaces(int nf,int ni,const int* owner,const int* neighbour,
     const GpuReal* temperature,const GpuReal* weight,const int* boundaryNeighbour,
     const GpuReal* valueInternal,const GpuReal* valueBoundary,const GpuReal* jump,GpuReal* faceTemperature){
@@ -187,7 +177,7 @@ struct ImplicitDiffusion::Implementation {
     void assemblePrepared(cudaStream_t target,const double* deviceInterval=nullptr){
         const int n=cells,ni=internal,nf=prepared.faces,nb=nf-ni;
         setPhysicalDiffusionInterval<<<1,1,0,target>>>(prepared.interval,deviceInterval,operatorInterval.ptr);
-        if(prepared.conductivity&&nf)interpolateResidentConductivity<<<(nf+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(nf,ni,deviceOwner.ptr,deviceNeighbour.ptr,
+        if(prepared.conductivity&&nf)diffusionDetail::interpolateResidentConductivity<<<(nf+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(nf,ni,deviceOwner.ptr,deviceNeighbour.ptr,
             prepared.conductivity,conductivityWeights.ptr,conductivityBoundary.ptr,conductivityNeighbour.ptr,conductivityCoupled.ptr,conductivityAdjacentCells.ptr,conductivityJump.ptr,prepared.boundaryConductivity,prepared.harmonic,gamma.ptr);
         if(prepared.temperature){
             if(nb&&prescribedConductivity)prescribeEnergyGradient<<<(nb+ugkp::gpu::workPlan().thermalBlockThreads-1)/ugkp::gpu::workPlan().thermalBlockThreads,ugkp::gpu::workPlan().thermalBlockThreads,0,target>>>(nb,prescribedSelected.ptr,prescribedEnergy.ptr,

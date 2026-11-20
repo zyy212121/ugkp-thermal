@@ -4,6 +4,8 @@ import struct
 from pathlib import Path
 import numpy as np
 from thermal_particle_restart_schema7 import field_specs as legacy_specs
+from particle_restart_io import ParticleRestartError, binary_chunks, read_header, validate_particle_mass
+from gas_particle_restart import ALL_FIELDS as REQUIRED_FIELDS
 
 CHT_MARKER = "UGKP_CHT_PARTICLES_SCHEMA9_FLOAT_COLD_PROFILES_BIN"
 SINGLE_STATE_CHT_MARKER = "UGKP_CHT_PARTICLES_SCHEMA10_FP32_SINGLE_STATE_BIN"
@@ -14,19 +16,19 @@ PROFILES = {"pColdNodeSpecificEnthalpy", "pCold2DNodeSpecificEnthalpy"}
 
 def field_specs(marker):
 
-    match = re.fullmatch(r"UGKP_(CHT|THERMAL|FSH)_PARTICLES_SCHEMA[0-9]+_(.+)_BIN", marker)
-    owner, layout = match.groups() if match else ("", "")
-    if owner == "THERMAL" and layout in ("T32", "T64"):
+    match = re.fullmatch(r"UGKP_(?:.+_)?PARTICLES_SCHEMA[0-9]+_(.+)_BIN", marker)
+    layout = match[1] if match else ""
+    if layout in ("T32", "T64"):
         return legacy_specs(f"UGKP_THERMAL_PARTICLES_SCHEMA7_{layout}_BIN")
-    if owner == "CHT" and layout == "THERMAL_CARRY":
+    if layout == "THERMAL_CARRY":
         return legacy_specs("UGKP_THERMAL_PARTICLES_SCHEMA7_T64_BIN") + [("pThermalEnthalpyResidual", "<f8", 1)]
     float_profiles = set()
-    if owner == "CHT" and layout in ("FLOAT_COLD_PROFILES", "FP32_SINGLE_STATE", "NATIVE32_RAW_COLD"):
+    if layout in ("FLOAT_COLD_PROFILES", "FP32_SINGLE_STATE", "NATIVE32_RAW_COLD"):
         float_profiles = PROFILES
-    elif owner == "CHT" and layout == "NATIVE64_RAW_COLD":
+    elif layout == "NATIVE64_RAW_COLD":
         float_profiles = {"pCold2DNodeSpecificEnthalpy"}
-    elif owner != "FSH" or layout != "FP64_FIELDS":
-        raise ValueError(f"cannot decode particle field layout {marker}")
+    elif layout != "FP64_FIELDS":
+        raise ParticleRestartError(f"cannot decode particle field layout {marker}")
     specs = [(name, "<f4" if name in float_profiles else
               "<f8" if dtype in ("<f4", "<f8") else dtype, width)
              for name, dtype, width in legacy_specs("UGKP_THERMAL_PARTICLES_SCHEMA7_T64_BIN")]
@@ -37,63 +39,44 @@ def field_specs(marker):
 
 def iter_chunks(path):
     with Path(path).open("rb") as stream:
-        header = stream.readline(256)
-        if not header.endswith(b"\n"):
-            raise ValueError("invalid particle restart header terminator or length")
-        tokens = header.decode("ascii").split()
-        if len(tokens) != 3:
-            raise ValueError("invalid particle restart header")
-        marker = tokens[0]
-        specs = field_specs(marker)
-        total, bound = map(int, tokens[1:])
-        if total < 0:
-            raise ValueError("negative particle restart count")
-
-        done = 0
-        while done < total:
-            raw = stream.read(4)
-            if len(raw) != 4:
-                raise ValueError("truncated particle restart chunk count")
-            count = struct.unpack("<I", raw)[0]
-            if count == 0 or count > total - done:
-                raise ValueError("invalid particle restart chunk size")
-            data = {}
-            for name, dtype, width in specs:
-                values = np.fromfile(stream, dtype=dtype, count=count*width)
-                if len(values) != count*width:
-                    raise ValueError("truncated particle restart field " + name)
-                data[name] = values if width == 1 else values.reshape(count, width)
-            done += count
+        marker, total, bound = read_header(stream, path)
+        if bound is None:
+            raise ParticleRestartError(f"{path}: missing particle chunk bound")
+        for data in binary_chunks(stream, path, total, field_specs(marker), allow_trailer=True):
+            validate_particle_mass(data["pm"], path)
             yield marker, data
 
 
 def normalize(chunk, marker):
-    """Fill absent legacy fields with the native loader's existing defaults.
-
-    Missing saved velocities are zero, not recovered impact history. The CHT
-    residual is specific enthalpy and is copied unchanged during refinement.
-    """
+    missing = [name for name in REQUIRED_FIELDS if name not in chunk]
+    if missing:
+        raise ParticleRestartError("missing particle fields " + ", ".join(missing))
     count = len(chunk["pm"])
     result = {}
     for name, dtype, width in field_specs(marker):
+        shape = (count,) if width == 1 else (count, width)
         if name in chunk:
-            result[name] = np.asarray(chunk[name], dtype=dtype)
+            values = np.asarray(chunk[name], dtype=dtype)
+            if values.shape != shape:
+                raise ParticleRestartError(f"particle field {name} requires shape {shape}, got {values.shape}")
+            result[name] = values
         else:
-            shape = count if width == 1 else (count, width)
             result[name] = np.full(shape, -1 if name == "pStuckFaceId" else 0, dtype=dtype)
     return result
 
 
 def write_restart(path, chunks, total, chunk_particles, *, cht=False):
-    """Write the current owner layout; historical formats are input only."""
     import os
     marker = CHT_MARKER if cht else FSH_MARKER
     specs = field_specs(marker)
+    if total < 0 or not 0 < chunk_particles <= 0xFFFFFFFF:
+        raise ParticleRestartError(f"{path}: invalid output particle count or chunk size")
     emitted = 0
     with Path(path).open("xb") as stream:
         stream.write(f"{marker} {total} {chunk_particles}\n".encode("ascii"))
         for chunk in chunks:
             chunk = normalize(chunk, marker)
+            validate_particle_mass(chunk["pm"], path)
             size = len(chunk["pm"])
             for start in range(0, size, chunk_particles):
                 count = min(chunk_particles, size - start)

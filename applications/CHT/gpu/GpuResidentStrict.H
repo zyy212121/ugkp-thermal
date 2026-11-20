@@ -2922,10 +2922,7 @@ protected:
             {
                 if (particleWallHeatTransferEnabled_)
                 {
-                    FatalErrorInFunction
-                        << "Heat-enabled restart cannot recover a stuck V2 "
-                        << "particle because its wall face and deposition "
-                        << "area were not stored." << exit(FatalError);
+                    failParticleRestartInput(restartFile,"stuck particle is missing wall face and deposition area required for heat transfer");
                 }
                 pStuckFaceId[i] = -2;
             }

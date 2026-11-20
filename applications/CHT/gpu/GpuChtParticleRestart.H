@@ -713,26 +713,28 @@ static constexpr bool native32=ugkp::precision::compiledBits==32;
 static const char* const currentFormatName=gpuThermalRestart::currentChtMarker;
 
 enum class Encoding { text, text2, text3, fsh1, fsh2, fsh3, fsh4, fsh5, fsh6,
-    thermal32, thermal64, carry, floatCold, single, raw64, unknown };
+    thermal32, thermal64, carry, floatCold, single, raw64, fp64Fields, unknown };
 
-inline std::string_view layoutSuffix(std::string_view tag,std::string_view prefix)
+inline std::string_view layoutSuffix(std::string_view tag)
 {
-    if(tag.substr(0,prefix.size())!=prefix)return {};
-    const auto first=prefix.size();
+    constexpr std::string_view layoutPrefix="_PARTICLES_SCHEMA";
+    const auto base=tag.find(layoutPrefix);
+    if(base==std::string_view::npos || tag.substr(0,5)!="UGKP_")return {};
+    const auto first=base+layoutPrefix.size();
     auto end=first;
     while(end<tag.size() && tag[end]>='0' && tag[end]<='9')++end;
     return end==first ? std::string_view{} : tag.substr(end);
 }
 inline Encoding particleEncoding(const std::string& tag)
 {
-    const auto cht=layoutSuffix(tag,"UGKP_CHT_PARTICLES_SCHEMA");
-    if(cht=="_NATIVE64_RAW_COLD_BIN")return Encoding::raw64;
-    if(cht=="_NATIVE32_RAW_COLD_BIN"||cht=="_FP32_SINGLE_STATE_BIN")return Encoding::single;
-    if(cht=="_FLOAT_COLD_PROFILES_BIN")return Encoding::floatCold;
-    if(cht=="_THERMAL_CARRY_BIN")return Encoding::carry;
-    const auto thermal=layoutSuffix(tag,"UGKP_THERMAL_PARTICLES_SCHEMA");
-    if(thermal=="_T64_BIN")return Encoding::thermal64;
-    if(thermal=="_T32_BIN")return Encoding::thermal32;
+    const auto layout=layoutSuffix(tag);
+    if(layout=="_NATIVE64_RAW_COLD_BIN")return Encoding::raw64;
+    if(layout=="_NATIVE32_RAW_COLD_BIN"||layout=="_FP32_SINGLE_STATE_BIN")return Encoding::single;
+    if(layout=="_FLOAT_COLD_PROFILES_BIN")return Encoding::floatCold;
+    if(layout=="_THERMAL_CARRY_BIN")return Encoding::carry;
+    if(layout=="_T64_BIN")return Encoding::thermal64;
+    if(layout=="_T32_BIN")return Encoding::thermal32;
+    if(layout=="_FP64_FIELDS_BIN")return Encoding::fp64Fields;
     if(tag==formatName)return Encoding::fsh6;
     if(tag==schema5FormatName)return Encoding::fsh5;
     if(tag==schema4FormatName)return Encoding::fsh4;
@@ -783,6 +785,10 @@ inline void readBinaryPayload(std::istream& is,std::uint32_t bound,const Mutable
     case Encoding::thermal64: return readV7Payload(is,bound,v);
     case Encoding::thermal32:
         gpuThermalRestart::readPayload<float>(is,bound,v);
+        if(v.pThermalEnthalpyResidual)std::fill_n(v.pThermalEnthalpyResidual,v.count,0.0);
+        return;
+    case Encoding::fp64Fields:
+        gpuThermalRestart::readCurrentPayload<false,double>(is,bound,v);
         if(v.pThermalEnthalpyResidual)std::fill_n(v.pThermalEnthalpyResidual,v.count,0.0);
         return;
     case Encoding::fsh6: return readV6Payload(is,bound,v);

@@ -17,17 +17,19 @@ from typing import Iterator
 import numpy as np
 
 from ugkp_particle_restart import (
-    ALL_FIELDS,
     FLOAT_FIELDS,
     iter_restart_chunks,
     sha256,
     write_ugkp_restart,
     CHT_MARKER,
+    FSH_MARKER,
     input_metadata,
+    legacy_fsh_layout,
 )
 
 
 INVARIANT_NAMES = ("mass", "mom_x", "mom_y", "mom_z", "energy", "mass_d", "mass_T")
+FSH_INVARIANT_NAMES = INVARIANT_NAMES + ("represented_deposition_area",)
 MASK64 = np.uint64(0xFFFFFFFFFFFFFFFF)
 
 
@@ -48,12 +50,13 @@ class SnapshotStats:
     counts: dict[int, int] = field(default_factory=dict)
     moments: dict[int, np.ndarray] = field(default_factory=dict)
     scales: dict[int, np.ndarray] = field(default_factory=dict)
-    global_moments: np.ndarray = field(
-        default_factory=lambda: np.zeros(len(INVARIANT_NAMES), dtype=np.longdouble)
-    )
-    global_scales: np.ndarray = field(
-        default_factory=lambda: np.zeros(len(INVARIANT_NAMES), dtype=np.longdouble)
-    )
+    invariants: tuple[str, ...] = INVARIANT_NAMES
+    global_moments: np.ndarray = field(init=False)
+    global_scales: np.ndarray = field(init=False)
+
+    def __post_init__(self):
+        self.global_moments = np.zeros(len(self.invariants), dtype=np.longdouble)
+        self.global_scales = np.zeros_like(self.global_moments)
 
     def add(self, chunk: dict[str, np.ndarray], source: Path) -> None:
         count = len(chunk["pm"])
@@ -72,18 +75,15 @@ class SnapshotStats:
         uy = chunk["puy"].astype(np.longdouble)
         uz = chunk["puz"].astype(np.longdouble)
         theta = chunk["pTheta"].astype(np.longdouble)
-        values = np.column_stack(
-            (
-                m,
-                m * ux,
-                m * uy,
-                m * uz,
-                m * (np.longdouble(0.5) * (ux * ux + uy * uy + uz * uz)
-                     + np.longdouble(1.5) * theta),
-                m * chunk["pd"].astype(np.longdouble),
-                m * chunk["pT"].astype(np.longdouble),
-            )
-        )
+        diameter = chunk["pd"].astype(np.longdouble)
+        terms = [m, m * ux, m * uy, m * uz,
+                 m * (np.longdouble(0.5) * (ux * ux + uy * uy + uz * uz) + np.longdouble(1.5) * theta),
+                 m * diameter, m * chunk["pT"].astype(np.longdouble)]
+        if self.invariants == FSH_INVARIANT_NAMES:
+            area = m * chunk["pDepositionArea"].astype(np.longdouble)
+            area /= np.maximum(diameter ** 3, np.longdouble(np.finfo(np.float64).tiny))
+            terms.append(np.where(chunk["pStuck"] != 0, area, np.longdouble(0)))
+        values = np.column_stack(terms)
         scales = np.abs(values)
         self.global_moments += np.sum(values, axis=0, dtype=np.longdouble)
         self.global_scales += np.sum(scales, axis=0, dtype=np.longdouble)
@@ -102,8 +102,8 @@ class SnapshotStats:
             cell = int(cell_value)
             self.counts[cell] = self.counts.get(cell, 0) + int(cell_counts[index])
             if cell not in self.moments:
-                self.moments[cell] = np.zeros(len(INVARIANT_NAMES), dtype=np.longdouble)
-                self.scales[cell] = np.zeros(len(INVARIANT_NAMES), dtype=np.longdouble)
+                self.moments[cell] = np.zeros_like(self.global_moments)
+                self.scales[cell] = np.zeros_like(self.global_moments)
             self.moments[cell] += cell_values[index]
             self.scales[cell] += cell_scales[index]
 
@@ -111,11 +111,12 @@ class SnapshotStats:
 def scan_restart(
     path: Path,
     legacy_parcel_mass: float | None,
+    output_marker: str = CHT_MARKER,
 ) -> tuple[SnapshotStats, np.ndarray, np.ndarray]:
-    stats = SnapshotStats()
+    stats = SnapshotStats(invariants=FSH_INVARIANT_NAMES if output_marker == FSH_MARKER else INVARIANT_NAMES)
     ids: list[np.ndarray] = []
     rng: list[np.ndarray] = []
-    for chunk in iter_restart_chunks(path, legacy_parcel_mass):
+    for chunk in iter_restart_chunks(path, legacy_parcel_mass, output_marker=output_marker):
         stats.add(chunk, path)
         ids.append(chunk["orig_id"].copy())
         rng.append(chunk["rng"].copy())
@@ -150,7 +151,7 @@ def compare_stats(
             raise ValueError(
                 f"cell {cell}: expected {expected_count} parcels, found {after.counts[cell]}"
             )
-        for component, name in enumerate(INVARIANT_NAMES):
+        for component, name in enumerate(before.invariants):
             residual = after.moments[cell][component] - before.moments[cell][component]
             scale = max(before.scales[cell][component], after.scales[cell][component])
             relative = _relative_residual(residual, scale)
@@ -170,7 +171,7 @@ def compare_stats(
                     f"cell {cell} {name} conservation residual {relative:.3e} "
                     f"exceeds {tolerance:.3e}"
                 )
-    for component, name in enumerate(INVARIANT_NAMES):
+    for component, name in enumerate(before.invariants):
         residual = after.global_moments[component] - before.global_moments[component]
         scale = max(before.global_scales[component], after.global_scales[component])
         relative = _relative_residual(residual, scale)
@@ -189,17 +190,18 @@ def _refined_chunks(
     factor: int,
     new_ids: np.ndarray,
     new_rng: np.ndarray,
+    output_marker: str = CHT_MARKER,
 ) -> Iterator[dict[str, np.ndarray]]:
     cursor = 0
     exponent = factor.bit_length() - 1
-    for chunk in iter_restart_chunks(source, legacy_parcel_mass):
+    for chunk in iter_restart_chunks(source, legacy_parcel_mass, output_marker=output_marker):
         selected_parent = np.isin(chunk["cell"], np.asarray(sorted(selected), dtype=np.int32))
         repeats = np.where(selected_parent, factor, 1).astype(np.int64)
         base = np.repeat(np.arange(len(repeats), dtype=np.int64), repeats)
         group_start = np.repeat(np.cumsum(repeats) - repeats, repeats)
         clone_index = np.arange(len(base), dtype=np.int64) - group_start
         refined: dict[str, np.ndarray] = {
-            name: np.ascontiguousarray(chunk[name][base]) for name in ALL_FIELDS
+            name: np.ascontiguousarray(chunk[name][base]) for name in chunk
         }
         refined_selected = selected_parent[base]
         refined["pm"] = refined["pm"].copy()
@@ -281,6 +283,8 @@ def refine_restart(
     capacity_reserve_fraction: float = 0.05,
     capacity_reserve_minimum: int = 100000,
     tolerance: float = 5.0e-13,
+    *,
+    preserve_fsh_layout: bool = False,
 ) -> dict[str, object]:
     source = Path(source).resolve()
     output = Path(output).resolve()
@@ -298,8 +302,10 @@ def refine_restart(
         raise FileNotFoundError(source)
 
     source_metadata = input_metadata(source)
+    output_marker = (FSH_MARKER if preserve_fsh_layout and
+                     source_metadata["source_format"].endswith("_FP64_FIELDS_BIN") else CHT_MARKER)
     source_hash_before = sha256(source)
-    before, source_ids, source_rng = scan_restart(source, legacy_parcel_mass)
+    before, source_ids, source_rng = scan_restart(source, legacy_parcel_mass, output_marker)
     missing = sorted(cells - set(before.counts))
     if missing:
         raise ValueError(f"target cells are empty or absent: {missing}")
@@ -333,11 +339,13 @@ def refine_restart(
                 factor,
                 new_ids,
                 new_rng,
+                output_marker,
             ),
             output_particles,
             chunk_particles,
+            output_marker=output_marker,
         )
-        after, output_ids, output_rng = scan_restart(temporary, None)
+        after, output_ids, output_rng = scan_restart(temporary, None, output_marker)
         if len(output_ids) != output_particles or len(output_rng) != output_particles:
             raise ValueError("weighted restart reread count mismatch")
         maximum_residual, conservation_rows = compare_stats(
@@ -381,7 +389,7 @@ def refine_restart(
     _atomic_text(conservation_csv, "\n".join(csv_lines) + "\n")
 
     manifest: dict[str, object] = {
-        "format": CHT_MARKER,
+        "format": output_marker,
         **source_metadata,
         "source": str(source),
         "source_sha256": source_hash_before,
@@ -423,7 +431,7 @@ def main() -> None:
     args = parser.parse_args()
     with args.source.open("rb") as stream:
         source_header = stream.readline().decode("ascii", errors="replace").split()
-    if source_header and source_header[0].startswith("UGKP_FSH_PARTICLES_SCHEMA"):
+    if source_header and legacy_fsh_layout(source_header[0]):
         fsh_tools = Path(__file__).resolve().parents[2] / "legacy" / "tool" / "FSH"
         sys.path.insert(0, str(fsh_tools))
         from refine_fsh_particle_cells import refine_restart as refine_fsh_restart
@@ -457,9 +465,13 @@ def main() -> None:
         args.capacity_reserve_fraction,
         args.capacity_reserve_minimum,
         args.tolerance,
+        preserve_fsh_layout=True,
     )
     print(json.dumps(manifest, sort_keys=True))
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (ValueError, OSError, OverflowError) as error:
+        raise SystemExit(f"Error: {error}") from None

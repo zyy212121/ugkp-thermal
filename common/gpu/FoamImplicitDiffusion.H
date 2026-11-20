@@ -1,6 +1,7 @@
 #ifndef UGKP_GPU_FOAM_IMPLICIT_DIFFUSION_H
 #define UGKP_GPU_FOAM_IMPLICIT_DIFFUSION_H
 #include "ImplicitDiffusion.H"
+#include "ResidentConductivity.H"
 #include "FoamSparseSolve.H"
 #include "FoamThermalFieldOperators.H"
 #include "gaussLaplacianScheme.H"
@@ -9,17 +10,26 @@
 #include "fvmLaplacian.H"
 #include "surfaceInterpolate.H"
 #include "fixedGradientFvPatchFields.H"
+#include <limits>
 #include <type_traits>
 namespace ugkp { namespace gpu {
 
 
 
+inline ConductivityBoundary conductivityBoundary(const Foam::fvPatchScalarField& field) {
+    if(field.coupled())return ConductivityBoundary::Coupled;
+    const auto& kind=field.type();
+    if(kind=="zeroGradient"||kind=="wedge"||kind=="symmetry"||kind=="symmetryPlane"||kind=="empty")
+        return ConductivityBoundary::Owner;
+    return ConductivityBoundary::Supplied;
+}
+
 struct FoamTransientAssembly {
     DiffusionTransientInput input;
     bool consumed=false;
     ImplicitDiffusion* resident=nullptr;
-    const double* deviceConductivity=nullptr;
-    const double* deviceBoundaryConductivity=nullptr;
+    const GpuReal* deviceConductivity=nullptr;
+    const GpuReal* deviceBoundaryConductivity=nullptr;
     void* conductivityStream=nullptr;
     const Foam::volScalarField* interpolatedConductivity=nullptr;
     const Foam::surfaceScalarField* conductivityWeights=nullptr;
@@ -140,8 +150,9 @@ public:
             input.deviceConductivity=transient->deviceConductivity;input.deviceBoundaryConductivity=transient->deviceBoundaryConductivity;input.conductivityStream=transient->conductivityStream;
             input.harmonicConductivity=transient->harmonicConductivity;
             input.conductivityWeights.assign(weights.primitiveField().begin(),weights.primitiveField().end());
-            forAll(field.boundaryField(),p){const auto& patch=field.boundaryField()[p];scalarField adjacent,jump;const labelUList* adjacentCells=nullptr;
-                if(patch.coupled()){
+            forAll(field.boundaryField(),p){const auto& patch=field.boundaryField()[p];const auto source=conductivityBoundary(patch);
+                scalarField adjacent,jump;const labelUList* adjacentCells=nullptr;
+                if(source==ConductivityBoundary::Coupled){
                     if(isA<cyclicFvPatchScalarField>(patch)){const auto& cyclic=refCast<const cyclicFvPatchScalarField>(patch);
                         adjacentCells=&cyclic.cyclicPatch().neighbFvPatch().faceCells();
                         if(isA<jumpCyclicFvPatchScalarField>(patch)){jump=refCast<const jumpCyclicFvPatchScalarField>(patch).jump();
@@ -151,7 +162,7 @@ public:
                 forAll(patch,f){input.conductivityWeights.push_back(weights.boundaryField()[p][f]);
                     input.conductivityBoundary.push_back(transient->conductivityBoundaryValues?transient->conductivityBoundaryValues->boundaryField()[p][f]:patch[f]);
                     input.conductivityNeighbour.push_back(adjacent.size()?adjacent[f]:0);
-                    input.conductivityCoupled.push_back(patch.coupled()?1:patch.type()=="zeroGradient"?2:0);
+                    input.conductivityCoupled.push_back(static_cast<int>(source));
                     input.conductivityAdjacentCells.push_back(adjacentCells?(*adjacentCells)[f]:-1);input.conductivityJump.push_back(jump.size()?jump[f]:0);}}
         }
         if(transient&&transient->resident){
@@ -275,7 +286,7 @@ public:
         controls.tolerance=dictionary.lookupOrDefault<Foam::scalar>("tolerance",1e-6);
         controls.relativeTolerance=dictionary.lookupOrDefault<Foam::scalar>("relTol",0);
         controls.normalizationSmall=Foam::solverPerformance::small_;
-        controls.singularSmall=Foam::solverPerformance::vsmall_;
+        controls.singularSmall=std::max(GpuReal(Foam::solverPerformance::vsmall_),std::numeric_limits<GpuReal>::min());
         return withFoamScalarMatrix(equation_.ref(),[&](const SparseLduView& matrix,const SparseCommunication& communication){
             if(communication.addInterface||communication.globalSum)return false;
             sparse_.configureResidentLocalLdu(matrix,resident_.deviceValues(),controls);return true;
@@ -294,7 +305,7 @@ public:
             offset+=temperature.boundaryField()[p].size();}
         temperature.correctBoundaryConditions();
     }
-    const double* residentResidual(){
+    const GpuReal* residentResidual(){
         const auto values=resident_.deviceValues();
         withFoamScalarMatrix(equation_.ref(),[&](const SparseLduView& matrix,const SparseCommunication& communication){
             sparse_.residualResidentLdu(matrix,values,resident_.deviceSolution(),resident_.deviceResidual(),communication);
@@ -331,7 +342,7 @@ public:
             result.ref().boundaryFieldRef()[p][i]=values[f++];
         return result;
     }
-    const double* residentBoundaryFlux(){fluxValues(true,false);return resident_.deviceBoundaryFlux();}
+    const GpuReal* residentBoundaryFlux(){fluxValues(true,false);return resident_.deviceBoundaryFlux();}
     Foam::List<Foam::scalarField> boundaryFlux(){
         const auto& boundary=equation_().psi().boundaryField();const auto values=fluxValues(true);
         Foam::List<Foam::scalarField> result(boundary.size());int face=0;
@@ -347,10 +358,10 @@ template<class Conductivity> inline FoamResidentThermalEquation residentImplicit
     ImplicitDiffusion& resident,SparseConjugateGradient& sparse,
     const Conductivity& conductivity,const Foam::volScalarField& temperature,
     const Foam::volScalarField& capacity,const Foam::volScalarField& rhs,
-    double dt,bool sourceFromCapacity=false,const double* deviceCapacity=nullptr,
-    const double* deviceRhs=nullptr,void* readyStream=nullptr,const double* deviceConductivity=nullptr,bool retainSolution=false,
+    double dt,bool sourceFromCapacity=false,const GpuReal* deviceCapacity=nullptr,
+    const GpuReal* deviceRhs=nullptr,void* readyStream=nullptr,const GpuReal* deviceConductivity=nullptr,bool retainSolution=false,
     const Foam::volScalarField* harmonicSource=nullptr,const Foam::surfaceScalarField* harmonicBoundary=nullptr,
-    const double* deviceBoundaryConductivity=nullptr){
+    const GpuReal* deviceBoundaryConductivity=nullptr){
     std::vector<double> c,b;
     if(!deviceCapacity)c.assign(capacity.primitiveField().begin(),capacity.primitiveField().end());
     if(!deviceRhs)b.assign(rhs.primitiveField().begin(),rhs.primitiveField().end());
@@ -412,8 +423,9 @@ inline bool residentMaterialStartupSupported(const Foam::volScalarField& conduct
     forAll(temperature.boundaryField(),p)
         if(interfaces.set(p)&&!isA<cyclicFvPatchScalarField>(temperature.boundaryField()[p]))return false;
     forAll(conductivity.boundaryField(),p){const auto& field=conductivity.boundaryField()[p];
-        if(field.coupled()){if(!isA<cyclicFvPatchScalarField>(field))return false;}
-        else if(field.type()!="zeroGradient"&&field.type()!="empty")return false;
+        const auto source=conductivityBoundary(field);
+        if(source==ConductivityBoundary::Coupled&&!isA<cyclicFvPatchScalarField>(field))return false;
+        if(source==ConductivityBoundary::Supplied&&field.size())return false;
     }
     return true;
 }

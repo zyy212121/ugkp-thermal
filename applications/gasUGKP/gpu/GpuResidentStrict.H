@@ -1744,6 +1744,13 @@ protected:
         }
     }
 
+    static void failParticleRestartInput(const fileName& path,const std::string& reason)
+    {
+        const auto message=ugkp::diagnostics::inputError({36005,__FILE__,__func__,__LINE__,
+            std::string("gas particle restart ")+path.c_str()+": "+reason});
+        FatalErrorInFunction<<message.c_str()<<exit(FatalError);
+    }
+
     template<class T>
     void readBinaryParticleBlock
     (
@@ -1777,10 +1784,7 @@ protected:
         }
         if (!is || is.gcount() != bytes)
         {
-            FatalErrorInFunction
-                << "Failed reading binary particle restart field "
-                << fieldName << " from " << restartFile
-                << exit(FatalError);
+            failParticleRestartInput(restartFile,std::string("truncated particle field ")+fieldName);
         }
     }
 
@@ -1799,22 +1803,51 @@ protected:
         );
         string restartHeader;
         label nParticles = 0;
-        if (!(is >> restartHeader >> nParticles))
+        if (!(is >> restartHeader >> nParticles) || nParticles < 0)
+            failParticleRestartInput(restartFile,"missing or invalid particle count");
+
+        const bool binaryRestart = restartHeader.size()>=4 &&
+            restartHeader.compare(restartHeader.size()-4,4,"_BIN")==0;
+        std::string headerSuffix;
+        std::getline(is,headerSuffix);
+        bool weightedBinaryRestart=false;
+        if(binaryRestart)
         {
-            FatalErrorInFunction
-                << "Unsupported or invalid GPU resident particle restart "
-                << "format: " << restartFile << exit(FatalError);
+            const auto payload=is.tellg();
+            if(payload<0)
+                failParticleRestartInput(restartFile,"cannot locate the binary particle payload");
+            is.seekg(0,std::ios::end);
+            const std::streamoff bytes=is.tellg()-payload;
+            if(!is || bytes<0)
+                failParticleRestartInput(restartFile,"cannot determine the binary particle payload extent");
+            const auto exactLayout=[&](std::streamoff particleBytes){
+                is.clear();
+                is.seekg(payload);
+                std::streamoff available=bytes;
+                label remaining=nParticles;
+                while(remaining>0)
+                {
+                    unsigned char raw[4];
+                    if(available<4||!is.read(reinterpret_cast<char*>(raw),sizeof(raw)))return false;
+                    available-=sizeof(raw);
+                    const auto count=std::uint32_t(raw[0])|(std::uint32_t(raw[1])<<8)|
+                        (std::uint32_t(raw[2])<<16)|(std::uint32_t(raw[3])<<24);
+                    const auto fields=particleBytes*count;
+                    if(count>static_cast<std::uint32_t>(remaining)||fields>available)return false;
+                    is.seekg(fields,std::ios::cur);
+                    available-=fields;
+                    remaining-=count;
+                }
+                return available==0;
+            };
+            constexpr auto baseBytes=9*sizeof(double)+2*sizeof(std::int32_t)+2*sizeof(std::uint64_t);
+            weightedBinaryRestart=exactLayout(baseBytes+sizeof(double)) ||
+                (!exactLayout(baseBytes) && restartHeader!="UGKP_PARTICLES_SCHEMA5_BIN");
+            is.clear();
+            is.seekg(payload);
         }
-
-        const bool legacyBinaryRestart =
-            restartHeader == "UGKP_PARTICLES_SCHEMA5_BIN";
-        const bool binaryRestart =
-            restartHeader.find("_BIN") != string::npos;
-
-
-
-        const bool weightedBinaryRestart =
-            binaryRestart && !legacyBinaryRestart;
+        if(!weightedBinaryRestart && nParticles && !(std::isfinite(legacyRestartParcelMass_)&&legacyRestartParcelMass_>0))
+            failParticleRestartInput(restartFile,"missing finite positive pm or legacyRestartParcelMass");
         Field<double> px(nParticles);
         Field<double> py(nParticles);
         Field<double> pz(nParticles);
@@ -1833,7 +1866,6 @@ protected:
         if (!binaryRestart)
         {
             string line;
-            std::getline(is, line);
             for (label i = 0; i < nParticles; ++i)
             {
                 do
@@ -1854,18 +1886,12 @@ protected:
                      )
                 )
                 {
-                    FatalErrorInFunction
-                        << "Failed reading GPU resident particle restart mirror "
-                        << restartFile << " at particle " << i
-                        << exit(FatalError);
+                    failParticleRestartInput(restartFile,"incomplete text fields at particle "+std::to_string(i));
                 }
             }
         }
         else
         {
-            string headerSuffix;
-            std::getline(is,headerSuffix);
-
             label offset = 0;
             while (offset < nParticles)
             {
@@ -1884,11 +1910,9 @@ protected:
                     chunkCount > static_cast<std::uint32_t>(remaining)
                 )
                 {
-                    FatalErrorInFunction
-                        << "Invalid binary restart chunk count "
-                        << chunkCount << " at offset " << offset
-                        << " in " << restartFile << exit(FatalError);
+                    failParticleRestartInput(restartFile,"invalid chunk count at particle "+std::to_string(offset));
                 }
+                if(chunkCount==0)continue;
                 const label count = static_cast<label>(chunkCount);
                 readBinaryParticleBlock(is, px.begin() + offset, count, "px", restartFile);
                 readBinaryParticleBlock(is, py.begin() + offset, count, "py", restartFile);
@@ -1909,7 +1933,6 @@ protected:
                 readBinaryParticleBlock(is, pOrigId.begin() + offset, count, "pOrigId", restartFile);
                 offset += count;
             }
-
         }
 
         check

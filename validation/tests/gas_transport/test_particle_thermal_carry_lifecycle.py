@@ -81,12 +81,24 @@ ASSIGNMENTS
   for(double h:pColdNodeSpecificEnthalpy)assert(h!=double(float(h)));
   assert(marker==Foam::gpuThermalRestart::native64ChtMarker);
   assert(particleEncoding(schema9FormatName)==Encoding::floatCold);
-  std::istringstream renumbered("UGKP_CHT_PARTICLES_SCHEMA400_NATIVE64_RAW_COLD_BIN"+
+  std::istringstream renumbered("UGKP_EXPORTED_PARTICLES_SCHEMA400_NATIVE64_RAW_COLD_BIN"+
       wire.str().substr(wire.str().find(' ')),std::ios::binary);
   const auto header=readHeader<int>(renumbered);
   assert(header.count==3 && header.encoding==Encoding::raw64);
   readBinaryPayload(renumbered,header.chunk,out,header.encoding);
   assert(pColdNodeSpecificEnthalpy==expectedNodes);
+  struct Fp64View : ConstView { const double* pCold2DNodeSpecificEnthalpy; } fsh;
+  static_cast<ConstView&>(fsh)=in;
+  const std::vector<double> fshNodes(pCold2DNodeSpecificEnthalpy.size(), 9.25);
+  fsh.pCold2DNodeSpecificEnthalpy=fshNodes.data();
+  std::ostringstream fp64(std::ios::binary);
+  Foam::gpuThermalRestart::writeCurrent<false>(fp64,"UGKP_FSH_PARTICLES_SCHEMA408_FP64_FIELDS_BIN",fsh);
+  std::istringstream fp64Input(fp64.str(),std::ios::binary);
+  const auto fp64Header=readHeader<int>(fp64Input);
+  assert(fp64Header.encoding==Encoding::fp64Fields);
+  readBinaryPayload(fp64Input,fp64Header.chunk,out,fp64Header.encoding);
+  for(auto value:pCold2DNodeSpecificEnthalpy)assert(value==9.25f);
+  for(auto value:restored)assert(value==0.);
   for (int kind=0;kind<3;++kind) {
     std::string broken=wire.str();
     if(kind==0) broken.pop_back();

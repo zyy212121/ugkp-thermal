@@ -167,7 +167,7 @@ inline void writeCurrent(std::ostream& os,const char* name,const View& v)
     }
     if (!os.good()) throw std::runtime_error("failed writing particle restart header");
 }
-template<bool HasCarry, class View>
+template<bool HasCarry, class Cold2DDiskReal=void, class View>
 inline void readCurrentPayload(std::istream& is,std::uint32_t bound,const View& v)
 {
     (void)bound;
@@ -179,7 +179,15 @@ inline void readCurrentPayload(std::istream& is,std::uint32_t bound,const View& 
         if (!is.good() || !chunk || chunk>v.count-begin)
             throw std::runtime_error("invalid particle restart chunk size");
         currentFields<HasCarry>(v,begin,chunk,[&](auto* p,std::size_t b,std::size_t n)
-        { readArray(is,p,b,n); });
+        {
+            if constexpr(!std::is_void<Cold2DDiskReal>::value){
+                if(static_cast<const void*>(p)==static_cast<const void*>(v.pCold2DNodeSpecificEnthalpy)){
+                    readConverted<Cold2DDiskReal>(is,p,b,n);
+                    return;
+                }
+            }
+            readArray(is,p,b,n);
+        });
         begin+=chunk;
     }
 }

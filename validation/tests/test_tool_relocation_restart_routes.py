@@ -19,11 +19,13 @@ import thermal_particle_restart_current as current
 FSH6 = "UGKP_FSH_PARTICLES_SCHEMA6_BIN"
 MARKERS = [FSH6, "UGKP_THERMAL_PARTICLES_SCHEMA7_T32_BIN",
            "UGKP_THERMAL_PARTICLES_SCHEMA7_T64_BIN", current.FSH_MARKER,
-           current.CHT_MARKER]
+           current.CHT_MARKER,
+           current.FSH_MARKER.replace("SCHEMA8", "SCHEMA438"),
+           current.CHT_MARKER.replace("UGKP_CHT_PARTICLES_SCHEMA9", "UGKP_SOURCE_PARTICLES_SCHEMA259")]
 
 
 def historical_specs():
-    path = SOURCE_ROOT / "tool/FSH/fsh_particle_restart_schema6.py"
+    path = SOURCE_ROOT / "legacy/tool/FSH/fsh_particle_restart_schema6.py"
     spec = importlib.util.spec_from_file_location("relocated_legacy_fsh_specs", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -106,3 +108,41 @@ def test_cht_cli_routes_legacy_and_current_owner_in_fresh_process(tmp_path, mark
         expected = (original[name].astype(dtype) if name in original
                     else np.full(restored[name].shape, -1 if name == "pStuckFaceId" else 0, dtype=dtype))
         np.testing.assert_array_equal(restored[name], expected)
+
+
+@pytest.mark.parametrize("app", ["gasUGKP", "CHT"])
+@pytest.mark.parametrize("weighted", [True, False])
+def test_base_reader_consumes_relabelled_binary_fields(tmp_path, app, weighted):
+    source = tmp_path / "source.dat"
+    marker = "UGKP_PARTICLES_SCHEMA5_BIN" if weighted else "UGKP_PARTICLES_SCHEMA531_BIN"
+    values = (.125, 2, 3, 4, 5, 6, 300, 8, .001)
+    body = (struct.pack("<10d2i2Q", *values, 3, 0, 1, 11, 12) if weighted
+            else struct.pack("<9d2i2Q", *values, 0, 1, 11, 12))
+    source.write_bytes(f"{marker} 1 1\n".encode() + struct.pack("<I", 1) + body)
+    program = """
+from pathlib import Path
+import sys
+sys.path.insert(0,sys.argv[1])
+from ugkp_particle_restart import collect_restart
+mass = None if sys.argv[3] == "weighted" else 2.0
+fields = collect_restart(Path(sys.argv[2]), mass)
+assert fields["pm"][0] == (3 if mass is None else 2)
+assert fields["px"][0] == .125 and fields["orig_id"][0] == 12
+"""
+    result = subprocess.run([sys.executable, "-c", program, str(SOURCE_ROOT / f"tool/{app}"),
+                             str(source), "weighted" if weighted else "unweighted"],
+                            cwd=tmp_path, env=child_env(), capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+
+
+def test_cli_names_missing_thermal_field(tmp_path):
+    source, output = tmp_path / "source.dat", tmp_path / "output.dat"
+    marker = current.CHT_MARKER.replace("SCHEMA9", "SCHEMA562")
+    write_input(source, marker)
+    source.write_bytes(source.read_bytes()[:-1])
+    result = subprocess.run([sys.executable, str(SOURCE_ROOT / "tool/CHT/refine_particle_cells.py"),
+                             str(source), str(output), "--cell", "1", "--factor", "1"],
+                            cwd=tmp_path, env=child_env(), capture_output=True, text=True)
+    assert result.returncode != 0
+    assert "Error:" in result.stderr and "truncated particle field pThermalEnthalpyResidual" in result.stderr
+    assert not output.exists()
