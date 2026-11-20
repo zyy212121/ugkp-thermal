@@ -19,7 +19,7 @@ struct MicrostepGeometryReport {
 };
 struct WindowEvolutionReport {
     std::uint64_t acceptedGasMicrosteps=0,materialSolves=0;
-    Real nextGasDt=0;
+    Real nextGasDt=0,radiationInterval=0;
     std::vector<MicrostepGeometryReport> geometry{};
 };
 
@@ -27,6 +27,6 @@ struct WindowEvolutionReport {
 
 bool advanceCoupledWindow(Backend&,CpuMaterialDriver&,const ModelConfig&,
     const CouplingControls&,const CpuMaterialControls&,Real targetTime,
-    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport&,std::string& error,WindowRadiation* radiation=nullptr,bool publishHostState=true,bool outputBoundary=false);
+    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport&,std::string& error,WindowRadiation* radiation=nullptr,bool publishHostState=true);
 }
 #endif

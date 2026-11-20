@@ -126,8 +126,8 @@ int main(int argc,char** argv) {
             const auto due=[&](Foam::label interval){return force||(interval>0&&step%interval==0);};
             return chmt::io::OutputSelection{due(diagnosticInterval),due(fieldInterval),due(checkpointInterval)};
         };
-        const auto publish=[&](chmt::io::OutputSelection choice){
-            output.submit(choice,*backend,input.state,radiation.get());
+        const auto publish=[&](chmt::io::OutputSelection choice,double radiationInterval=0){
+            output.submit(choice,*backend,input.state,radiation.get(),radiationInterval);
         };
         try {
         if(writeInitial||(writeFinal&&input.state.time>=end))publish(selection(input.state.acceptedSteps,true));
@@ -136,8 +136,8 @@ int main(int argc,char** argv) {
             output.collectReady();
             auto choice=selection(input.state.acceptedSteps+1,false);
             chmt::WindowEvolutionReport report;
-            chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error,radiation.get(),false,choice.fields||choice.checkpoint),error);
-            publish(writeFinal&&input.state.time>=end?selection(input.state.acceptedSteps,true):choice);
+            chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error,radiation.get(),false),error);
+            publish(writeFinal&&input.state.time>=end?selection(input.state.acceptedSteps,true):choice,report.radiationInterval);
             input.state.ledger.clear();ugkp::releaseUnusedHostPages();
             if
             (

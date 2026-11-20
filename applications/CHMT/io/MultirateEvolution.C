@@ -9,7 +9,7 @@
 namespace chmt {
 bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const ModelConfig&,
     const CouplingControls& controls,const CpuMaterialControls& materialControls,Real targetTime,
-    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport& report,std::string& error,WindowRadiation* radiation,bool publishHostState,bool outputBoundary) {
+    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport& report,std::string& error,WindowRadiation* radiation,bool publishHostState) {
     report=WindowEvolutionReport{};
     try {
         const HostState& base=accepted;
@@ -17,7 +17,7 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         if(!controller.begin(base.time,targetTime,base.commitSequence+1,controls,error))return false;
         const CouplingInterval interval=controller.interval();
         const bool radiate=radiation && radiation->due(interval,controls,base,
-            outputBoundary || ugkp::gpu::reachedEventTime(interval.end,targetTime,interval.end-interval.begin));
+            ugkp::gpu::reachedEventTime(interval.end,targetTime,interval.end-interval.begin));
         WallProgram program;
         CpuMaterialReport prediction;
         if(!material.predictWindowWall(base,interval,program,error,&prediction,true))return false;
@@ -57,7 +57,10 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         if(!(publishHostState?downloadGasWindow(backend,gasEndpoint,error):publishGasWindow(backend,gasEndpoint,error)))return false;
         const IntervalHistory& history=gasWindowHistory(backend);
         EnergyReal externalRadiationHeat=0;
-        if(radiate&&!radiation->advance(backend,program,gasEndpoint,externalRadiationHeat,error))return false;
+        if(radiate){
+            if(!radiation->advance(backend,program,gasEndpoint,externalRadiationHeat,error))return false;
+            report.radiationInterval=gasEndpoint.radiationTime-base.radiationTime;
+        }
         HostState candidate;CpuMaterialReport cpu;
         ++report.materialSolves;
         if(!material.finishImplicitParent(base,gasEndpoint,interval,materialControls,history.externalRadiationDevice(),

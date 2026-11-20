@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <vector>
 namespace chmt {
 struct Backend;
 struct HostState;
@@ -10,8 +11,8 @@ public:
     AcceptedStateSnapshot();
     ~AcceptedStateSnapshot();
 
-    void freeze(Backend&,const HostState&);
+    void freeze(Backend&,const HostState&,bool captureRadiation);
 
-    void collect(HostState&);
+    void collect(HostState&,std::vector<double>& radiationEnergy);
 };
 }

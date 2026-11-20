@@ -69,8 +69,15 @@ def radiating_tail(binary, fixture, output):
         assert 'radiationFrequency=3' in text
         return [(float(t)/period,float(r)/period) for t,r in re.findall(r'CHMT_REPRO step=\d+ time=(\S+) radiationTime=(\S+)',text)]
     first=advance('radiating',4.25,2,4)
-    assert first==[(1,0),(2,2),(3,3),(4,4),(4.25,4.25)],first
-    restart=output/'radiating/checkpointOutput/checkpoint-5'
+    assert first==[(1,0),(2,0),(3,3),(4,3),(4.25,4.25)],first
+    published=output/'radiating/checkpointOutput'
+    assert not (published/'wall-radiation-2.csv').exists()
+    assert not (published/'wall-radiation-4.csv').exists()
+    radiation=load_rows(published/'wall-radiation-5.csv')
+    assert radiation and all(float(r['radiation_time'])==4.25*period and
+                             float(r['interval_s'])==1.25*period and
+                             math.isfinite(float(r['energy_J'])) for r in radiation)
+    restart=published/'checkpoint-5'
     assert (restart/'domWarmStart.bin').stat().st_size>0
     second=advance('radiating-resumed',6.5,0,0,restart)
     assert second==[(5,4.25),(6,6),(6.5,6.5)],second

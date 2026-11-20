@@ -139,22 +139,24 @@ public:
     void finish() {
         ugkp::diagnostics::dispatch(collect(),sink_);
     }
-    void submit(const OutputSelection& selected,Backend& backend,const HostState& state,CoupledRadiation* radiation) {
+    void submit(const OutputSelection& selected,Backend& backend,const HostState& state,
+        CoupledRadiation* radiation,double radiationInterval) {
         collectReady();
         if (!selected.summary && !selected.fields && !selected.checkpoint) return;
         finish();
         const auto summary=acceptedSummary(state);
         const bool saveWarm=selected.checkpoint && radiation;
+        const bool captureRadiation=selected.fields && radiationInterval>0;
         std::unique_ptr<HostState> copy;
         if (selected.fields || selected.checkpoint) {
             auto report=withReport(summary,[&](auto&) {
                 copy=std::make_unique<HostState>(state);
-                fieldTransfer_.freeze(backend,state);
+                fieldTransfer_.freeze(backend,state,captureRadiation);
                 if (saveWarm) radiation->freezeWarmStart(warm_,gasWindowDeviceView(backend).producerStream);
             });
             ugkp::diagnostics::dispatch(report,sink_);
         }
-        pending_=std::async(std::launch::async,[this,summary,selected,saveWarm,copy=std::move(copy)]() mutable {
+        pending_=std::async(std::launch::async,[this,summary,selected,saveWarm,radiationInterval,copy=std::move(copy)]() mutable {
             return withReport(summary,[&](ugkp::diagnostics::DeviceContext& context) {
                 auto model=model_;
                 model.physics.diagnostics=&context;
@@ -163,8 +165,13 @@ public:
                 const bool replace=resumedStep_&&*resumedStep_==summary.step;
                 if (selected.summary)
                     csv(directory_+"/accepted-"+suffix+".csv",replace,[&](auto& out,auto& e){return writeAcceptedCoupledSummary(out,summary,model,e);});
-                if (copy) fieldTransfer_.collect(*copy);
+                std::vector<double> wallRadiation;
+                if (copy) fieldTransfer_.collect(*copy,wallRadiation);
                 if (selected.fields) fields(suffix,*copy,model,replace);
+                if (!wallRadiation.empty())
+                    csv(directory_+"/wall-radiation-"+suffix+".csv",replace,[&](auto& out,auto& e){
+                        return writeAcceptedWallRadiationFields(out,*copy,radiationInterval,wallRadiation,e);
+                    });
                 if (selected.checkpoint && !ugkp::diagnostics::hasFatal(&context))
                     checkpoint(suffix,*copy,model,saveWarm,replace);
             });

@@ -2,6 +2,7 @@
 struct AcceptedStateSnapshot::Storage {
     ugkp::gpu::FrozenReadback transfer;
     ugkp::gpu::SnapshotRange<HostGasPublication> gas;
+    ugkp::gpu::SnapshotRange<GpuReal> radiation;
     ugkp::gpu::SnapshotRange<GpuReal> temperature, fraction, pressure, residualMass;
     ugkp::gpu::SnapshotRange<int> sourceFaces;
     ugkp::gpu::SnapshotRange<ugkp::thermal::ParticleState<>> particles;
@@ -11,18 +12,28 @@ struct AcceptedStateSnapshot::Storage {
 AcceptedStateSnapshot::AcceptedStateSnapshot() : data_(new Storage) {}
 AcceptedStateSnapshot::~AcceptedStateSnapshot()=default;
 
-void AcceptedStateSnapshot::freeze(Backend& backend,const HostState& state) {
+void AcceptedStateSnapshot::freeze(Backend& backend,const HostState& state,bool captureRadiation) {
     auto& s=*data_;
     s.sequence=state.commitSequence;
     s.gasVersion=state.gasMesh.geometryVersion;
     s.solidVersion=state.solidMesh.geometryVersion;
     s.resident=!backend.hostEndpointCurrent;
-    if (!s.resident) return;
+    const auto stream=backend.gasCaptureStream;
+    ugkp::gpu::SnapshotLayout layout;
+    const auto radiationCount=captureRadiation?state.surface.gasFace.size():0;
+    if (captureRadiation&&backend.windowRadiation.size()!=radiationCount)
+        ugkp::gpu::snapshotDataFailure("accepted window radiation face data is incomplete");
+    s.radiation=layout.allocate<GpuReal>(radiationCount);
+    if (!s.resident) {
+        s.transfer.freeze(layout.bytes,stream,[&](unsigned char* bytes){
+            s.radiation.copy(bytes,backend.windowRadiation.data(),stream);
+        });
+        return;
+    }
     const auto& view=backend.storage.hostView();
     if (view.nCells<0 || static_cast<std::size_t>(view.nCells)!=state.gasMesh.volumes.size() ||
         view.nFaces<0 || static_cast<std::size_t>(view.nFaces)!=state.gasMesh.owner.size())
         ugkp::gpu::snapshotDataFailure("accepted gas geometry has incomplete cell or face dimensions");
-    const auto stream=backend.gasCaptureStream;
     s.sst=view.sstConfigured;
     s.particleOwner=backend.particles.active();
     auto* owner=backend.particles.owner();
@@ -37,7 +48,6 @@ void AcceptedStateSnapshot::freeze(Backend& backend,const HostState& state) {
         if (wave && state.gasMesh.boundaryPrimitive.size()!=boundary.size())
             ugkp::gpu::snapshotDataFailure("accepted wave boundary pressure field is incomplete");
     }
-    ugkp::gpu::SnapshotLayout layout;
     s.gas=layout.allocate<HostGasPublication>(view.nCells);
     s.temperature=layout.allocate<GpuReal>(view.nCells);
     s.fraction=layout.allocate<GpuReal>(view.gasVolumeFraction ? view.nCells : 0);
@@ -46,6 +56,7 @@ void AcceptedStateSnapshot::freeze(Backend& backend,const HostState& state) {
     s.sourceFaces=layout.allocate<int>(shape.sources);
     s.residualMass=layout.allocate<GpuReal>(shape.sources);
     s.transfer.freeze(layout.bytes,stream,[&](unsigned char* bytes) {
+        s.radiation.copy(bytes,backend.windowRadiation.data(),stream);
         if (view.nCells) {
             const auto width=ugkp::gpu::workPlan().cellBlockThreads;
             packGasWindowCells<<<(view.nCells+width-1)/width,width,0,stream>>>(
@@ -62,13 +73,19 @@ void AcceptedStateSnapshot::freeze(Backend& backend,const HostState& state) {
     });
 }
 
-void AcceptedStateSnapshot::collect(HostState& state) {
+void AcceptedStateSnapshot::collect(HostState& state,std::vector<double>& radiationEnergy) {
     auto& s=*data_;
     if (state.commitSequence!=s.sequence || state.gasMesh.geometryVersion!=s.gasVersion ||
         state.solidMesh.geometryVersion!=s.solidVersion)
         throw std::logic_error("accepted snapshot destination belongs to another endpoint");
-    if (!s.resident) return;
+    radiationEnergy.clear();
+    if (!s.resident&&!s.radiation.count) return;
     const auto* bytes=s.transfer.collect();
+    if (s.radiation.count) {
+        const auto* energy=s.radiation.at(bytes);
+        radiationEnergy.assign(energy,energy+s.radiation.count);
+    }
+    if (!s.resident) return;
     const auto* pressure=s.pressure.at(bytes);
     for (std::size_t f=0;f<s.pressure.count;++f)
         if (state.gasMesh.gasBoundary->faces[f].wave) state.gasMesh.boundaryPrimitive[f].pressure=pressure[f];

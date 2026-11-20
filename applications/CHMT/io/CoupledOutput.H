@@ -47,17 +47,21 @@ inline bool writeAcceptedGasFields(std::ostream& stream,const HostState& state,
 }
 inline bool writeAcceptedParticleFields(std::ostream& stream,const HostState& state,std::string& error){
     stream<<std::setprecision(17)<<"id,status,state,cell,face,x,y,z,ux,uy,uz,mass,diameter,temperature,thermal_energy,theta,thermal_carry,contact_age,contact_duration,contact_area,contact_mechanical_energy\n";
+    const auto carry=[](const auto& thermal){
+        if constexpr(std::is_same_v<PhysicalReal,float>)return 0.0;
+        else return thermal.specificEnthalpyResidual;
+    };
     for(const auto& p:state.particles){
         stream<<p.id<<','<<p.thermal.status<<','<<p.state<<','<<p.cell<<','<<p.face<<','
             <<p.position.x<<','<<p.position.y<<','<<p.position.z<<','<<p.velocity.x<<','<<p.velocity.y<<','<<p.velocity.z<<','
-            <<p.mass<<','<<p.diameter<<','<<p.thermal.temperature<<','<<p.energy<<','<<p.thermal.theta<<','<<p.thermal.specificEnthalpyResidual<<','
+            <<p.mass<<','<<p.diameter<<','<<p.thermal.temperature<<','<<p.energy<<','<<p.thermal.theta<<','<<carry(p.thermal)<<','
             <<p.contactAge<<','<<p.contactDuration<<','<<p.contactArea<<','<<p.contactMechanicalEnergy<<'\n';
     }
     if(!stream){error="particle field output write failed";return false;}error.clear();return true;
 }
 inline bool writeAcceptedMaterialFields(std::ostream& stream,const HostState& state,
     const ModelConfig& model,std::string& error){
-    std::vector<Real> temperature(state.solid.size());
+    std::vector<PhysicalReal> temperature(state.solid.size());
     for(std::size_t c=0;c<state.solid.size();++c)if(!recoverSolid(state.solid[c],model.physics,temperature[c])){error="invalid accepted material output";return false;}
     stream<<std::setprecision(17)<<"cell,volume,total_energy,temperature,porosity";
     for(const auto& name:model.condensedNames)stream<<','<<std::quoted("mass_"+name);
@@ -83,6 +87,20 @@ inline bool writeAcceptedExchangeFields(std::ostream& stream,const HostState& st
     }
     });
     if(!stream){error="exchange field output write failed";return false;}error.clear();return true;
+}
+inline bool writeAcceptedWallRadiationFields(std::ostream& stream,const HostState& state,
+    double interval,const std::vector<double>& energy,std::string& error){
+    if(energy.size()!=state.surface.gasFace.size()||energy.size()!=state.surface.persistentId.size()){
+        error="accepted radiation face data is incomplete";return false;
+    }
+    stream<<std::setprecision(17)<<"radiation_time,interval_s,gas_face,face,energy_J\n";
+    for(std::size_t f=0;f<energy.size();++f){
+        if(!std::isfinite(energy[f])){error="nonfinite accepted wall radiation energy";return false;}
+        stream<<state.radiationTime<<','<<interval<<','<<state.surface.gasFace[f]<<','
+            <<state.surface.persistentId[f]<<','<<energy[f]<<'\n';
+    }
+    if(!stream){error="wall radiation field output write failed";return false;}
+    error.clear();return true;
 }
 inline bool writeAcceptedWallLayerFields(std::ostream& stream,const HostState& state,
     const ModelConfig& model,std::string& error){
