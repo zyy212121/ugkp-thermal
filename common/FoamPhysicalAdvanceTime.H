@@ -19,6 +19,7 @@ public:
         AdvanceRequest request;
         request.adjustTimeStep=gas.adjustTimeStep;
         request.targetCourant=gas.maxCo;
+        request.limitDiffusiveTimeStep=gas.limitDiffusiveTimeStep;
         request.maximumDt=gas.maxDeltaT;
         request.growthLimit=gas.maximumTimeStepGrowth;
         request.courantInterval=gas.courantUpdateInterval;

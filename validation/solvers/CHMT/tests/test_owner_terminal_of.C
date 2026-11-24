@@ -45,7 +45,6 @@ int main(int argc,char** argv){
     countAllocations=true;assert(driver.advanceCandidate(base,endpoint,history,controls,result,corrected,report,error));countAllocations=false;
     const auto normal=result;const auto normalReport=report;const auto normalSolves=chmt_test::materialSolveCalls,normalRhs=chmt_test::materialRhsCalls;
     std::cout<<std::hexfloat<<"OWNER_PROGRAM ";programOut(corrected);std::cout<<"OWNER_COST "<<ownerAllocations<<' '<<ownerBytes<<'\n';
-    assert(normal.gasWallDiagnostics.empty());
     chmt_test::physicalSnapshot("owner_normal",normal,corrected);
 
     if(const char* path=std::getenv("CHMT_PARITY_PATH"))assert(writeCheckpoint(path,model,normal,error));

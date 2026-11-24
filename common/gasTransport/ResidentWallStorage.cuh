@@ -8,6 +8,7 @@ template<class State> int releaseBoundaryLayerStorage(State& s)
     WALL_RELEASE(gasBoundaryLayer.faceSlot);WALL_RELEASE(gasBoundaryLayer.ownerSlot);
     WALL_RELEASE(gasBoundaryLayer.status);WALL_RELEASE(gasBoundaryLayer.exchange);
     WALL_RELEASE(gasBoundaryLayer.sst);WALL_RELEASE(gasBoundaryLayer.speciesFlux);
+    WALL_RELEASE(gasBoundaryLayer.kernelTiming);
     WALL_RELEASE(gasBoundaryLayerModel.input);WALL_RELEASE(gasBoundaryLayerModel.output);
     WALL_RELEASE(gasBoundaryLayerModel.profile);
     WALL_RELEASE(gasBoundaryLayerModel.evaluationOutput);WALL_RELEASE(gasBoundaryLayerModel.fluxProfile);

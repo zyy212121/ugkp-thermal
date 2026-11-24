@@ -185,7 +185,7 @@ struct Budget {
     EnergyReal boundaryEnergy=0;
     PhysicalVec3 boundaryMomentum{};
     PhysicalVec3 supportImpulse{};
-    EnergyReal supportWork=0,bodyWork=0,radiation=0; Real gclResidual=0;
+    EnergyReal supportWork=0,bodyWork=0; Real gclResidual=0;
     PhysicalReal exchangeMass[NParticipants]{},exchangeSpecies[NParticipants][Ns]{}; EnergyReal exchangeEnergy[NParticipants]{};
     PhysicalVec3 exchangeMomentum[NParticipants]{};
     EnergyReal filmPressureVolume=0,filmKineticAdvection=0,filmKineticStorage=0,filmReducedResidual=0,filmKineticDefect=0;

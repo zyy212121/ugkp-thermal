@@ -211,9 +211,8 @@ int main(){
  auto missing=h;missing.solidStages={};require(writeCheckpoint(directory,model,missing,error),"empty supplied stage arrays are serialized");
  require(readCheckpoint(directory,model,restored,error)&&restored.solidStages[0].newVolume.empty(),"empty stage arrays are retained without invention");
  auto pending=h;FilmPressureVolumeUpdate storage;storage.consumed=false;storage.oldPV=3;storage.newPV=4;pending.filmStorage.push_back(storage);
- ExchangePacket packet;packet.consumerMask=0;pending.ledger.push_back(packet);
  require(writeCheckpoint(directory,model,pending,error),error);auto pendingBytes=bytes(file);
- require(readCheckpoint(directory,model,restored,error)&&restored.ledger.size()==1&&!restored.filmStorage[0].consumed,"pending fields persist without resume claims");
+ require(readCheckpoint(directory,model,restored,error)&&!restored.filmStorage[0].consumed,"pending fields persist without resume claims");
 
  std::string pair(17,0);setReal(pair,0,3);setReal(pair,8,4);
  const auto boolOffset=pendingBytes.find(pair,72+getInteger(pendingBytes,48));

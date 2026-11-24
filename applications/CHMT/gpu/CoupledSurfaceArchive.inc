@@ -13,18 +13,22 @@ struct CoupledSurfaceRecord {
 __device__ inline void packCoupledSurfaceRecord(int slot,const CoupledSurfaceRecord* records,int count,
     const int* faces,ugkp::thermal::ParticleWallExchangeView particle,
     CoupledSurfaceDownload* output,CoupledWallDownload* wallOutput,
-    CoupledRecordFailure* failure,int solids,int films){
+    CoupledRecordFailure* failure,int solids,int films,bool captureDrive){
     if(slot>=count)return;
     const auto& in=records[slot];auto& out=output[slot];
-    out.bulk=in.sample.primitive;out.gradient=in.sample.gradient;out.traction=in.rates.traction;
-    out.primary=in.primary;out.pore=in.pore;out.acceptedWall=in.acceptedWall;
+    if(captureDrive){
+        out.bulk=in.sample.primitive;out.gradient=in.sample.gradient;out.traction=in.rates.traction;
+        out.acceptedWall=in.acceptedWall;
+    }
+    out.primary=in.primary;out.pore=in.pore;
     out.radiationEnergy=in.radiationEnergy;out.radiationReceiver=in.radiationReceiver;
     out.failed=in.failed;
     out.particleWallEnergy=particle.depositedEnergy
         ?particle.depositedEnergy[faces[slot]]+particle.reflectedEnergy[faces[slot]]-in.particleHeatAtBegin:0;
-    if(wallOutput){auto& wall=wallOutput[slot];
-        wall.matching=in.matching;
-        wall.transportCode=in.wallTransportCode;wall.status=in.wallStatus;
+    if(wallOutput){
+        auto& wall=wallOutput[slot];
+        if(captureDrive)wall.matching=in.matching;
+        if(captureDrive||in.failed==2){wall.transportCode=in.wallTransportCode;wall.status=in.wallStatus;}
     }
     if(in.failed)atomicMin(&failure->wall,slot);
     if(coupledRecordOwnerFailure(out,solids,films))atomicMin(&failure->owner,slot);
@@ -33,10 +37,11 @@ struct CoupledSurfaceArchiveView {
     CoupledSurfaceDownload* surface;
     CoupledWallDownload* wall;
     const std::size_t* frame;
+    bool captureDrive=true;
     __device__ CoupledSurfaceArchiveView current(int count) const {
         if(!frame)return *this;
         const auto offset=*frame*std::size_t(count);
-        return {surface+offset,wall?wall+offset:nullptr,nullptr};
+        return {surface+offset,wall?wall+offset:nullptr,nullptr,captureDrive};
     }
 };
 
@@ -53,7 +58,7 @@ __global__ void packCoupledSurfaceKernel(const CoupledSurfaceRecord* records,int
     }
     const auto frame=storage.current(count);
     const int slot=blockIdx.x*blockDim.x+threadIdx.x;
-    packCoupledSurfaceRecord(slot,records,count,faces,particle,frame.surface,frame.wall,failure,solids,films);
+    packCoupledSurfaceRecord(slot,records,count,faces,particle,frame.surface,frame.wall,failure,solids,films,frame.captureDrive);
     if constexpr(oneBlock){
         __syncthreads();
         if(!threadIdx.x)reportCoupledRecordFailure(local,count,frame.surface,frame.wall,faces,solids,films,diagnostics);

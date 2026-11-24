@@ -37,7 +37,7 @@ struct SourceReport {RadiationReal maximumRelativeChange=0,materialRelativeResid
     unsigned long long matvecs=0,workLimit=0,remainingWork=0;
     int sourceStop=0, plateauSamples=0;
     RadiationReal plateauReference=0;
-    double wideResidual=0, arithmeticDelta=0, minimumUnconstrainedIntensity=0;
+    double minimumUnconstrainedIntensity=0;
     Failure failure{};};
 __global__ void publishSourcePreconditionerWarning(const SourceReport* report,diagnostics::DeviceContext* context){
     if(threadIdx.x||blockIdx.x||!report->preconditionerFallbackBlocks)return;
@@ -345,32 +345,6 @@ __global__ void collectPublishedDirections(int angles,const RadiationDirectionWa
     }
     report->transportRelativeResidual=maximum;
     report->intensityUnchanged=fixed;
-}
-__global__ void auditPublishedRows(OrderedUpwindDevice matrix,const RadiationReal* diagonal,
-    const RadiationReal* source,const RadiationReal* x,const UpwindLinearReport* measured,SourceReport* report){
-    __shared__ double wide[128],delta[128];
-    const int lane=threadIdx.x;
-    double maxWide=0,maxDelta=0;
-    for(int cell=lane;cell<matrix.cells;cell+=blockDim.x){
-        RadiationReal native=diagonal[cell]*x[cell]-source[cell];
-        double precise=double(diagonal[cell])*x[cell]-double(source[cell]);
-        for(int j=matrix.offsets[cell];j<matrix.offsets[cell+1];++j){
-            const int e=matrix.residualOrder[j];
-            const auto flux=matrix.subtract[e]?matrix.flux[e]:-matrix.flux[e];
-            native+=flux*x[matrix.neighbour[e]];
-            precise+=double(flux)*x[matrix.neighbour[e]];
-        }
-        maxWide=fmax(maxWide,fabs(precise));maxDelta=fmax(maxDelta,fabs(precise-native));
-    }
-    wide[lane]=maxWide;delta[lane]=maxDelta;__syncthreads();
-    for(int stride=blockDim.x/2;stride;stride/=2){
-        if(lane<stride){wide[lane]=fmax(wide[lane],wide[lane+stride]);delta[lane]=fmax(delta[lane],delta[lane+stride]);}
-        __syncthreads();
-    }
-    if(!lane){
-        report->wideResidual=fmax(report->wideResidual,wide[0]/measured->maximumMagnitude);
-        report->arithmeticDelta=fmax(report->arithmeticDelta,delta[0]/measured->maximumMagnitude);
-    }
 }
 __global__ void finishSourceIteration(SourceReport* report,const RadiationReal* change,RadiationControls controls,
     cudaGraphConditionalHandle handle,const RadiationThermalCouplingDeviceView* thermal,int* stage,const diagnostics::DeviceContext* context,bool materialUpdates){
@@ -886,14 +860,6 @@ struct DiscreteOrdinateRadiation::Implementation {
         });
         cudaGraph_t finalBody=nullptr;const auto completed=branch(graph,loop,4,finalBody);
         appendRecorded(finalBody,{},stream,[&]{
-
-
-            for(int angle=0;angle<g.directions;++angle){
-                auto& q=*directions[angle];reset(q,stream);
-                prepareDirection<<<blocks,width,0,stream>>>(g,f,angle,0,intensities.ptr,incident.ptr,
-                    q.diagonal.ptr,q.source.ptr,q.solved.ptr,q.errors(),sourceReport.ptr,true);
-                auditPublishedRows<<<1,128,0,stream>>>(q.matrix,q.diagonal.ptr,q.source.ptr,q.solved.ptr,q.graph->report(),sourceReport.ptr);
-            }
             reset();incidentFlux<<<boundaryBlocks,width,0,stream>>>(g,intensities.ptr,incident.ptr,errors());
             rememberFailure<<<1,1,0,stream>>>(sourceReport.ptr,errors());
             reset();moments<<<blocks,width,0,stream>>>(g,f,intensities.ptr,0,incidentRadiation.ptr,power.ptr,errors(),sourceReport.ptr);
@@ -1103,7 +1069,6 @@ RadiationResult DiscreteOrdinateRadiation::collect(bool exportFields){
     }
     if(report.failure.code){d.resultReady=false;fail(report.failure);}
     result.sourceStop=report.sourceStop;result.matvecs=report.matvecs;result.workLimit=report.workLimit;
-    result.wideResidual=report.wideResidual;result.arithmeticDelta=report.arithmeticDelta;
     result.linearSolves=report.linearSolves;result.totalLinearIterations=report.totalLinearIterations;
     result.lastLinearIterations=report.lastLinearIterations;result.lastLinearStopReason=report.lastLinearStopReason;
     result.lastLinearResidual=report.lastLinearResidual;result.lastLinearConverged=report.lastLinearConverged;

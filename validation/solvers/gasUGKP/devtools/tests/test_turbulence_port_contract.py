@@ -45,9 +45,10 @@ def test_explicit_gpu_sst_path_is_available_to_pure_gas_and_two_phase() -> None:
         "applySstFluxAndSourceKernel",
         "recoverSstPrimitivesKernel",
         "applySstWallFunctionStateKernel",
-        "sstJayatillekeThermalTransport",
     ):
         assert token in cuda
+    wall_path = SOURCE_ROOT / "common/operators/gasFaceSubgridTransportProperties.cuh"
+    assert "evaluateCompressibleSstWallFace" in wall_path.read_text(encoding="utf-8")
     assert "kOmegaSST = 3" in protocol
     assert "SstConfigArgs" in protocol
     assert "Op::configureSst" in client + server

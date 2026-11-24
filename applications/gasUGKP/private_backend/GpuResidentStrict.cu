@@ -8,6 +8,7 @@
 #include "GpuParticleDirectoryGraph.H"
 #include "GpuCsrConditionalGraph.H"
 #include "gasTransport/GasResidentInterval.H"
+#include "gasTransport/GasTransportPreparation.H"
 #include "gasBoundary/Resident.cuh"
 #include "gasBoundary/Evaluate.H"
 #include "gasTransport/MixturePorosity.H"
@@ -267,6 +268,7 @@ struct DeviceState
     ugkp::gpu::CsrChoiceGraphs csrChoiceGraphs;
     ugkp::gpu::CsrAutomaticRuntime* csrAutomaticRuntime=nullptr;
     ugkwp::GasResidentInterval gasResidentInterval;
+    ugkwp::GasTransportPreparation* gasCourantPreparation=nullptr;
     cudaGraphNode_t gasGraphIntervalNode=nullptr;
     cudaKernelNodeParams gasGraphIntervalParams{};
     ugkwp::GasResidentInterval gasGraphLastInterval{};
@@ -921,8 +923,6 @@ void scrubHostCalculationScalars(DeviceState* s)
     s->injectionParcelMass = 0.0;
     s->rngSeed = 0;
     s->gammaGas = 0.0;
-    s->Rgas = 0.0;
-    s->gasCp = 0.0;
     s->rhoSolid = 0.0;
     s->invRhoSolid = 0.0;
     s->solveParticleTemperature = 0;
@@ -963,7 +963,6 @@ void scrubHostCalculationScalars(DeviceState* s)
     s->particleDiameterN = 1.0;
     s->injectionTheta = 0.0;
     s->rhoMin = 0.0;
-    s->TgasMin = 0.0;
     s->epsSMin = 0.0;
     s->thetaMin = 0.0;
     s->TpMin = 0.0;
@@ -4416,6 +4415,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     const double* boundaryOmega
 )
 {
+    wallTreatment = ugkwp::gaswall::canonicalWallTreatment(wallTreatment);
     DeviceState* s = asState(handle);
     if (validateState(s, "configure SST") != 0)
     {
@@ -4441,7 +4441,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
         setLastErrorText("null SST configuration array");
         return 1;
     }
-    if(wallTreatment<0 || wallTreatment>2)
+    if (wallTreatment < 0 || wallTreatment > 2)
     {setLastErrorText("unavailable SST wall operator");return 1;}
     for (int f = 0; f < s->nFaces; ++f)
     {

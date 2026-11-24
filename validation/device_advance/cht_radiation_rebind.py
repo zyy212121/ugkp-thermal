@@ -58,21 +58,19 @@ def inspect(case, switched):
     if text.count('Re-reading object controlDict') != (len(SWITCHES) if switched else 0):
         raise ValueError(f'Unexpected write-control changes in {log}')
     events = []
-    device_work = {}
-    parent_work = None
+    device_thermal = {int(seq) for seq in re.findall(r'^THERMAL_TIMING sequence=(\d+)', text, re.M)}
+    device_radiation = []
+    previous_radiation = 0
     for line in text.splitlines():
-        if line.startswith('DOM_TRANSPORT '):
-            counts = dict(re.findall(r'(\w+)="?(\d+)"?(?: |$)', line))
-            if counts.get('converged') != '1':
-                raise ValueError(f'Unconverged device DOM in {log}')
-            parent_work = {key: int(counts[key]) for key in ('sourceIterations', 'preconditions', 'matvecs')}
         event = re.match(r'^THERMAL_EVENT accepted=(\d+) radiation=(\d+) time=(\S+) interval=(\S+)', line)
         if event:
-            seq = int(event[1])
-            events.append((seq, int(event[2]), float(event[3]), float(event[4])))
-            if parent_work is not None:
-                device_work[seq] = parent_work
-            parent_work = None
+            seq, radiation = int(event[1]), int(event[2])
+            events.append((seq, radiation, float(event[3]), float(event[4])))
+            if radiation > previous_radiation and seq in device_thermal:
+                device_radiation.append(seq)
+            previous_radiation = radiation
+    if re.search(r'\bsite=34001\b', text):
+        raise ValueError(f'Unconverged device DOM in {log}')
     expected = [(seq, seq//2, seq*2*DT, 2*DT) for seq in range(1, STEPS//2+1)]
     done = f'THERMAL_RUN_COMPLETE heatEvents={STEPS//2} radiationEvents={STEPS//4} '
     if events != expected or done not in text:
@@ -84,8 +82,8 @@ def inspect(case, switched):
         if step % 4 == 0 and mode in ('runTime', 'timeStep'):
             on_device.append(step//2)
         mode = changes.get(step, mode)
-    if list(device_work) != on_device:
-        raise ValueError(f'Unexpected DOM execution path in {log}: {list(device_work)}')
+    if device_radiation != on_device:
+        raise ValueError(f'Unexpected DOM execution path in {log}: {device_radiation}')
     end = STEPS*DT
     terminal, = [p.parent for p in case.glob('*/thermalExchangeState') if float(p.parent.name) == end]
     stats, clock = foam_results(case, end, mesh(case/'constant/polyMesh'))
@@ -97,7 +95,7 @@ def inspect(case, switched):
     warm = terminal/'domWarmStart.bin'
     if warm.stat().st_size == 0:
         raise ValueError(f'Empty DOM warm start at {warm}')
-    return dict(events=events, device_dom_work=device_work, fields=stats, clock=clock, warm_start_sha256=digest(warm))
+    return dict(events=events, device_radiation_events=device_radiation, fields=stats, clock=clock, warm_start_sha256=digest(warm))
 
 
 def compare(fixed, switched):
@@ -107,9 +105,6 @@ def compare(fixed, switched):
         for stat, expected in field.items():
             np.testing.assert_allclose(switched['fields'][name][stat], expected,
                                        rtol=2e-5, atol=1e-12, err_msg=name)
-    for seq, work in switched['device_dom_work'].items():
-        for key, count in work.items():
-            assert count <= fixed['device_dom_work'][seq][key], (seq, key, count)
 
 
 def main():

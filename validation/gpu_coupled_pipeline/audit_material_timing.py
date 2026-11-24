@@ -15,21 +15,19 @@ from repeat_case import input_hash
 
 def audit_reacting_wall(case, material):
     result = layer1.audit_chmt(case, closed=False)
-    result['scope'] = 'Open gas boundaries; packet channels and sealed material mass/energy balance. Global gas inventory changes are observations, not a closed-domain assertion.'
-    previous = None; residuals = {'mass': 0., 'energy': 0.}
+    result['scope'] = 'Open gas boundaries; material energy change and integrated wall heat.'
+    previous = None
+    maximum = 0.
     for name, rows in material.items():
         step = int(name.split('-')[-1])
-        current = {'mass': math.fsum(v for row in rows for key, v in row.items() if key.startswith(('condensed_', 'pore_'))),
-                   'energy': math.fsum(row['energy'] for row in rows)}
-        wall = layer1.physical_rows(case / 'chmtOutput' / f'exchange-{step}.csv')
-        if previous:
-            for key in residuals:
-                difference = abs(current[key] - previous[key] + math.fsum(row[key] for row in wall))
-                residuals[key] = max(residuals[key], difference)
-                tolerance = max(2e-5, 2e-13 * abs(previous[key])) if key == 'energy' else 1e-10 * max(1., abs(previous[key]))
-                assert difference <= tolerance, (case, key, difference)
-        previous = current
-    result['material_exchange_residuals'] = residuals
+        energy = math.fsum(row['energy'] for row in rows)
+        transfer = layer1.gas_wall_energy(case/'chmtOutput',step)
+        if previous is not None and transfer is not None:
+            difference = abs(energy - previous + transfer)
+            maximum = max(maximum,difference)
+            assert difference <= max(2e-5,2e-13*abs(previous)), (case,step,difference)
+        previous = energy
+    result['material_energy_exchange_residual'] = maximum
     return result
 
 

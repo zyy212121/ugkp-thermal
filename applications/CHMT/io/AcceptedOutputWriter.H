@@ -95,9 +95,6 @@ class AcceptedOutputWriter {
         if (model.physics.enableParticles)
             csv(path("particles"),replace,[&](auto& stream,auto& e){return writeAcceptedParticleFields(stream,state,e);});
         csv(path("material"),replace,[&](auto& stream,auto& e){return writeAcceptedMaterialFields(stream,state,model,e);});
-        csv(path("exchange"),replace,[&](auto& stream,auto& e){return writeAcceptedExchangeFields(stream,state,model,e);});
-        if (model.physics.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer)
-            csv(path("wall-layer"),replace,[&](auto& stream,auto& e){return writeAcceptedWallLayerFields(stream,state,model,e);});
     }
 
     template<class Write>
@@ -140,7 +137,7 @@ public:
         ugkp::diagnostics::dispatch(collect(),sink_);
     }
     void submit(const OutputSelection& selected,Backend& backend,const HostState& state,
-        CoupledRadiation* radiation,double radiationInterval) {
+        CoupledRadiation* radiation,double radiationInterval,double heatInterval) {
         collectReady();
         if (!selected.summary && !selected.fields && !selected.checkpoint) return;
         finish();
@@ -151,12 +148,12 @@ public:
         if (selected.fields || selected.checkpoint) {
             auto report=withReport(summary,[&](auto&) {
                 copy=std::make_unique<HostState>(state);
-                fieldTransfer_.freeze(backend,state,captureRadiation);
+                fieldTransfer_.freeze(backend,state,captureRadiation,selected.fields&&heatInterval>0);
                 if (saveWarm) radiation->freezeWarmStart(warm_,gasWindowDeviceView(backend).producerStream);
             });
             ugkp::diagnostics::dispatch(report,sink_);
         }
-        pending_=std::async(std::launch::async,[this,summary,selected,saveWarm,radiationInterval,copy=std::move(copy)]() mutable {
+        pending_=std::async(std::launch::async,[this,summary,selected,saveWarm,radiationInterval,heatInterval,copy=std::move(copy)]() mutable {
             return withReport(summary,[&](ugkp::diagnostics::DeviceContext& context) {
                 auto model=model_;
                 model.physics.diagnostics=&context;
@@ -166,8 +163,13 @@ public:
                 if (selected.summary)
                     csv(directory_+"/accepted-"+suffix+".csv",replace,[&](auto& out,auto& e){return writeAcceptedCoupledSummary(out,summary,model,e);});
                 std::vector<double> wallRadiation;
-                if (copy) fieldTransfer_.collect(*copy,wallRadiation);
+                std::vector<WallHeatIntegral> wallHeat;
+                if (copy) fieldTransfer_.collect(*copy,wallRadiation,wallHeat);
                 if (selected.fields) fields(suffix,*copy,model,replace);
+                if (!wallHeat.empty())
+                    csv(directory_+"/wall-heat-"+suffix+".csv",replace,[&](auto& out,auto& e){
+                        return writeAcceptedWallHeatFields(out,*copy,heatInterval,wallHeat,e);
+                    });
                 if (!wallRadiation.empty())
                     csv(directory_+"/wall-radiation-"+suffix+".csv",replace,[&](auto& out,auto& e){
                         return writeAcceptedWallRadiationFields(out,*copy,radiationInterval,wallRadiation,e);

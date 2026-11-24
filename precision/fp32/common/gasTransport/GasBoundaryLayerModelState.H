@@ -19,6 +19,8 @@ template<class Real,int Ns,int MaxNodes=48> struct GasBoundaryLayerModelState
 {
     using RealType=Real;
     gaswall::WallModelConfig<Real> config;
+    SpeciesThermoData<Real> singleThermo;
+    Real singleCoefficients[3]{};
     ConservativeWallData conservative;
     bool volumeSstClosure=false;
     bool useSuppliedWallState=false;
@@ -235,15 +237,17 @@ template<class State,class SweepReal> UGKWP_GAS_HD inline bool prepareGasBoundar
     };
     if(face<0 || face>=state.nFaces)return fail(GasTransportCode::InvalidStorage);
     const bool analytic=model.config.model==gaswall::BoundaryLayerModel::ConstantTransport;
+    const bool singleOde=Ns==1 && !mixtureGasActive(state)
+        && model.config.model==gaswall::BoundaryLayerModel::EquilibriumOde;
     if((!analytic && (workspaceSlot<0 || workspaceSlot>=model.workspaceCount || !model.workspace))
         || (!analytic && !model.evaluationOutput)
         || !model.input || !model.output || !model.status || !model.matchingOffsets
         || !model.matchingCells || !model.matchingWeights || !wall.sst || !wall.speciesFlux
         || !state.rho || !state.rhoE || !state.rhoUx || !state.rhoUy || !state.rhoUz || !state.Tgas
-        || !state.gasSpecies.rho || !state.magSf
+        || (!singleOde&&!state.gasSpecies.rho) || !state.magSf
         || (model.config.enableSst&&(!state.rhoK||!state.rhoOmega)))
         return fail(GasTransportCode::InvalidStorage);
-    if((!state.gasSpecies.diffusivity&&!gasVariableDiffusivity(state)) || (!model.useSuppliedWallState &&
+    if((!singleOde&&!state.gasSpecies.diffusivity&&!gasVariableDiffusivity(state)) || (!model.useSuppliedWallState &&
         (!state.riemannBoundaryT || !state.riemannBoundaryUFix
          || (state.riemannBoundaryUFix[face] && (!state.riemannBoundaryUx
              || !state.riemannBoundaryUy || !state.riemannBoundaryUz)))))
@@ -290,9 +294,18 @@ template<class State,class SweepReal> UGKWP_GAS_HD inline bool prepareGasBoundar
     for(int item=begin;item<end;++item)
         if(model.matchingCells[item]<0||model.matchingCells[item]>=state.nCells)
             return fail(GasTransportCode::InvalidStorage);
-    if(!recoverWallMatching(state,model.matchingCells+begin,model.matchingWeights+begin,
-        end-begin,model.config.enableSst,in.matching,in.pressure))
+    bool matchingReady=false;
+    if constexpr(Ns==1)
+        if(singleOde)matchingReady=recoverWallMatching<true>(state,model.matchingCells+begin,
+            model.matchingWeights+begin,end-begin,false,in.matching,in.pressure);
+    if(!singleOde)matchingReady=recoverWallMatching(state,model.matchingCells+begin,
+        model.matchingWeights+begin,end-begin,model.config.enableSst,in.matching,in.pressure);
+    if(!matchingReady){
+        if(state.diagnostics)ugkp::diagnostics::recordFatal(state.diagnostics,
+            ugkp::diagnostics::makeRecord(ugkp::diagnostics::Code::InvalidPhysicalState,2510,25,0,
+                ugkp::diagnostics::EntityKind::Face,face,-1,in.matching.temperature,in.pressure));
         return fail(GasTransportCode::InvalidThermodynamics);
+    }
     if constexpr(Ns==2){
         if(model.conservative.enabled&&model.conservative.columns[slot].cells[0]>=0){
             in.matching=model.conservative.matching[slot];in.pressure=model.conservative.pressure[slot];
@@ -300,14 +313,15 @@ template<class State,class SweepReal> UGKWP_GAS_HD inline bool prepareGasBoundar
         }
     }
     in.model.thermo=state.gasSpecies.thermo;
+    if(singleOde)in.model.thermo={&model.singleThermo,model.singleCoefficients,3};
     in.model.thermo.diagnostics=state.diagnostics;
-    in.model.mechanism=state.gasSpecies.mechanism;
+    if(!singleOde)in.model.mechanism=state.gasSpecies.mechanism;
     in.model.mode=state.gasSpecies.mode;
     in.model.viscosity=state.gasMu;
     if constexpr(GasViscosityCapability<State>::value)in.model.molecularViscosity=state.gasViscosity;
     if(!in.model.thermo.species||!in.model.thermo.coefficients)return fail(GasTransportCode::InvalidStorage);
-    Real matchingCp=0;
-    for(int species=0;species<Ns;++species){bool available=false;
+    Real matchingCp=singleOde?Real(state.gasCp):Real(0);
+    for(int species=0;!singleOde&&species<Ns;++species){bool available=false;
         const Real cp=gaswall::detail::wallProperty<false>(species,in.matching.temperature,in.model.thermo,&available);
         if(!available)return fail(GasTransportCode::InvalidStorage);
         matchingCp+=in.matching.massFraction[species]*cp;}
@@ -372,8 +386,13 @@ UGKWP_GAS_HD inline bool evaluateGasBoundaryLayerSlot(State& state,int slot,int 
         }
 #undef WALL_EVALUATE_CAPACITY
     }
-    if(!evaluated)
-        return fail(GasTransportCode::InvalidStorage);
+    if(!evaluated){
+        if(team.leader()&&state.diagnostics)ugkp::diagnostics::recordFatal(state.diagnostics,
+            ugkp::diagnostics::makeRecord(ugkp::diagnostics::Code::InvalidPhysicalState,2511,25,0,
+                ugkp::diagnostics::EntityKind::Face,face,int(model.status[slot].code),model.status[slot].residual,
+                in.matching.temperature,in.matchingDistance));
+        return fail(GasTransportCode::BoundaryLayerFailure);
+    }
     bool published=false;
     if(team.leader())published=publishGasBoundaryLayerOutput(state,slot,in,model.output[slot],state.magSf[face],normalSweepRate);
     if(!team.broadcast(published))return fail(GasTransportCode::InvalidStorage);

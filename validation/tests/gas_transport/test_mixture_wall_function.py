@@ -24,6 +24,17 @@ void wall(State& s){
 
 }
 void near(Real a,Real b,const char* message){ck(std::abs(a-b)<Real(3e-5)*std::max(Real(1),std::abs(b)),message);}
+CompressibleWallFunction::Result expectedWallLaw(const State& s,Real cp,Real molecular){
+ const Real wallTemperature=s.riemannBoundaryT[1];
+ const Real density=riemannFacePrimitiveForGradient(s,0,1).rho;
+ const Real pr=s.gasMu*cp/molecular;
+ const Real yThermal=ugkpwall::jayatillekeThermalYPlus(pr/s.turbulentPrandtl,s.sstWallKappa,s.sstWallE);
+ return CompressibleWallFunction::evaluate(
+    {std::hypot(s.Uy[0]-s.riemannBoundaryUy[1],s.Uz[0]),s.deltaCoeffs[1],density,s.gasMu,
+        molecular,cp,s.turbulentPrandtl,s.sstWallKappa,s.sstWallE,wallTemperature,
+        s.Tgas[0],yThermal,true},
+    s.gasScalarSolvers.spaldingMaximumIterations,s.gasScalarSolvers.spaldingTolerance);
+}
 '''
 
 
@@ -36,22 +47,22 @@ def test_wall_thermo_flux_and_diffusion_use_same_mixture_properties(tmp_path,dir
  const Real R=ugkwp::universalGasConstant<Real>()*(Real(.9)/Real(.028)+Real(.1)/Real(.04));
  const Real rho=s.p[0]/(R*500);
  const Real molecular=ugkwp::gasHasDirectConductivity(s)?s.gasThermalConductivity:s.gasMu*cp/s.gasPrClamped;
- const Real Pr=s.gasMu*cp/molecular,ratio=Pr/s.turbulentPrandtl;
- const auto expected=ugkpwall::sstJayatillekeThermalTransport(rho,cp,s.gasMu,Pr,s.turbulentPrandtl,
- s.sstWallCmu,s.sstWallKappa,s.sstWallE,ugkpwall::jayatillekeSmoothP(ratio),
- ugkpwall::jayatillekeThermalYPlus(ratio,s.sstWallKappa,s.sstWallE),s.k[0],Real(.5),Real(10),Real(2),Real(-400));
+ const auto expected=expectedWallLaw(s,cp,molecular);
+ ck(expected.thermal.valid,"reference wall transport invalid");
+ const Real expectedConductivity=expected.thermal.conductivity;
+ const Real expectedHeat=expected.thermal.heatFlux;
  Real mu=0,conductivity=0,q=0;int active=0;
  gasFaceSubgridTransportProperties(s,1,0,-1,2,rho,mu,conductivity,q,active);
- ck(active==1,"mixture thermal wall not active");near(q,expected.heatFlux,"wall heat uses legacy or owner thermodynamics");
+ ck(active==1,"mixture thermal wall not active");near(q,expectedHeat,"wall heat did not use its wall thermodynamics");
  const Real baseline=ugkwp::gasHasDirectConductivity(s)?s.gasThermalConductivity:s.gasMu*s.gasSpecies.heatCapacity[0]/s.gasPrClamped;
- near(baseline+conductivity,expected.conductivity,"flux/stability conductivity inconsistent with wall closure");
+ near(baseline+conductivity,expectedConductivity,"flux/stability conductivity inconsistent with wall closure");
  s.cellPlaneCount[0]=1;s.cellPlaneStart[0]=1;
 
  Real mass,mx,my,mz,energy;
  ck(computeRiemannGasFaceFluxDevice<true>(s,1,mass,mx,my,mz,energy),"mixture wall flux rejected");
  ck(s.gasSpecies.faceStatus[1]==0,"wall face status rejected");
  near(mass,0,"wall leaks bulk mass");near(s.gasSpecies.flux[1],0,"wall leaks species A");near(s.gasSpecies.flux[4],0,"wall leaks species B");
- near(energy-2*my,expected.heatFlux,"heat and tangential wall work inconsistent");
+ near(energy-2*my,expectedHeat,"heat and tangential wall work inconsistent");
 }
 ''')
 

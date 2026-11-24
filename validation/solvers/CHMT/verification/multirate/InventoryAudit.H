@@ -60,7 +60,7 @@ inline bool auditCoupledCandidate(const HostState& base,const HostState& candida
     const auto& b=base.budget;const auto& n=candidate.budget;
     audit.massResidual=static_cast<Real>(next.mass-old.mass+(n.boundaryMass-b.boundaryMass));
     const long double external=-(n.boundaryEnergy-b.boundaryEnergy)+(n.bodyWork-b.bodyWork)
-        +(n.supportWork-b.supportWork)+(n.radiation-b.radiation);
+        +(n.supportWork-b.supportWork);
     audit.energyResidual=static_cast<Real>(next.energy-old.energy-external-(n.filmKineticDefect-b.filmKineticDefect));
     for(int e=0;e<p.nElements;++e)audit.elementResidual[e]=static_cast<Real>(next.elements[e]-old.elements[e]+n.boundaryElements[e]-b.boundaryElements[e]);
     report=audit;
@@ -99,11 +99,6 @@ inline bool auditCoupledCandidate(const HostState& base,const HostState& candida
             for(int s=0;s<Ns;++s)expectedCpu.exchangeSpecies[FilmParticipant][s]+=d.film.species[s];}
     };
     for(const auto& r:history.records())for(const auto& packet:r.packets)addCpu(packet);
-    for(const auto& packet:candidate.ledger)if(packet.kind==ExchangeKind::SolidFilm){
-        if(packet.consumerMask!=requiredConsumers(packet.kind)||!validatePacketMath(packet,p.tolerances))
-            return intervalFailure(error,"CPU internal phase record is invalid or pending");
-        addCpu(packet);
-    }
     for(int k=SolidParticipant;k<=FilmParticipant;++k){
         paired=compare(n.exchangeMass[k]-b.exchangeMass[k],expectedCpu.exchangeMass[k],false)&&paired;
         paired=compare(n.exchangeEnergy[k]-b.exchangeEnergy[k],expectedCpu.exchangeEnergy[k],true)&&paired;

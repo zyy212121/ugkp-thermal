@@ -26,7 +26,8 @@ int main(int argc,char**argv){
  volScalarField rhoE(IOobject("rhoE",runTime.timeName(),mesh,IOobject::READ_IF_PRESENT,IOobject::AUTO_WRITE),p);
  const char* selectedWall=std::getenv("GAS_MODEL_TEST_WALL");
  const bool moving=std::getenv("GAS_MODEL_TEST_MOVING")!=nullptr;
- model.validateNumerics(1,1,0,2,selectedWall?3:0,false,selectedWall?std::atoi(selectedWall):0);
+ model.validateNumerics(1,1,0,2,selectedWall?3:0,false,selectedWall?std::atoi(selectedWall):0,
+     std::getenv("GAS_MODEL_TEST_EQUILIBRIUM_ODE")?2:1);
 
 
  if(moving){
@@ -47,7 +48,7 @@ def build_probe(root,species):
         pytest.skip("OpenFOAM environment required")
     (root/"Make").mkdir();(root/"probe.C").write_text(PROBE)
     (root/"Make/files").write_text(f"probe.C\nEXE = {root}/probe\n")
-    (root/"Make/options").write_text(f"EXE_INC = -DUGKWP_GAS_SPECIES={species} -I{ROOT}/applications/gasUGKP -I{ROOT}/common -I$(LIB_SRC)/finiteVolume/lnInclude -I$(LIB_SRC)/meshTools/lnInclude\nEXE_LIBS = -lfiniteVolume -lmeshTools -lOpenFOAM\n")
+    (root/"Make/options").write_text(f"EXE_INC = -std=c++17 -DUGKWP_GAS_SPECIES={species} -I{ROOT}/applications/gasUGKP -I{ROOT}/applications/gasUGKP/gpu -I{ROOT}/common -I$(LIB_SRC)/finiteVolume/lnInclude -I$(LIB_SRC)/meshTools/lnInclude\nEXE_LIBS = -lfiniteVolume -lmeshTools -lOpenFOAM\n")
     build=subprocess.run(["wmake"],cwd=root,capture_output=True,text=True)
     return root/"probe",build
 
@@ -272,3 +273,32 @@ int main(int argc,char**argv){
         mapped=next(line for line in result.stdout.splitlines() if line.startswith('MAPPED '))
         outputs.append(mapped)
     assert outputs==['MAPPED 0 1 0 -1 1 -22 22 22 1040 1200']*2
+
+
+@pytest.fixture(scope="module")
+def native_single_probe(tmp_path_factory):
+    return build_probe(tmp_path_factory.mktemp("single_gas_wall_frontend"),1)
+
+def test_native_single_equilibrium_ode_needs_no_application_opt_in(native_single_probe,tmp_path):
+    binary,build=native_single_probe
+    assert build.returncode==0,build.stdout+build.stderr
+    make_case(tmp_path)
+    for name in ("constant/gasModelProperties","0/Y_A","0/Y_B"):
+        (tmp_path/name).unlink()
+    result=subprocess.run([str(binary),"-case",str(tmp_path)],
+        env=dict(os.environ,GAS_MODEL_TEST_WALL="2",GAS_MODEL_TEST_EQUILIBRIUM_ODE="1"),
+        capture_output=True,text=True)
+    assert result.returncode==0,result.stdout+result.stderr
+    assert "MODEL_INITIALIZED 0" in result.stdout
+
+def test_native_legacy_multi_species_build_reports_missing_wall_adapter(native_probe,tmp_path):
+    binary,build=native_probe
+    assert build.returncode==0,build.stdout+build.stderr
+    make_case(tmp_path)
+    for name in ("constant/gasModelProperties","0/Y_A","0/Y_B"):
+        (tmp_path/name).unlink()
+    result=subprocess.run([str(binary),"-case",str(tmp_path)],
+        env=dict(os.environ,GAS_MODEL_TEST_WALL="2",GAS_MODEL_TEST_EQUILIBRIUM_ODE="1"),
+        capture_output=True,text=True)
+    assert result.returncode!=0
+    assert "single-gas equilibriumOde adapter" in result.stdout+result.stderr

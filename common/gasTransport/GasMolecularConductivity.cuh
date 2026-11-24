@@ -29,3 +29,14 @@ __device__ GPU_OPERATOR_REAL molecularGasConductivity(const GasState& s,int c,GP
     return ugkwp::conductivityFromViscosityCpPr(ugkwp::gasCellMolecularViscosityAt(s,c,temperature),
         cp,ugkwp::gasCellMolecularPrandtl(s,c));
 }
+
+
+template<class GasState>
+__device__ GPU_OPERATOR_REAL gasFaceMolecularConductivity(const GasState& s,int f,int own,int nei,
+    GPU_OPERATOR_REAL viscosity)
+{
+    if((ugkwp::gasVariableViscosity(s)||ugkwp::mixtureGasActive(s))&&!ugkwp::gasHasDirectConductivity(s))
+        return viscosity*ugkwp::gasFaceMolecularHeatCapacity(s,f,own,nei)
+            /ugkwp::gasFaceMolecularPrandtl(s,f,own,nei);
+    return molecularGasConductivity(s);
+}

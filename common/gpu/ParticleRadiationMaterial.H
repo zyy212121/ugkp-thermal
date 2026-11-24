@@ -43,8 +43,7 @@ public:
     ParticleRadiationMaterialResult finishAnchoredWindow(const RadiationDeviceView&,bool exportFields=true);
     ParticleRadiationMaterialResult solve(const ParticleRadiationMaterialInput&,bool exportFields=true);
     ParticleRadiationMaterialResult collect();
-    ParticleRadiationMaterialResult collectBoundaryEnergy();
-    RadiationReal collectEscapedEnergy();
+    std::vector<RadiationReal> collectBoundaryEnergy();
 };
 }}
 #endif

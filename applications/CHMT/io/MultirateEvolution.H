@@ -10,7 +10,7 @@ struct WindowRadiation {
 
     virtual bool due(const CouplingInterval&,const CouplingControls&,const HostState&,bool) const {return true;}
     virtual bool prepareParent(Backend&,const WallProgram&,const HostState&,std::string&){return true;}
-    virtual bool advance(Backend&,const WallProgram&,HostState&,EnergyReal& externalHeat,std::string&)=0;
+    virtual bool advance(Backend&,const WallProgram&,HostState&,std::string&)=0;
 };
 struct MicrostepGeometryReport {
     std::uint64_t microSequence=0;

@@ -8,7 +8,8 @@ struct WindowGraph {
     const void* radiationOwner=nullptr;
     const void* implicitOwner=nullptr;
     unsigned long long radiationRevision=0,implicitRevision=0;
-    bool implicitSolve=false;
+    const void* wallHeat=nullptr;
+    bool implicitSolve=false,retainsHistory=false;
     void clear(){if(executable)cudaGraphExecDestroy(executable);if(graph)cudaGraphDestroy(graph);
         graph=nullptr;executable=nullptr;storage=nullptr;}
     ~WindowGraph(){clear();}

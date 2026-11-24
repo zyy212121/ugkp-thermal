@@ -1,19 +1,39 @@
-#include "OpenFoamWallFunctions.cuh"
+#include "../legacy/common/gasNumerics/LegacySstWallFunction.H"
 #include <cuda_runtime.h>
+#include <algorithm>
+#include <cmath>
 #include <iostream>
-__global__ void checkPole(ugkpwall::JayatillekeThermalTransport* out) {
- const GpuReal rho=1.09552, cp=1722,mu=9.29152e-5,pr=0.4,prt=0.85,cmu=0.09,kap=0.41,E=9.8,k=33386.4,y=0.000149661,U=1309.67;
- const GpuReal P=ugkpwall::jayatillekeSmoothP(pr/prt), yt=ugkpwall::jayatillekeThermalYPlus(pr/prt,kap,E);
- const GpuReal u=sqrt(sqrt(cmu))*sqrt(k),yp=u*y*rho/mu,tp=prt*(log(E*yp)/kap+P),uc=u/kap*log(E*yt);
- const GpuReal C=GpuReal(0.5)*rho*u*(prt*U*U+(pr-prt)*uc*uc),mol=mu*cp/pr;
- GpuReal grad=-C/(mol*tp)*(GpuReal(1)+GpuReal(int(threadIdx.x)-1)*GpuReal(1e-6));
- out[threadIdx.x]=ugkpwall::sstJayatillekeThermalTransport(rho,cp,mu,pr,prt,cmu,kap,E,P,yt,k,y,U,0,grad);
+
+__global__ void evaluate(ugkpwall::JayatillekeThermalTransport* results)
+{
+    constexpr GpuReal Pr=GpuReal(.4), Prt=GpuReal(.85), kappa=GpuReal(.41), E=GpuReal(9.8);
+    constexpr GpuReal conductivity=GpuReal(.4);
+    const auto P=ugkpwall::jayatillekeSmoothP(Pr/Prt);
+    const auto transition=ugkpwall::jayatillekeThermalYPlus(Pr/Prt,kappa,E);
+    const GpuReal gradient=GpuReal(1000)*(GpuReal(threadIdx.x)-GpuReal(1));
+    results[threadIdx.x]=ugkpwall::sstJayatillekeThermalTransport
+        (conductivity,Pr,Prt,kappa,E,P,transition,GpuReal(8150),gradient);
 }
-int main() {
- ugkpwall::JayatillekeThermalTransport *d,h[3];
- auto allocation=cudaMalloc(&d,sizeof(h)); if(allocation!=cudaSuccess){std::cerr<<cudaGetErrorString(allocation)<<"\n";return 1;}
- checkPole<<<1,3>>>(d);
- if(cudaMemcpy(h,d,sizeof(h),cudaMemcpyDeviceToHost)!=cudaSuccess)return 2;
- for(auto a:h) if(a.valid!=1||!std::isfinite(a.conductivity)||fabs(a.conductivity-2.54098)>0.001 || !std::isfinite(a.heatFlux))return 3;
- cudaFree(d);std::cout<<"PASS CUDA captured near-singular wall input: "<<h[1].conductivity<<"\n";
+
+int main()
+{
+    ugkpwall::JayatillekeThermalTransport* device;
+    ugkpwall::JayatillekeThermalTransport host[3];
+    if (cudaMalloc(&device,sizeof(host)) != cudaSuccess) return 1;
+    evaluate<<<1,3>>>(device);
+    const auto copy=cudaMemcpy(host,device,sizeof(host),cudaMemcpyDeviceToHost);
+    cudaFree(device);
+    if (copy != cudaSuccess) return 2;
+    const double ratio=.4/.85;
+    const double P=9.24*(std::pow(ratio,.75)-1)*(1+.28*std::exp(-.007*ratio));
+    const double TPlus=.85*(std::log(9.8*8150)/.41+P);
+    const double expected=.4*.4*8150/TPlus;
+    for (int i=0; i<3; ++i)
+    {
+        const double heat=-expected*1000*(i-1);
+        if (!host[i].valid || std::abs(host[i].conductivity/expected-1)>3e-6
+            || std::abs(host[i].heatFlux-heat)>3e-6*std::max(1.,std::abs(heat)))
+            return 3;
+    }
+    std::cout<<"PASS CUDA Spalding y+ and signed Fourier heat\n";
 }

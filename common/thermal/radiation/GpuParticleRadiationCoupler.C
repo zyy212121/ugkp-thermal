@@ -118,20 +118,33 @@ void validateRadiationResult
 
 }
 
+namespace {
+List<scalarField> mapBoundaryEnergy(const fvMesh& mesh,const std::vector<RadiationReal>& boundary) {
+    List<scalarField> result(mesh.boundary().size());
+    std::size_t index=0;
+    forAll(result,patchI){
+        auto& energy=result[patchI];
+        energy.setSize(mesh.boundary()[patchI].size());
+        forAll(energy,faceI)energy[faceI]=boundary[index++];
+    }
+    return result;
+}
+}
+
 namespace detail
 {
-scalar clampParticleRadiationTableValue
+RadiationReal clampParticleRadiationTableValue
 (
-    const scalar value,
-    const scalar minimum,
-    const scalar maximum
+    const RadiationReal value,
+    const RadiationReal minimum,
+    const RadiationReal maximum
 )
 {
     if
     (
-        !finiteParticleRadiationScalar(value)
-     || !finiteParticleRadiationScalar(minimum)
-     || !finiteParticleRadiationScalar(maximum)
+        !std::isfinite(value)
+     || !std::isfinite(minimum)
+     || !std::isfinite(maximum)
      || minimum > maximum
     )
     {
@@ -149,14 +162,14 @@ scalar clampParticleRadiationTableValue
     return value;
 }
 
-scalar particleCellCapacityJPerK
+RadiationReal particleCellCapacityJPerK
 (
     const ParticleRadiationMaterialSnapshot& snapshot,
     const label cellI
 )
 {
     return
-        snapshot.particleMassInCellKg[cellI]*snapshot.particleHeatFactorJkgK;
+        RadiationReal(snapshot.particleMassInCellKg[cellI])*RadiationReal(snapshot.particleHeatFactorJkgK);
 }
 
 void validateParticleRadiationSnapshot
@@ -245,27 +258,12 @@ ParticleRadiationMaterialResult solveValidatedParticleRadiationTransaction
 try
 {
     ParticleRadiationMaterialResult result;
-    result.deltaParticleRadiationEnergyJ.setSize
-    (
-        context.mesh.nCells(), scalar(0)
-    );
-    result.solidWallRadiationEnergyJ.setSize
-    (
-        context.mesh.boundary().size()
-    );
-    forAll(context.mesh.boundary(), patchI)
-    {
-        result.solidWallRadiationEnergyJ[patchI].setSize
-        (
-            context.mesh.boundary()[patchI].size(), scalar(0)
-        );
-    }
-    result.escapedBoundaryRadiationEnergyJ = scalar(0);
-    const scalar couplingDeltaT = snapshot.elapsedCouplingTimeS;
-
-    scalarField currentTemperatureK(snapshot.particleMeanTemperatureK);
-    currentTemperatureK.setSize(context.mesh.nCells());
     const label cells=context.mesh.nCells();
+    scalarField currentTemperatureK;
+    if(!snapshot.resident.enabled){
+        currentTemperatureK=snapshot.particleMeanTemperatureK;
+        currentTemperatureK.setSize(cells);
+    }
     const auto input=materialWindowInput(context,snapshot);
     std::unique_ptr<ugkp::gpu::ParticleRadiationMaterial> temporary;
     auto* device=context.materialDevice;
@@ -284,10 +282,9 @@ try
     const auto completed=device->finishAnchoredWindow(radiationResult.resident,context.exportFields||bool(temporary));
     if(!context.exportFields&&!temporary){result.resident=completed.resident;return result;}
     result.finalMeanTemperatureK.setSize(cells);
+    result.deltaParticleRadiationEnergyJ.setSize(cells);
     for(label cellI=0;cellI<cells;++cellI){result.finalMeanTemperatureK[cellI]=completed.temperature[cellI];result.deltaParticleRadiationEnergyJ[cellI]=completed.energy[cellI];}
-    std::size_t boundary=0;
-    forAll(result.solidWallRadiationEnergyJ,patchI)forAll(result.solidWallRadiationEnergyJ[patchI],faceI)
-        result.solidWallRadiationEnergyJ[patchI][faceI]=completed.boundaryEnergy[boundary++];
+    result.solidWallRadiationEnergyJ=mapBoundaryEnergy(context.mesh,completed.boundaryEnergy);
     result.escapedBoundaryRadiationEnergyJ=completed.escapedEnergy;
 
     if(!temporary)result.resident=completed.resident;
@@ -322,8 +319,8 @@ GpuParticleRadiationCoupler::GpuParticleRadiationCoupler
     mieTable_(mieTable),
     radiationSolver_(radiationSolver),
     coupledSolidPatchIds_(coupledSolidPatchIds),
-    particleTemperatureMinK_(particleTemperatureMinK),
-    particleTemperatureMaxK_(particleTemperatureMaxK),
+    particleTemperatureMinK_(RadiationReal(particleTemperatureMinK)),
+    particleTemperatureMaxK_(RadiationReal(particleTemperatureMaxK)),
     radiationWorkspace_(radiationSolver.makeWorkspace()),
     materialDevice_(new ugkp::gpu::ParticleRadiationMaterial(mieTable.exportGpuTable(),startupMaterialControls(mesh)))
 {
@@ -407,34 +404,8 @@ bool GpuParticleRadiationCoupler::readWarmStart(const std::string& path) const {
 bool GpuParticleRadiationCoupler::writeWarmStart(const std::string& path) const {
     return radiationSolver_.writeWarmStart(radiationWorkspace_,path);
 }
-scalar GpuParticleRadiationCoupler::collectEscapedEnergy() const {
-    return scalar(materialDevice_->collectEscapedEnergy());
-}
-ParticleRadiationMaterialResult GpuParticleRadiationCoupler::collectBoundaryEnergy() const {
-    const auto material=materialDevice_->collectBoundaryEnergy();ParticleRadiationMaterialResult result;
-    result.solidWallRadiationEnergyJ.setSize(mesh_.boundary().size());std::size_t index=0;
-    forAll(mesh_.boundary(),p){auto& energy=result.solidWallRadiationEnergyJ[p];energy.setSize(mesh_.boundary()[p].size());
-        forAll(energy,f)energy[f]=material.boundaryEnergy[index++];}
-    result.escapedBoundaryRadiationEnergyJ=material.escapedEnergy;
-
-    result.resident=material.resident;return result;
-}
-ParticleRadiationMaterialResult GpuParticleRadiationCoupler::collect() const {
-    const auto radiation=radiationSolver_.collect(radiationWorkspace_);
-    const auto material=materialDevice_->collect();
-    ParticleRadiationMaterialResult result;
-    result.absorptionCoefficientInvM=radiation.absorptionCoefficientInvM;
-    result.scatteringCoefficientInvM=radiation.scatteringCoefficientInvM;
-    result.extinctionCoefficientInvM=radiation.extinctionCoefficientInvM;
-    result.asymmetryFactor=radiation.asymmetryFactor;
-    result.finalMeanTemperatureK.setSize(material.temperature.size());
-    result.deltaParticleRadiationEnergyJ.setSize(material.energy.size());
-    forAll(result.finalMeanTemperatureK,i){result.finalMeanTemperatureK[i]=material.temperature[i];result.deltaParticleRadiationEnergyJ[i]=material.energy[i];}
-    result.solidWallRadiationEnergyJ.setSize(mesh_.boundary().size());std::size_t index=0;
-    forAll(mesh_.boundary(),p){auto& energy=result.solidWallRadiationEnergyJ[p];energy.setSize(mesh_.boundary()[p].size());
-        forAll(energy,f)energy[f]=material.boundaryEnergy[index++];}
-    result.escapedBoundaryRadiationEnergyJ=material.escapedEnergy;
-    result.resident=material.resident;return result;
+List<scalarField> GpuParticleRadiationCoupler::collectBoundaryEnergy() const {
+    return mapBoundaryEnergy(mesh_,materialDevice_->collectBoundaryEnergy());
 }
 
 }

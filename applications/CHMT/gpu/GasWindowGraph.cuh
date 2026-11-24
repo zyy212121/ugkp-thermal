@@ -216,11 +216,23 @@ ugkp::gpu::ExecutionGraphNode appendGasWindowBatch(Backend& b,ugkp::gpu::Executi
     using namespace ugkp::gpu;using namespace executionGraphDetail;
     if(!b.windowBatchPrepared)throw std::logic_error("prepare gas window storage before appending its graph");
     const auto stream=b.gasCaptureStream;const auto frame=b.windowBatch.storage;
+    struct RestorePreparation {
+        Backend& backend;ugkwp::GasTransportPreparation* previous;
+        ~RestorePreparation(){backend.gasCourantPreparation=previous;}
+    } restorePreparation{b,b.gasCourantPreparation};
+    if(b.options.adjustTimeStep&&b.options.limitDiffusiveTimeStep&&!b.movingWindow
+        &&ugkwp::gasTransportPreparationEligible(b)){
+        if(!b.windowTransportPreparation.resize(1,b.executionFault))
+            throw std::runtime_error(b.executionFault.message);
+        b.gasCourantPreparation=b.windowTransportPreparation.data();
+    }else b.gasCourantPreparation=nullptr;
+
     const int count=int(b.interfaceRecords.size());
     const int reductionBlock=256,parts=(b.nCells+reductionBlock-1)/reductionBlock;
     cudaGraphConditionalHandle loop,refresh,physical;
     for(auto handle:{&loop,&refresh,&physical})checked(cudaGraphConditionalHandleCreate(handle,graph,0,cudaGraphCondAssignDefault));
     const auto initialized=appendRecorded(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},stream,[&]{
+        if(b.gasCourantPreparation)checked(cudaMemsetAsync(b.gasCourantPreparation,0,sizeof(*b.gasCourantPreparation),stream));
         gas_window_detail::begin<<<1,1,0,stream>>>(b.deviceState,b.windowProgress.data(),b.windowControls.data(),loop);
     });
     cudaGraph_t body=nullptr;const auto completed=addWhile(graph,loop,{initialized},body);
@@ -231,7 +243,8 @@ ugkp::gpu::ExecutionGraphNode appendGasWindowBatch(Backend& b,ugkp::gpu::Executi
     const auto referenceGeometry=appendGasWindowGeometry(b,body,requested,false);
     cudaGraph_t cfl=nullptr;const auto refreshed=addIf(body,refresh,{referenceGeometry},cfl);
     appendRecorded(cfl,{},stream,[&]{
-        if(transport::computeGasCurrentCourantField(&b,Real(1),Real(0),b.fixedCellBlockThreads,b.fixedFaceBlockThreads,stream))
+        if(transport::computeGasCurrentCourantField(&b,Real(1),Real(0),b.fixedCellBlockThreads,b.fixedFaceBlockThreads,stream,
+            b.options.limitDiffusiveTimeStep,b.gasCourantPreparation))
             throw std::runtime_error(transport::lastError);
         gas_window_detail::courantParts<<<parts,reductionBlock,reductionBlock*sizeof(GasWindowCourant),stream>>>(
             b.storage.hostView().gasFluxPositivityScale,b.gasSpecies.cellStatus,b.nCells,b.windowCourant.data()+(parts==1?parts:0));
@@ -282,7 +295,7 @@ ugkp::gpu::ExecutionGraphNode appendGasWindowBatch(Backend& b,ugkp::gpu::Executi
                 ||transport::finaliseGasBoundaryStage(&b,Real(1),Real(1))
                 ||transport::CoupledTrialPolicy::validate(&b))throw std::runtime_error(b.error.empty()?transport::lastError:b.error);
             enqueueCoupledSurfaceArchive(b.interfaceRecords.data(),count,b.interfaceFaces.data(),b.particles.wallExchange(),
-                {frame.surface,frame.wall,&b.windowProgress.data()->batchFrames},b.interfaceFailure.data(),
+                {frame.surface,frame.wall,&b.windowProgress.data()->batchFrames,b.historyArchive->retainsHistory()},b.interfaceFailure.data(),
                 int(b.accepted.solid.size()),int(b.accepted.film.size()),b.diagnostics.device(),b.fixedFaceBlockThreads,stream);
             const auto& model=b.storage.hostView().gasBoundaryLayerModel;
             if(model.acceptedHistory&&b.gasBoundaryLayer.count)
@@ -292,13 +305,13 @@ ugkp::gpu::ExecutionGraphNode appendGasWindowBatch(Backend& b,ugkp::gpu::Executi
     b.gasGraphMode=oldMode;b.preparedWallReady=false;ugkwp::invalidateGasBoundaryLayerPreparation(b);
     appendRecorded(body,{advanced},stream,[&]{
         gas_window_detail::accept<<<1,1,0,stream>>>(b.deviceState,b.windowProgress.data(),b.windowControls.data(),
-            b.coupledInterval.data(),frame.interval,loop);
+            b.coupledInterval.data(),b.historyArchive->retainsHistory()?frame.interval:nullptr,loop);
     });
     auto exchanged=completed;
     if(b.windowImplicit){
         exchanged=appendImplicitMaterialExchange(*b.windowImplicit,ResidentMaterialDriveHistory{frame.surface,frame.wall,frame.interval,b.windowBatch.capacity,b.interfaceFaces.size(),
                 stream,&b.windowProgress.data()->batchFrames},b.windowProgress.data(),
-            b.particles.active(),graph,exchanged,stream);
+            b.particles.active(),graph,exchanged,stream,b.historyArchive->retainsHistory()?nullptr:b.windowWallHeat.data());
         exchanged=appendRecorded(graph,{exchanged},stream,[&]{
             gas_window_detail::propagateMaterialFatal<<<1,1,0,stream>>>(implicitWindowDiagnostics(*b.windowImplicit),b.diagnostics.device());
         });
@@ -334,16 +347,18 @@ static void buildGasWindowBatch(Backend& b,Backend::WindowGraph& graph){
     graph.radiationOwner=b.windowTransport;
     graph.radiationRevision=b.windowTransport?b.windowTransport->executionRevision():0;
     graph.implicitOwner=b.windowImplicit;graph.implicitSolve=b.windowImplicitSolve;
+    graph.retainsHistory=b.historyArchive->retainsHistory();graph.wallHeat=b.windowWallHeat.data();
     graph.implicitRevision=b.windowImplicit?implicitWindowRevision(*b.windowImplicit):0;
 }
 
 static bool submitGasWindowBatch(Backend& b,std::string& error){
     using ugkp::gpu::executionGraphDetail::checked;
-    const auto slot=(b.windowBatch.first/CoupledHistoryArchive::slabFrames)%2;
+    const auto slot=b.windowBatch.slot;
     auto& graph=b.windowGraph[slot];
     if(!graph.executable||graph.storage!=b.windowBatch.storage.interval||graph.radiationOwner!=b.windowTransport
         ||graph.radiationRevision!=(b.windowTransport?b.windowTransport->executionRevision():0)
         ||graph.implicitOwner!=b.windowImplicit||graph.implicitSolve!=b.windowImplicitSolve
+        ||graph.retainsHistory!=b.historyArchive->retainsHistory()||graph.wallHeat!=b.windowWallHeat.data()
         ||graph.implicitRevision!=(b.windowImplicit?implicitWindowRevision(*b.windowImplicit):0))buildGasWindowBatch(b,graph);
     orderGasRadiationInputs(b);orderGasMaterialInputs(b);checked(cudaGraphLaunch(graph.executable,b.gasCaptureStream));
     acceptGasRadiationExecution(b,b.gasCaptureStream);
@@ -352,14 +367,18 @@ static bool submitGasWindowBatch(Backend& b,std::string& error){
     b.windowBatchPending=true;return true;
 }
 
-bool prepareGasWindow(Backend& b,Real cap,std::string& error){
+bool prepareGasWindow(Backend& b,Real cap,std::string& error,bool retainDriveHistory){
     if(b.windowBatchPending||b.windowBatchPrepared){error="gas window has already been submitted";return false;}
     if(b.poisoned){error="gas window has an earlier fatal device error";return false;}
     try{
         if(b.movingWindow){b.residentGeometry->bind(b.storage);b.gasGeometry=b.storage.hostView().gasGeometry;}
         else if(prepareCoupledGeometry(&b)){error=b.error;return false;}
         const auto count=b.interfaceRecords.size();
-        if(!b.historyArchive)b.historyArchive=std::make_shared<CoupledHistoryArchive>(count,b.gasBoundaryLayer.enabled,&b.historyTransfers);
+        if(!b.historyArchive)b.historyArchive=std::make_shared<CoupledHistoryArchive>(count,b.gasBoundaryLayer.enabled,&b.historyTransfers,retainDriveHistory);
+        if(!retainDriveHistory && (!b.windowWallHeat.resize(count,b.executionFault)
+            ||!b.windowWallHeat.zero(b.gasCaptureStream))){
+            error=b.executionFault.message;return false;
+        }
         GasWindowControls controls;
         controls.cap=cap;controls.maximum=b.model.physics.maxDt;controls.fixedDt=Real(b.options.fixedDeltaT);
         controls.cfl=b.model.physics.cfl;controls.growth=Real(b.options.maximumTimeStepGrowth);
@@ -420,25 +439,32 @@ static bool retireGasWindowBatch(Backend& b,const GasWindowProgress& progress,
             if(b.particles.active()&&ugkp::thermal::acceptBoundParticleMirror(b.particles.owner(),mirror.front())){
                 b.poisoned=true;error="cannot accept completed particle buffer roles";return false;
             }
-            for(std::size_t i=0;i<progress.batchFrames;++i){
-                const auto& item=intervals[i];GasIntervalRecord record;
-                record.microSequence=b.history.records().size()+1;
+            const auto intervalRecord=[&](const ResidentMaterialDriveInterval& item,std::uint64_t sequence){
+                GasIntervalRecord record;
+                record.microSequence=sequence;
                 record.localBegin=gas_window_detail::hostTime(item.begin);record.localEnd=gas_window_detail::hostTime(item.end);
                 record.begin=windowAbsolute(b.program.interval.begin,record.localBegin);
                 record.end=windowAbsolute(b.program.interval.begin,record.localEnd);record.actualDt=item.actualDt;
-                if(b.movingWindow){++b.trial.gasMesh.geometryVersion;++b.trial.solidMesh.geometryVersion;}
                 record.gasGeometry=b.trial.gasMesh.geometryVersion;record.solidGeometry=b.trial.solidMesh.geometryVersion;
                 const Real stage=b.hostGasTimeIntegrator==1?Real(0):b.hostGasTimeIntegrator==2?item.actualDt:Real(.5)*item.actualDt;
                 record.gasTraceTime=windowAbsolute(b.program.interval.begin,record.localBegin+stage);
-                if(!b.history.appendAccepted(record,error)){b.poisoned=true;return false;}
-                b.record=record;
+                return record;
+            };
+            if(b.historyArchive->retainsHistory()){
+                for(std::size_t i=0;i<progress.batchFrames;++i){
+                    if(b.movingWindow){++b.trial.gasMesh.geometryVersion;++b.trial.solidMesh.geometryVersion;}
+                    b.record=intervalRecord(intervals[i],b.history.records().size()+1);
+                    if(!b.history.appendAccepted(b.record,error)){b.poisoned=true;return false;}
+                }
+            }else if(progress.batchFrames){
+                if(b.movingWindow){b.trial.gasMesh.geometryVersion+=progress.batchFrames;b.trial.solidMesh.geometryVersion+=progress.batchFrames;}
+                b.record=intervalRecord({progress.lastBegin,progress.elapsed,progress.dt},progress.microSteps);
             }
             b.historyArchive->acceptedBatch(progress.batchFrames,b.gasCaptureStream);
             b.historyFrameCount+=progress.batchFrames;b.elapsed=gas_window_detail::hostTime(progress.elapsed);
             b.gasSteps=progress.gasSteps;b.nextGasSeed=progress.seed;b.cachedCourantRate=progress.rate;b.courantReady=progress.courantReady;
             b.microDt=progress.dt;b.microTime=b.record.begin;b.trial.time=b.record.end;
             b.trial.lastAcceptedDt=progress.dt;b.trial.nextDt=progress.seed;b.stageTime=b.record.gasTraceTime;
-            if(b.gasBoundaryLayer.enabled){b.wallDiagnosticsReady=true;b.wallDiagnosticTime=b.stageTime;}
     b.windowBatchRetired=true;return true;
 }
 
@@ -452,7 +478,7 @@ bool collectGasWindow(Backend& b,GasMicroReport& report,std::string& error){
             std::vector<MaterialLocalProgress> materialResult;
             const auto material=b.windowMaterial?residentMaterialLocalDeviceView(*b.windowMaterial):MaterialLocalDeviceView{};
             if(!b.storage.enqueueRead(b.windowProgress.data(),1,result)
-                ||!b.storage.enqueueRead(b.windowBatch.storage.interval,b.windowBatch.capacity,intervals)
+                ||(b.historyArchive->retainsHistory()&&!b.storage.enqueueRead(b.windowBatch.storage.interval,b.windowBatch.capacity,intervals))
                 ||(b.particles.active()&&!b.storage.enqueueRead(b.windowParticleMirror.data(),1,mirror))
                 ||(b.windowTransport&&!b.storage.enqueueRead(b.windowRadiationStage.data(),1,radiationStage))
                 ||(b.windowMaterial&&!b.storage.enqueueRead(material.report,1,materialResult))
@@ -468,7 +494,7 @@ bool collectGasWindow(Backend& b,GasMicroReport& report,std::string& error){
                     }
 
 
-                    const auto slot=(b.windowBatch.first/CoupledHistoryArchive::slabFrames)%2;
+                    const auto slot=b.windowBatch.slot;
                     auto& graph=b.windowGraph[slot];buildGasWindowBatch(b,graph);
                     orderGasRadiationInputs(b);orderGasMaterialInputs(b);
                     ugkp::gpu::executionGraphDetail::checked(cudaGraphLaunch(graph.executable,b.gasCaptureStream));
@@ -487,7 +513,7 @@ bool collectGasWindow(Backend& b,GasMicroReport& report,std::string& error){
                 for(auto& graph:b.windowGraph)graph.clear();
                 if(!completePendingMaterialHistory(*b.windowMaterial,b.history,b.historyArchive,error))return false;
                 b.windowMaterialHistoryReady=true;
-                const auto slot=(b.windowBatch.first/CoupledHistoryArchive::slabFrames)%2;
+                const auto slot=b.windowBatch.slot;
                 auto& graph=b.windowGraph[slot];buildGasWindowBatch(b,graph);
                 orderGasRadiationInputs(b);orderGasMaterialInputs(b);
                 ugkp::gpu::executionGraphDetail::checked(cudaGraphLaunch(graph.executable,b.gasCaptureStream));
@@ -499,7 +525,7 @@ bool collectGasWindow(Backend& b,GasMicroReport& report,std::string& error){
                     if(!serviceResidentMaterialLocalCapacity(*b.windowMaterial,error)){
                         b.poisoned=true;return false;
                     }
-                    const auto slot=(b.windowBatch.first/CoupledHistoryArchive::slabFrames)%2;
+                    const auto slot=b.windowBatch.slot;
                     auto& graph=b.windowGraph[slot];buildGasWindowBatch(b,graph);
                     orderGasRadiationInputs(b);orderGasMaterialInputs(b);
                     ugkp::gpu::executionGraphDetail::checked(cudaGraphLaunch(graph.executable,b.gasCaptureStream));
@@ -518,6 +544,7 @@ bool collectGasWindow(Backend& b,GasMicroReport& report,std::string& error){
                 if(b.windowRadiationMaterial)b.windowRadiationMaterial->acceptExternalCompletion({});
                 report={};report.acceptedDt=progress.dt;report.nextGasDt=progress.seed;report.time=b.trial.time;
                 report.localTime=b.elapsed;report.microSequence=progress.microSteps;report.recoverable=false;
+                b.wallHeatReady=b.windowImplicit&&!b.historyArchive->retainsHistory();
                 b.windowBatchPrepared=false;error.clear();return true;
             }
             if(progress.stop!=GasWindowStop::HistoryCapacity||!progress.batchFrames){

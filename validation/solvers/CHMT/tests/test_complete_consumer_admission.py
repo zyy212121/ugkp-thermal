@@ -27,12 +27,8 @@ def test_supplied_output_metadata_and_real_stream_error(tmp_path):
     begin=source.index('    for(int bad=0;')
     source=source[:begin]+r'''
     auto supplied=state;supplied.commitSequence=77;supplied.time=std::numeric_limits<Real>::infinity();
-    supplied.ledger[0].consumerMask=0;supplied.filmStorage.resize(1);
+    supplied.filmStorage.resize(1);
     for(auto writer:writers){std::ostringstream stream;check(writer(stream,supplied,model,error),error);check(!stream.str().empty(),"supplied CSV produced");}
-    supplied.gasWallDiagnosticTime=123;supplied.gasWallDiagnostics.resize(1);
-    supplied.gasWallDiagnostics[0].traceTemperature=std::numeric_limits<Real>::quiet_NaN();
-    std::ostringstream wall;check(io::writeAcceptedWallLayerFields(wall,supplied,model,error),error);
-    check(wall.str().find("nan")!=std::string::npos,"actual nonfinite diagnostic serialized");
     std::ostringstream failed;failed.setstate(std::ios::badbit);
     check(!io::writeAcceptedCoupledSummary(failed,supplied,model,error),"actual stream fault retained");
 }

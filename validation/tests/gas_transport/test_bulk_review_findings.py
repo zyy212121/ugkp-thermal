@@ -41,9 +41,10 @@ if(OPTIONAL){near(s.rhoK[0],expected,"public K source incomplete");ck(std::isnan
 else{ck(std::isnan(s.rhoK[0]),"public K equation was not evaluated");if(CONSTRAINED)ck(s.rhoOmega[0]==beforeOmega,"constrained omega changed on bad K flux");else near(s.rhoOmega[0],std::max(beforeOmega+Real(.01)*so,s.rho[0]*s.sstOmegaMin),"independent finite omega source missing");}}}
 '''.replace('CONSTRAINED','true' if constrained else 'false').replace('AUDITED','true' if audited else 'false').replace('CHANNEL','sstPhiRhoOmega' if channel=='omega' else 'sstPhiRhoK').replace('OPTIONAL','true' if channel=='omega' else 'false'))
 
-def test_jayatilleke_zero_ustar_actual_heat_overflow_is_error(tmp_path):
+def test_jayatilleke_molecular_heat_overflow_is_error(tmp_path):
     compile_probe(tmp_path,fixture()+r'''
-int main(){const Real big=std::numeric_limits<Real>::max();auto t=ugkpwall::sstJayatillekeThermalTransport(1,2,1,1,1,1,1,1,1,1,0,1,0,0,big);ck(!t.valid&&t.conductivity==2&&!std::isfinite(t.heatFlux),"required molecular heat overflow reported valid");}
+#include "../legacy/common/gasNumerics/LegacySstWallFunction.H"
+int main(){const Real big=std::numeric_limits<Real>::max();auto t=ugkpwall::sstJayatillekeThermalTransport(2,1,1,1,1,0,10,0,big);ck(!t.valid&&t.conductivity==2&&!std::isfinite(t.heatFlux),"required molecular heat overflow reported valid");}
 ''')
 
 def test_optional_periodic_overflow_cannot_authorize_unbounded_repair(tmp_path):

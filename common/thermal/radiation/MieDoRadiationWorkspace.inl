@@ -239,8 +239,3 @@ ugkp::gpu::DiscreteOrdinateRadiation& MieDoRadiationSolver::prepareParent
     scratch.gpu->prepareParentInputs(residentRadiationInput(*data_,snapshot),scratch.intensitiesInitialized);
     return *scratch.gpu;
 }
-
-MieDoResult MieDoRadiationSolver::collect(MieDoRadiationWorkspace& workspace) const {
-    if(!workspace.data_||!workspace.data_->gpu)solveFailure("radiation output requested before solve");
-    return publishedRadiationResult(data_->mesh,*workspace.data_,workspace.data_->gpu->collect());
-}

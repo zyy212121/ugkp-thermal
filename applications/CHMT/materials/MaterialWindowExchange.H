@@ -24,7 +24,6 @@ public:
 struct MaterialWindowCell {
     MaterialWindowSum<PhysicalReal> mass[Nc+Ns]{};
     MaterialWindowSum<EnergyReal> energy;
-    std::uint64_t packets=0;
 };
 
 CHMT_HD inline const char* addMaterialWindowPacket(MaterialWindowCell& sum,
@@ -43,7 +42,6 @@ CHMT_HD inline const char* addMaterialWindowPacket(MaterialWindowCell& sum,
         if(!finite(delta.pore[s]))return "nonfinite accepted pore mass";
         sum.mass[Nc+s].add(delta.pore[s]);
     }
-    ++sum.packets;
     return nullptr;
 }
 
@@ -59,7 +57,6 @@ struct MaterialWindowExchange {
     using Removal=std::array<MaterialWindowSum<PhysicalReal>,Nc>;
     std::vector<MaterialWindowCell> cells;
     std::vector<Removal> removed;
-    std::uint64_t packets=0;
 
     explicit MaterialWindowExchange(const HostState& base)
         :cells(base.solid.size()),removed(base.surface.solidFace.size()) {}
@@ -73,7 +70,7 @@ struct MaterialWindowExchange {
         if(const auto* failure=addMaterialWindowPacket(cells[cell],removed[face].data(),packet,cell)){
             error=failure;return false;
         }
-        ++packets;return true;
+        return true;
     }
 
     bool radiation(std::size_t face,EnergyReal energy,unsigned receiver,const SurfaceMesh& surface,std::string& error){

@@ -23,7 +23,7 @@ struct AdvanceRequest {
     std::uint64_t maximumSteps=0,maximumThermalEvents=0;
     int courantInterval=1;
     unsigned progressInterval=0;
-    bool adjustTimeStep=false,exactBoundary=true,adjustWrite=false;
+    bool adjustTimeStep=false,exactBoundary=true,adjustWrite=false,limitDiffusiveTimeStep=false;
     double thermalOutputTime=std::numeric_limits<double>::infinity();
     std::uint64_t thermalOutputStep=0,thermalOutputEvent=0;
     double scheduleOrigin=0,nextHeat=std::numeric_limits<double>::infinity();

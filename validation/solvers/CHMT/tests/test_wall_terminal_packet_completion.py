@@ -10,6 +10,14 @@ SOURCE=r'''
 #include "gpu/GasWallMath.H"
 #include <cassert>
 using namespace chmt;
+auto prepareLayer(const GasWallInput& in,const PhysicsConfig& p){
+ InterfaceGasClosure closure;
+ Real species[Ns]{};
+ for(int s=0;s<Ns;++s)species[s]=(in.speciesRate[s]+in.poreRate[s])*(in.area/in.gasArea);
+ assert(evaluateInterfaceGasClosure(in.bulk,in.gradient,in.temperature,in.gasDistance,in.velocity,
+  in.normal,in.normalSpeed,species,p.tolerances.absoluteMass/(in.dt*in.gasArea),p,in.wallContext,closure));
+ return closure.layer;
+}
 int main(){auto p=chmt_test::physics();p.gasMode=ugkwp::GasMode::MixtureFrozen;
 p.gasViscosity=.02;p.gasConductivity=80;
 for(int s=0;s<Ns;++s){p.species[s].cp1=0;p.gasDiffusivity[s]=.01;}
@@ -25,7 +33,7 @@ in.wallContext.matching.temperature=bulk.temperature;in.wallContext.matching.vel
 for(int s=0;s<Ns;++s)in.wallContext.matching.massFraction[s]=bulk.Y[s];
 SurfacePacketIdentity id;id.gasCell=id.solidCell=id.filmFace=0;
 GasWallResult original;assert(evaluateGasWall(in,id,p,original));
-ugkwp::gaswall::WallOutput<Real,Ns> prepared=original.layer;(void)prepared;
+auto prepared=prepareLayer(in,p);(void)prepared;
 const auto sampled=in.wallContext.matching;const Real sampledPressure=in.wallContext.matchingPressure;
 in.preparedMatching=&sampled;in.preparedMatchingPressure=&sampledPressure;
 MUTATION
@@ -40,7 +48,7 @@ assert(same(out.primary.pressureWork,in.wallContext.mechanicalPressure*in.sweptV
 assert(same(out.primary.momentum.x,out.trace.velocity.x*out.primary.mass+(in.normal.x*in.wallContext.mechanicalPressure-out.traction.x)*.02));
 assert(out.trace.temperature==in.temperature&&out.trace.pressure==in.wallContext.matchingPressure);
 if(STALE){GasWallResult fresh;in.preparedLayer=nullptr;assert(evaluateGasWall(in,id,p,fresh));
-assert(out.layer.traceTemperature==fresh.layer.traceTemperature&&out.primary.conductive==fresh.primary.conductive);
+assert(out.trace.temperature==fresh.trace.temperature&&out.primary.conductive==fresh.primary.conductive);
 assert(out.primary.conductive!=original.primary.conductive||out.trace.rho!=original.trace.rho);}
 if(OVERFLOW)assert(!std::isfinite(out.primary.energy)&&out.primary.energy!=917);
 }
@@ -80,11 +88,14 @@ r.condensed[0]=.04;r.gasAdvective=11;r.gasConductive=INFINITY;r.gasPressureWork=
 r.poreSpecies[0]=.007;r.poreSpecies[1]=.003;r.poreSweep[0]=.001;r.poreEnergy=23;
 SurfacePacketIdentity id;id.gasCell=id.solidCell=id.filmFace=0;ExchangePacket out[3];
 for(auto& packet:out){packet.mass=901;packet.energy=902;packet.species[0]=903;}
-DeviceStatus status;assert(assembleSurfacePackets(in,r,id,p,out,&status));
-assert(out[0].species[0]==.25*.03&&out[0].condensed[0]==.25*.04&&std::isinf(out[0].energy));
+DeviceStatus status;assert(!assembleSurfacePackets(in,r,id,p,out,&status));
+assert(out[0].mass==901&&out[0].energy==902&&out[0].species[0]==903);
+r.gasConductive=-20;status={};
+assert(assembleSurfacePackets(in,r,id,p,out,&status));
+assert(out[0].species[0]==.25*.03&&out[0].condensed[0]==.25*.04&&out[0].energy==.25*(11-20+17+19));
 assert(out[0].momentum.x==2*out[0].mass+(100003-5)*.375);
 assert(out[1].mass==.25*.007+.25*.003&&out[1].energy==.25*23&&out[1].poreSweep[0]==.25*.001);
-assert(out[2].mass==0&&out[2].energy==0&&out[2].species[0]==0&&status.code!=int(ErrorCode::Success));
+assert(out[2].mass==0&&out[2].energy==0&&out[2].species[0]==0&&status.code==int(ErrorCode::Success));
 
 
 r={};r.wet=true;r.phaseMass=-100;r.phaseAdvective=2;r.phaseConductive=3;r.phasePressureWork=4;r.phaseViscousWork=5;
@@ -96,7 +107,7 @@ const Real available=901-103+.125*13+.25*11;
 assert(out[2].mass==-2&&out[2].species[0]==-.4&&out[2].species[1]==-1.6&&out[2].condensed[0]==-2);
 assert(out[2].energy==-available-.25*7);
 assert(out[2].advective==out[2].energy-out[2].conductive-out[2].pressureWork-out[2].viscousWork);
-assert(status.code!=int(ErrorCode::Success));
+assert(status.code==int(ErrorCode::Success));
 }
 '''
     source=tmp_path/'surface.cpp';source.write_text(code);exe=tmp_path/'surface'
@@ -126,39 +137,38 @@ auto mutate=[](GasWallInput& value,int kind){
  if(kind==3)value.normalSpeed=NAN;
 };
 
-if(variant>=6&&variant<=9)mutate(in,variant-6);
-if(variant==14||variant==15)in.normalSpeed=INFINITY;
+if((variant>=6&&variant<=9)||variant==14){
+ if(variant==14)in.normalSpeed=INFINITY;
+ else mutate(in,variant-6);
+ GasWallResult rejected;rejected.primary.energy=917;
+ assert(!evaluateGasWall(in,id,p,rejected)&&rejected.primary.energy==917);
+ return 0;
+}
 GasWallResult original;assert(evaluateGasWall(in,id,p,original));
-auto prepared=original.layer;const auto sampled=in.wallContext.matching;
+auto prepared=prepareLayer(in,p);const auto sampled=in.wallContext.matching;
 const Real sampledPressure=in.wallContext.matchingPressure;
 in.preparedLayer=&prepared;in.preparedMatching=&sampled;in.preparedMatchingPressure=&sampledPressure;
 if(variant<4)mutate(in,variant);
 if(variant==5)in.velocity.y=3;
 if(variant==10){in.preparedMatching=nullptr;in.preparedMatchingPressure=nullptr;}
-if(variant==11){in.velocity.y=NAN;p.wallModel.model=ugkwp::gaswall::BoundaryLayerModel::ReactingSst;}
+if(variant==11){in.velocity.y=3;p.wallModel.model=ugkwp::gaswall::BoundaryLayerModel::ReactingSst;}
 if(variant==12)in.velocity.y+=1e-13;
 if(variant==13)in.normalSpeed=INFINITY;
 if(variant==15)in.normalSpeed=-INFINITY;
-tracked=reinterpret_cast<void*>(&evaluateInterfaceGasClosure<true>);calls=0;
-GasWallResult reused;reused.primary.energy=917;reused.layer.traction[1]=918;
+tracked=reinterpret_cast<void*>(&evaluateInterfaceGasClosure<>);calls=0;
+GasWallResult reused;reused.primary.energy=917;reused.traction.y=918;
 const bool accepted=evaluateGasWall(in,id,p,reused);const unsigned reuseCalls=calls;
-if(variant==11){assert(!accepted&&calls==1&&reused.primary.energy==917&&reused.layer.traction[1]==918);return 0;}
-assert(accepted);const bool changed=variant<4||variant==5||variant==13||variant==15;
+if(variant==11){assert(!accepted&&calls==1&&reused.primary.energy==917&&reused.traction.y==918);return 0;}
+if(variant<4||variant==13||variant==15){
+ assert(!accepted&&reuseCalls==0&&reused.primary.energy==917&&reused.traction.y==918);
+ return 0;
+}
+assert(accepted);const bool changed=variant==5;
 std::printf("variant=%d fresh_calls=%u expected=%u\n",variant,reuseCalls,unsigned(changed));
 assert(reuseCalls==unsigned(changed));
 auto same=[](Real a,Real b){return a==b||(std::isnan(a)&&std::isnan(b));};
-auto compareLayer=[&](const ugkwp::gaswall::WallOutput<Real,Ns>& a,const ugkwp::gaswall::WallOutput<Real,Ns>& b){
- for(auto pair:{std::pair<Real,Real>{a.traceTemperature,b.traceTemperature},{a.traceDensity,b.traceDensity},
-  {a.conductiveHeatFlux,b.conductiveHeatFlux},{a.ownerOmega,b.ownerOmega},{a.wallKFlux,b.wallKFlux},
-  {a.integratedKSource,b.integratedKSource},{a.residual,b.residual}})assert(same(pair.first,pair.second));
- const Real* left[]={a.traceMassFraction,a.traceVelocity,a.traction,a.wallSpeciesFlux,a.matchingSpeciesFlux,a.reactionIntegral,a.chemistryMismatch,a.speciesBalanceResidual};
- const Real* right[]={b.traceMassFraction,b.traceVelocity,b.traction,b.wallSpeciesFlux,b.matchingSpeciesFlux,b.reactionIntegral,b.chemistryMismatch,b.speciesBalanceResidual};
- const int sizes[]={Ns,3,3,Ns,Ns,Ns,Ns,Ns};
- for(int k=0;k<8;++k)for(int j=0;j<sizes[k];++j)assert(same(left[k][j],right[k][j]));
- assert(a.iterations==b.iterations&&a.chemistryMismatchAvailable==b.chemistryMismatchAvailable);
-};
-if(variant!=12){auto freshInput=in;freshInput.preparedLayer=nullptr;GasWallResult fresh;
- calls=0;assert(evaluateGasWall(freshInput,id,p,fresh)&&calls==1);compareLayer(reused.layer,fresh.layer);
+auto compareExchange=[&](const GasWallResult& reused,const GasWallResult& fresh){
+ assert(same(reused.traction.x,fresh.traction.x)&&same(reused.traction.y,fresh.traction.y)&&same(reused.traction.z,fresh.traction.z));
  for(auto pair:{std::pair<Real,Real>{reused.trace.temperature,fresh.trace.temperature},{reused.trace.pressure,fresh.trace.pressure},
   {reused.trace.rho,fresh.trace.rho},{reused.trace.velocity.x,fresh.trace.velocity.x},{reused.trace.velocity.y,fresh.trace.velocity.y},
   {reused.trace.velocity.z,fresh.trace.velocity.z},{reused.trace.soundSpeed,fresh.trace.soundSpeed}})assert(same(pair.first,pair.second));
@@ -171,13 +181,17 @@ if(variant!=12){auto freshInput=in;freshInput.preparedLayer=nullptr;GasWallResul
   for(int j=0;j<Ns;++j){assert(same(a.species[j],b.species[j]));assert(same(a.pore[j],b.pore[j]));assert(same(a.poreSweep[j],b.poreSweep[j]));}
   for(int j=0;j<Nc;++j)assert(same(a.condensed[j],b.condensed[j]));
  }
-}else compareLayer(reused.layer,prepared);
+};
+if(variant!=12){
+ auto freshInput=in;freshInput.preparedLayer=nullptr;GasWallResult fresh;
+ calls=0;assert(evaluateGasWall(freshInput,id,p,fresh)&&calls==1);compareExchange(reused,fresh);
+}else assert(reused.primary.conductive==original.primary.conductive);
 if(!changed){
 
 
  p.wallModel.model=ugkwp::gaswall::BoundaryLayerModel::ReactingSst;
  in.wallContext.workspace=nullptr;calls=0;GasWallResult withoutWorkspace;
- assert(evaluateGasWall(in,id,p,withoutWorkspace)&&calls==0);compareLayer(withoutWorkspace.layer,prepared);
+ assert(evaluateGasWall(in,id,p,withoutWorkspace)&&calls==0);compareExchange(withoutWorkspace,reused);
 }
 }
 '''

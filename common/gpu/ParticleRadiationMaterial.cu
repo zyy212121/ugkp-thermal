@@ -84,17 +84,20 @@ __global__ void materialRoots(int count,MieOpticalTableView table,const Radiatio
     next[cell]=root.temperatureK;energy[cell]=capacity*(root.temperatureK-old);
 }
 
-__global__ void rawBoundaryEnergy(int count,RadiationReal elapsed,const RadiationReal* area,const RadiationReal* flux,RadiationReal* energy,diagnostics::DeviceContext* context,const double* deviceElapsed=nullptr){
+__global__ void publishMaterialBoundary(int count,RadiationReal elapsed,const RadiationReal* area,
+    const RadiationReal* flux,const unsigned char* coupled,RadiationReal* energy,
+    const diagnostics::DeviceContext* context,const double* deviceElapsed){
+    const int face=blockIdx.x*blockDim.x+threadIdx.x;
+    if(face>=count)return;
     if(deviceElapsed)elapsed=RadiationReal(*deviceElapsed);
-    const int face=blockIdx.x*blockDim.x+threadIdx.x;if(face<count)energy[face]=diagnostics::hasFatal(context)?0:elapsed*area[face]*flux[face];
+    energy[face]=coupled[face]&&!diagnostics::hasFatal(context)?elapsed*area[face]*flux[face]:0;
 }
-__global__ void publishMaterialBoundary(int faces,const RadiationReal* raw,const unsigned char* coupled,
-    RadiationReal* boundary,RadiationReal* escaped){
-    if(threadIdx.x)return;
-
-
+__global__ void sumEscapedBoundaryEnergy(int count,RadiationReal elapsed,const RadiationReal* area,
+    const RadiationReal* flux,const unsigned char* coupled,RadiationReal* escaped,
+    const diagnostics::DeviceContext* context){
     RadiationReal other=0;
-    for(int face=0;face<faces;++face){boundary[face]=coupled[face]?raw[face]:0;if(!coupled[face])other+=raw[face];}
+    if(!diagnostics::hasFatal(context))
+        for(int face=0;face<count;++face)if(!coupled[face])other+=elapsed*area[face]*flux[face];
     *escaped=other;
 }
 
@@ -108,9 +111,23 @@ struct ParticleRadiationMaterial::Implementation {
     const double* deviceElapsed=nullptr;
     std::size_t responseScanBytes=0;
     MieOpticalProperties optical;cudaStream_t stream=nullptr;cudaEvent_t inputReady=nullptr;PinnedTransferQueue transfer;
-    MaterialArray<RadiationReal> epsilon,mass,temperature,diameter,incident,volume,area,flux,next,energy,raw,boundary,escaped;
+    MaterialArray<RadiationReal> epsilon,mass,temperature,diameter,incident,volume,area,flux,next,energy,boundary,escaped;
+    bool escapedReady=false;
     MaterialArray<unsigned char> coupled,scanScratch;
     std::vector<unsigned char> coupledHost;
+    void enqueueBoundaryEnergy(int count,RadiationReal elapsed,const RadiationReal* areaValues,
+        const RadiationReal* fluxValues,bool exportFields,const double* elapsedDevice=nullptr){
+        const int width=workPlan().radiationBlockThreads;
+        if(count)publishMaterialBoundary<<<(count+width-1)/width,width,0,stream>>>(
+            count,elapsed,areaValues,fluxValues,coupled.ptr,boundary.ptr,diagnostics,elapsedDevice);
+        escapedReady=exportFields;
+        if(exportFields){
+            escaped.reserve(1);
+            sumEscapedBoundaryEnergy<<<1,1,0,stream>>>(
+                count,elapsed,areaValues,fluxValues,coupled.ptr,escaped.ptr,diagnostics);
+        }
+        checkedMaterial(cudaGetLastError());
+    }
     MaterialArray<RadiationEntryParticle<GpuReal>> anchors;
     MaterialArray<int> anchorOffsets;
     MaterialArray<RadiationEnergyDomain<RadiationReal>> anchorDomains;
@@ -203,7 +220,7 @@ RadiationThermalCouplingDeviceView ParticleRadiationMaterial::beginAnchoredWindo
   v.enabled=true;v.cells=n;v.boundaryFaces=faces;v.epsilon=d.epsilon.ptr;v.mass=d.mass.ptr;v.temperature=d.temperature.ptr;v.diameter=d.diameter.ptr;v.volume=d.volume.ptr;v.producerStream=d.stream;}
  d.diagnostics=v.diagnostics;d.coupled.upload(input.coupledBoundary,d.transfer);d.coupledHost=input.coupledBoundary;
  d.next.reserve(n);d.energy.reserve(n);d.actualEnergy.reserve(n);d.entryB.reserve(n);d.slope.reserve(n);d.plusSlope.reserve(n);d.minusSlope.reserve(n);d.linearizedEmission.reserve(n);d.thermalFeedback.reserve(n);d.materialResidual.reserve(n);d.materialRelativeResidual.reserve(n);d.finalFraction.reserve(n);d.searchRequest.reserve(n);d.searchActual.reserve(n);d.searchTemperature.reserve(n);d.materialValid.reserve(n);d.trialInDomain.reserve(n);d.maximumMaterialResidual.reserve(1);d.temperatureGridAllowance.reserve(n);d.materialEffectiveRelative.reserve(n);d.materialAllowedResidual.reserve(n);d.usedTemperatureGrid.reserve(n);
- d.raw.reserve(faces);d.boundary.reserve(faces);d.escaped.reserve(1);d.anchorOffsets.reserve(n+1);d.anchorDomains.reserve(n);
+ d.boundary.reserve(faces);d.anchorOffsets.reserve(n+1);d.anchorDomains.reserve(n);
  const int reductionWidth=std::max(2,workPlan().radiationBlockThreads);
  const int maximumBlocks=(n+reductionWidth-1)/reductionWidth;d.maximumA.reserve(maximumBlocks);d.maximumB.reserve(maximumBlocks);
  d.anchorCutoff=input.activeEpsilonMinimum;d.anchorParcels=input.response.enabled;d.anchorCp=input.heatFactor;d.anchorMinimum=input.minimumTemperature;d.anchorMaximum=input.maximumTemperature;d.anchorDt=RadiationReal(input.elapsed);d.anchorState=v;d.cells=n;d.faces=faces;
@@ -222,7 +239,7 @@ RadiationThermalCouplingDeviceView ParticleRadiationMaterial::beginAnchoredWindo
   if(!d.preparingParent)anchorLumped<<<(n+1+width-1)/width,width,0,d.stream>>>(n,v.mass,v.temperature,d.anchorOffsets.ptr,d.anchors.ptr);
  }
  if(n&&!d.preparingParent){anchorInitialize<<<(n+width-1)/width,width,0,d.stream>>>(n,d.anchorParcels,d.anchorCp,d.anchors.ptr,d.anchorOffsets.ptr,d.anchorMinimum,d.anchorMaximum,d.anchorDt,d.optical.deviceTable(),v,d.arrays());}
- if(!d.preparingParent)checkedMaterial(cudaMemsetAsync(d.maximumMaterialResidual.ptr,0,sizeof(RadiationReal),d.stream));checkedMaterial(cudaGetLastError());d.anchorActive=true;d.resultReady=false;
+ if(!d.preparingParent)checkedMaterial(cudaMemsetAsync(d.maximumMaterialResidual.ptr,0,sizeof(RadiationReal),d.stream));checkedMaterial(cudaGetLastError());d.anchorActive=true;d.resultReady=false;d.escapedReady=false;
 
 
  d.windowDescriptor.reserve(1);
@@ -261,10 +278,10 @@ ExecutionGraphNode ParticleRadiationMaterial::appendWindowStartTo(ExecutionGraph
  });
 }
 ExecutionGraphNode ParticleRadiationMaterial::appendWindowFinishTo(ExecutionGraph graph,ExecutionGraphNode dependency,const RadiationDeviceView& transport){
- auto& d=*data_;const int width=workPlan().radiationBlockThreads;
+ auto& d=*data_;
+ if(!d.faces)return dependency;
  return executionGraphDetail::appendCaptured(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},d.stream,[&]{
-  if(d.faces)rawBoundaryEnergy<<<(d.faces+width-1)/width,width,0,d.stream>>>(d.faces,d.anchorDt,transport.boundaryArea,transport.boundaryFlux,d.raw.ptr,d.diagnostics,d.deviceElapsed);
-  publishMaterialBoundary<<<1,1,0,d.stream>>>(d.faces,d.raw.ptr,d.coupled.ptr,d.boundary.ptr,d.escaped.ptr);checkedMaterial(cudaGetLastError());
+  d.enqueueBoundaryEnergy(d.faces,d.anchorDt,transport.boundaryArea,transport.boundaryFlux,false,d.deviceElapsed);
  });
 }
 RadiationMaterialDeviceView ParticleRadiationMaterial::deviceView()const noexcept{
@@ -286,10 +303,9 @@ ExecutionGraphNode ParticleRadiationMaterial::appendAnchoredIteration(ExecutionG
   checkedMaterial(cudaGetLastError());});
 }
 ParticleRadiationMaterialResult ParticleRadiationMaterial::finishAnchoredWindow(const RadiationDeviceView& transport,bool exportFields){
- auto& d=*data_;checkedMaterial(cudaEventRecord(d.inputReady,static_cast<cudaStream_t>(transport.producerStream)));checkedMaterial(cudaStreamWaitEvent(d.stream,d.inputReady,0));const int width=workPlan().radiationBlockThreads;
- if(d.faces)rawBoundaryEnergy<<<(d.faces+width-1)/width,width,0,d.stream>>>(d.faces,d.anchorDt,transport.boundaryArea,transport.boundaryFlux,d.raw.ptr,d.diagnostics);
- publishMaterialBoundary<<<1,1,0,d.stream>>>(d.faces,d.raw.ptr,d.coupled.ptr,d.boundary.ptr,d.escaped.ptr);
- checkedMaterial(cudaGetLastError());d.resultReady=true;
+ auto& d=*data_;checkedMaterial(cudaEventRecord(d.inputReady,static_cast<cudaStream_t>(transport.producerStream)));checkedMaterial(cudaStreamWaitEvent(d.stream,d.inputReady,0));
+ d.enqueueBoundaryEnergy(d.faces,d.anchorDt,transport.boundaryArea,transport.boundaryFlux,exportFields);
+ d.resultReady=true;
  if(exportFields)return collect();ParticleRadiationMaterialResult out;out.resident={true,d.cells,d.faces,d.next.ptr,d.energy.ptr,d.boundary.ptr,d.stream,d.diagnostics};out.resident.publicationFraction=d.finalFraction.ptr;return out;
 }
 ParticleRadiationMaterialResult ParticleRadiationMaterial::solve(const ParticleRadiationMaterialInput& input,bool exportFields){
@@ -308,7 +324,7 @@ ParticleRadiationMaterialResult ParticleRadiationMaterial::solve(const ParticleR
         state={true,cells,faces,d.epsilon.ptr,d.mass.ptr,d.temperature.ptr,d.diameter.ptr,d.incident.ptr,nullptr,d.volume.ptr,d.area.ptr,d.flux.ptr,d.stream};
     }
     if(d.coupledHost!=input.coupledBoundary){d.coupled.upload(input.coupledBoundary,d.transfer);d.coupledHost=input.coupledBoundary;}
-    d.next.reserve(cells);d.energy.reserve(cells);d.raw.reserve(faces);d.boundary.reserve(faces);d.escaped.reserve(1);
+    d.next.reserve(cells);d.energy.reserve(cells);d.boundary.reserve(faces);
     const int* offsets=input.response.cellOffsets;const int* indices=nullptr;
     if(input.response.enabled&&(!offsets||input.response.deviceView)){
 
@@ -319,9 +335,7 @@ ParticleRadiationMaterialResult ParticleRadiationMaterial::solve(const ParticleR
     }
     if(cells)materialRoots<<<(cells+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads,ugkp::gpu::workPlan().radiationBlockThreads,0,d.stream>>>(cells,d.optical.deviceTable(),state.epsilon,state.mass,state.temperature,state.diameter,
         state.incident,state.volume,input.heatFactor,input.elapsed,input.minimumTemperature,input.maximumTemperature,input.activeEpsilonMinimum,d.controls,input.response,offsets,indices,d.next.ptr,d.energy.ptr,d.diagnostics);
-    if(faces)rawBoundaryEnergy<<<(faces+ugkp::gpu::workPlan().radiationBlockThreads-1)/ugkp::gpu::workPlan().radiationBlockThreads,ugkp::gpu::workPlan().radiationBlockThreads,0,d.stream>>>(faces,input.elapsed,state.boundaryArea,state.boundaryFlux,d.raw.ptr,d.diagnostics);
-    publishMaterialBoundary<<<1,1,0,d.stream>>>(faces,d.raw.ptr,d.coupled.ptr,d.boundary.ptr,d.escaped.ptr);
-    checkedMaterial(cudaGetLastError());
+    d.enqueueBoundaryEnergy(faces,input.elapsed,state.boundaryArea,state.boundaryFlux,exportFields);
     if(input.resident.enabled){
         checkedMaterial(cudaEventRecord(d.inputReady,d.stream));
         checkedMaterial(cudaStreamWaitEvent(static_cast<cudaStream_t>(input.resident.producerStream),d.inputReady,0));
@@ -336,23 +350,16 @@ ParticleRadiationMaterialResult ParticleRadiationMaterial::collect(){
     ParticleRadiationMaterialResult result;result.temperature.resize(cells);result.energy.resize(cells);result.boundaryEnergy.resize(faces);
     d.transfer.download(result.temperature.data(),d.next.ptr,cells*sizeof(RadiationReal));d.transfer.download(result.energy.data(),d.energy.ptr,cells*sizeof(RadiationReal));
     d.transfer.download(result.boundaryEnergy.data(),d.boundary.ptr,faces*sizeof(RadiationReal));
-    d.transfer.download(&result.escapedEnergy,d.escaped.ptr,sizeof(RadiationReal));d.transfer.finish();result.resident={true,cells,faces,d.next.ptr,d.energy.ptr,d.boundary.ptr,d.stream,d.diagnostics};if(d.anchorActive)result.resident.publicationFraction=d.finalFraction.ptr;return result;
+    if(d.escapedReady)d.transfer.download(&result.escapedEnergy,d.escaped.ptr,sizeof(RadiationReal));
+    d.transfer.finish();result.resident={true,cells,faces,d.next.ptr,d.energy.ptr,d.boundary.ptr,d.stream,d.diagnostics};if(d.anchorActive)result.resident.publicationFraction=d.finalFraction.ptr;return result;
 }
 
-RadiationReal ParticleRadiationMaterial::collectEscapedEnergy(){
+std::vector<RadiationReal> ParticleRadiationMaterial::collectBoundaryEnergy(){
     awaitCompletion();auto& d=*data_;
-    if(!d.resultReady)throw std::logic_error("radiation energy report requested before solve");
-    PinnedTransferQueue::Operation operation(d.transfer);RadiationReal result=0;
-    d.transfer.download(&result,d.escaped.ptr,sizeof(result));d.transfer.finish();return result;
-}
-ParticleRadiationMaterialResult ParticleRadiationMaterial::collectBoundaryEnergy(){
-    awaitCompletion();auto& d=*data_;if(!d.resultReady)throw std::logic_error("radiation boundary output requested before solve");
-    PinnedTransferQueue::Operation operation(d.transfer);ParticleRadiationMaterialResult result;
-    result.boundaryEnergy.resize(d.faces);
-    d.transfer.download(result.boundaryEnergy.data(),d.boundary.ptr,d.faces*sizeof(RadiationReal));
-
-    d.transfer.download(&result.escapedEnergy,d.escaped.ptr,sizeof(RadiationReal));
-
-    d.transfer.finish();result.resident={true,d.cells,d.faces,d.next.ptr,d.energy.ptr,d.boundary.ptr,d.stream,d.diagnostics};if(d.anchorActive)result.resident.publicationFraction=d.finalFraction.ptr;return result;
+    if(!d.resultReady)throw std::logic_error("radiation boundary output requested before solve");
+    PinnedTransferQueue::Operation operation(d.transfer);
+    std::vector<RadiationReal> result(d.faces);
+    d.transfer.download(result.data(),d.boundary.ptr,d.faces*sizeof(RadiationReal));
+    d.transfer.finish();return result;
 }
 }}

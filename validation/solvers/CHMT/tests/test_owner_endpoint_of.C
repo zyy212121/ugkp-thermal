@@ -82,7 +82,6 @@ int main(int argc,char** argv){
     assert(result.time==dt&&corrected.knots.size()>=2&&corrected.knots.back().faces.size()==4);
     for(std::size_t c=0;c<endpoint.gas.size();++c)assert(result.gas[c].energy==endpoint.gas[c].energy);
     assert(result.filmStorage.size()==4&&report.materialSteps>0&&chmt_test::materialSolveCalls>0);
-    assert(finalizeIntervalLedger(history,result,error));
     chmt_test::physicalSnapshot("owner_endpoint",result,corrected);
     std::cout<<"actual wet endpoint baseTrace/surface/storage/account/ledger tail dt "<<result.time<<" material "<<report.materialSteps<<" solves "<<chmt_test::materialSolveCalls<<'\n';
     IntervalHistory missingTrace;assert(missingTrace.begin(interval,error));assert(missingTrace.appendAccepted(record,error));second.gasTrace.clear();assert(missingTrace.appendAccepted(second,error));

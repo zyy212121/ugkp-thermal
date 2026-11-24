@@ -11,7 +11,7 @@ struct GasWindowControls {
     std::uint64_t gasGeometry=0,solidGeometry=0,acceptedStep=0;
 };
 struct GasWindowProgress {
-    ugkp::CompensatedTime elapsed{};
+    ugkp::CompensatedTime elapsed{},lastBegin{};
     std::uint64_t gasSteps=0,microSteps=0;
     std::size_t batchFrames=0,batchCapacity=0;
     Real seed=0,rate=0,requested=0,remaining=0,reference=0,dt=0,nextDt=0;

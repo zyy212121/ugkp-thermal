@@ -39,7 +39,7 @@ struct ParticleRadiationMaterialResult
     scalarField finalMeanTemperatureK;
     scalarField deltaParticleRadiationEnergyJ;
     List<scalarField> solidWallRadiationEnergyJ;
-    RadiationReal escapedBoundaryRadiationEnergyJ;
+    RadiationReal escapedBoundaryRadiationEnergyJ=0;
     ugkp::gpu::RadiationMaterialDeviceView resident{};
 };
 
@@ -197,9 +197,7 @@ public:
     void acceptParentSolve() const { radiationWorkspace_.acceptParentSolve(); }
     ParticleRadiationParentBinding prepareParent
     (const ParticleRadiationMaterialSnapshot&,const double* deviceElapsed) const;
-    ParticleRadiationMaterialResult collect() const;
-    ParticleRadiationMaterialResult collectBoundaryEnergy() const;
-    scalar collectEscapedEnergy() const;
+    List<scalarField> collectBoundaryEnergy() const;
     void freezeWarmStart(ugkp::gpu::RadiationWarmStart&,void* nextWriter=nullptr) const;
     bool readWarmStart(const std::string& path) const;
     bool writeWarmStart(const std::string& path) const;

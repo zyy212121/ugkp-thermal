@@ -1,6 +1,7 @@
 #pragma once
 #include "../GpuPrecisionTypes.H"
 #include "WallResolutionDefaults.H"
+#include "WallFamily.H"
 #include "WallIterationControls.H"
 #include "../Diagnostics.H"
 #include <type_traits>
@@ -11,7 +12,6 @@
 
 namespace ugkwp { namespace gaswall {
 using WallReal=GpuReal;
-enum class WallFamily : int { LowRe=0, WallFunction=1, BoundaryLayer=2 };
 enum class BoundaryLayerModel : int { ConstantTransport=0, ReactingSst=1, FiniteRate=ReactingSst, EquilibriumOde=2 };
 enum class WallCode : int { Success=0, InvalidInput, InvalidThermodynamics, Unsupported,
     InvalidGeometry, ChemistryFailure, NonConvergence, SingularJacobian, InadmissibleState };

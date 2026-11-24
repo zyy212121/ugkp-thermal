@@ -307,7 +307,8 @@ template<class Archive,class Value> void visitBudgetFields(Archive& a,Value& x){
     a(x.supportImpulse);
     a(x.supportWork);
     a(x.bodyWork);
-    a(x.radiation);
+    EnergyReal retiredRadiation=0;
+    a(retiredRadiation);
     a(x.gclResidual);
     a(x.exchangeMass);
     a(x.exchangeSpecies);
@@ -585,7 +586,8 @@ template<class Archive,class Value> void visitHostStateFields(Archive& a,Value& 
     a(x.normalEnthalpy);
     a(x.normalLiquidFraction);
     a(x.normalAcceptedWallHeat);
-    a(x.ledger);
+    std::vector<ExchangePacket> oldExchange(1);
+    a(oldExchange);
     a(x.filmStorage);
     a(x.gasSstAudit);
 

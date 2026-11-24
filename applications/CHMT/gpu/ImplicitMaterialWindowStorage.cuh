@@ -17,7 +17,6 @@ struct ImplicitWindowControls {
 struct ImplicitWindowMetrics {
     PhysicalReal mass=0,change=0;
     EnergyReal energy=0,boundary=0,initialResidual=0,scale=0;
-    std::uint64_t packets=0;
 };
 struct ImplicitWindowRemovalSum {MaterialWindowSum<PhysicalReal> mass[Nc];};
 

@@ -446,7 +446,7 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
         const bool localDeviceWindow=p.meshMotion.policy==MeshMotionPolicy::Static&&!controls.retainDonorHistory
             &&executedProgram&&(completeResident||historyArchive)&&!base.surface.area.empty();
         MaterialGeometryInventory geometryInventory(base,history,!localDeviceWindow);
-        HostState state=base;state.filmAux=dryGeometryAux(base);state.ledger.clear();state.filmStorage.clear();
+        HostState state=base;state.filmAux=dryGeometryAux(base);state.filmStorage.clear();
 
 
 
@@ -798,7 +798,6 @@ bool CpuMaterialDriver::advanceCandidateImpl(const HostState& base,const HostSta
                 +physicalSweepSum[f].value()-actualSweepSum[f].value());
             if(!(validateMaterialSweepRemainder(state,error,p.diagnostics))){report=accumulated;report.failureOrigin=MaterialFailureOrigin::GeometryNumerical;return false;}
         }
-        state.gasWallDiagnostics=geometryEndpoint.gasWallDiagnostics;state.gasWallDiagnosticTime=geometryEndpoint.gasWallDiagnosticTime;
         state.particleSourceFaces=geometryEndpoint.particleSourceFaces;
         state.particleSourceResidualMass=geometryEndpoint.particleSourceResidualMass;
         state.gas=geometryEndpoint.gas;state.sst=geometryEndpoint.sst;state.particles=geometryEndpoint.particles;state.gasTemperature=geometryEndpoint.gasTemperature;

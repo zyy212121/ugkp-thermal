@@ -110,7 +110,8 @@ __global__ void accept(State* physics,GasWindowProgress* progress,const GasWindo
     if(threadIdx.x||blockIdx.x)return;
     auto& p=*progress;
     if(p.stop==GasWindowStop::Running&&!ugkp::diagnostics::hasFatal(physics->diagnostics)){
-        history[p.batchFrames]={interval->localBegin,interval->localEnd,interval->actualDt};
+        if(history)history[p.batchFrames]={interval->localBegin,interval->localEnd,interval->actualDt};
+        p.lastBegin=interval->localBegin;
         ++p.batchFrames;++p.microSteps;++p.gasSteps;p.elapsed=interval->localEnd;p.seed=p.nextDt;
     }
     physics->gasResidentInterval.active=false;

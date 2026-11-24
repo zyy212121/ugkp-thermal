@@ -23,7 +23,7 @@ int main(int argc,char** argv){
     <<",\"particle_y\":"<<p.position.y<<",\"age\":"<<p.contactAge<<",\"state\":"<<p.state<<",\"status\":"<<p.thermal.status
     <<",\"owner_matches\":"<<(p.cell==state.gasMesh.owner[p.face]?"true":"false")<<"}";
  }
- state.ledger.clear();chmt::Encoder physical;physical(state);physical(state.gasTemperature);
+ chmt::Encoder physical;physical(state);physical(state.gasTemperature);
  for(const auto& p:state.particles)ugkp::thermal::visitParticleThermalHistory(physical,p.thermal);
  std::cout<<"],\"physical_checksum\":"<<chmt::checksum(physical.data.data(),physical.data.size())<<"}\n";
 }
@@ -78,17 +78,6 @@ specificEnthalpyResidual {0 if model=='coldWall1D' else .125}; {profiles}}}
 
 
 
-  ledger_delta=0.
-  ledger_scale=0.
-  for left,right in zip(table(output/f'exchange-{last}.csv'),table(restart/'chmtOutput'/f'exchange-{last}.csv')):
-   for key in left:
-    try:
-     lv,rv=float(left[key]),float(right[key]);delta=abs(lv-rv)
-     ledger_delta=max(ledger_delta,delta)
-     if delta:ledger_scale=max(ledger_scale,abs(lv),abs(rv))
-     if args.precision==32:assert delta<=8*(2**-23)*max(abs(lv),abs(rv),1e-30),(key,lv,rv)
-    except ValueError:assert left[key]==right[key]
-  if args.precision==64:assert ledger_delta<1e-20,ledger_delta
-  reports.append(dict(model=model,seconds=seconds,initial=initial,final=final,restart_checkpoint_byte_identical=identical,maximum_ledger_difference=ledger_delta))
+  reports.append(dict(model=model,seconds=seconds,initial=initial,final=final,restart_checkpoint_byte_identical=identical))
  (out/'results.json').write_text(json.dumps(reports,indent=2)+'\n');print(json.dumps(reports))
 if __name__=='__main__':main()

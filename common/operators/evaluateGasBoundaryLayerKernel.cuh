@@ -44,27 +44,52 @@ __global__ __launch_bounds__(ugkwp::gaswall::detail::wallWarpWidth) void evaluat
 }
 
 
-template<bool Capture=false,class GasState>
+inline __device__ unsigned long long wallLayerDeviceTime()
+{
+    unsigned long long value;
+    asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(value));
+    return value;
+}
+
+inline __device__ void recordWallLayerBlock(ugkwp::WallKernelTiming& timing,unsigned long long started)
+{
+    const auto ended=wallLayerDeviceTime();
+    atomicMax(&timing.invertedStart,~started);
+    atomicMax(&timing.end,ended);
+    __threadfence();
+    if(atomicAdd(&timing.finishedBlocks,1u)==gridDim.x-1u){
+        timing.nanoseconds+=timing.end-~timing.invertedStart;
+        ++timing.launches;
+        timing.finishedBlocks=0;
+        timing.invertedStart=0;
+        timing.end=0;
+    }
+}
+
+template<bool Capture=false,bool Measure=false,class GasState>
 __global__ void evaluateGasBoundaryLayerTile8Kernel(GasState* state,const unsigned char* active=nullptr)
 {
+    const auto started=Measure&&threadIdx.x==0?wallLayerDeviceTime():0;
     if(!ugkp::diagnostics::blockMayProceed(state->diagnostics))return;
     if constexpr(ugkwp::GasBoundaryLayerModelCapability<GasState>::value){
         const int workersPerBlock=blockDim.x/8;
         const int worker=workersPerBlock*blockIdx.x+threadIdx.x/8;
         const int workers=state->gasBoundaryLayerModel.workspaceCount;
-        if(worker>=workers||!ugkwp::gasBoundaryLayerEnabled(*state))return;
-        const ugkwp::gaswall::detail::CudaWallTile8 team{};
-        for(int slot=worker;slot<state->gasBoundaryLayer.count;slot+=workers)
-            if(!active||active[slot])ugkwp::evaluateGasBoundaryLayerSlot<Capture,24>(*state,slot,worker,team);
+        if(worker<workers&&ugkwp::gasBoundaryLayerEnabled(*state)){
+            const ugkwp::gaswall::detail::CudaWallTile8 team{};
+            for(int slot=worker;slot<state->gasBoundaryLayer.count;slot+=workers)
+                if(!active||active[slot])ugkwp::evaluateGasBoundaryLayerSlot<Capture,24>(*state,slot,worker,team);
+        }
+        if constexpr(Measure){
+            __syncthreads();
+            if(threadIdx.x==0)recordWallLayerBlock(*state->gasBoundaryLayer.kernelTiming,started);
+        }
     }
 }
 
-
-
-
 template<bool Capture=false,class GasState,class Model>
 inline cudaError_t launchGasBoundaryLayerPool(GasState* state,const Model& model,
-    int wallCount,cudaStream_t stream,const unsigned char* active=nullptr)
+    int wallCount,cudaStream_t stream,const unsigned char* active=nullptr,bool measure=false)
 {
     const bool analytic=model.config.model==ugkwp::gaswall::BoundaryLayerModel::ConstantTransport;
     const int workers=analytic?wallCount:model.workspaceCount;
@@ -78,7 +103,13 @@ inline cudaError_t launchGasBoundaryLayerPool(GasState* state,const Model& model
 
         const int block=ugkp::gpu::workPlan().faceBlockThreads;
         const int workersPerBlock=block/8;
-        evaluateGasBoundaryLayerTile8Kernel<Capture><<<(workers+workersPerBlock-1)/workersPerBlock,block,0,stream>>>(state,active);
+        const int grid=(workers+workersPerBlock-1)/workersPerBlock;
+        if constexpr(ugkwp::GasStateTraits<GasState>::speciesCount==1)
+            if(measure){
+                evaluateGasBoundaryLayerTile8Kernel<Capture,true><<<grid,block,0,stream>>>(state,active);
+                return cudaGetLastError();
+            }
+        evaluateGasBoundaryLayerTile8Kernel<Capture><<<grid,block,0,stream>>>(state,active);
     }
     else
     {

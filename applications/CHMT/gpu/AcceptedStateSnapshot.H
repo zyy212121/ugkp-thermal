@@ -1,4 +1,5 @@
 #pragma once
+#include "core/WallHeatIntegral.H"
 #include <memory>
 #include <vector>
 namespace chmt {
@@ -11,8 +12,8 @@ public:
     AcceptedStateSnapshot();
     ~AcceptedStateSnapshot();
 
-    void freeze(Backend&,const HostState&,bool captureRadiation);
+    void freeze(Backend&,const HostState&,bool captureRadiation,bool captureWallHeat);
 
-    void collect(HostState&,std::vector<double>& radiationEnergy);
+    void collect(HostState&,std::vector<double>& radiationEnergy,std::vector<WallHeatIntegral>& wallHeat);
 };
 }

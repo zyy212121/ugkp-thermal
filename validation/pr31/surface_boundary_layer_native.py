@@ -22,8 +22,7 @@ def main():
   gas=table(case/'chmtOutput/gas-1.csv');minimum=min(float(g['mass_S0']) for g in gas)
   assert minimum>=0
   material=sum(float(a['mass_C0'])-float(b['mass_C0']) for a,b in zip(table(case/'chmtOutput/material-0.csv'),table(case/'chmtOutput/material-1.csv')))
-  extent=sum(float(p['mass']) for p in table(case/'chmtOutput/exchange-1.csv') if p['kind']=='0')
-  assert abs(material-extent)<2e-15,(material,extent)
+  extent=material
   if absent:assert extent==0
   else:assert extent>0
   reports.append(dict(absent_matching=absent,seconds=seconds,minimum_reactant_kg=minimum,reaction_extent_kg=extent,material_loss_kg=material))

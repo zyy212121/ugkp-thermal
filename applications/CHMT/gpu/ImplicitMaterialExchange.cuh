@@ -10,7 +10,7 @@ __device__ void fail(DeviceContext* diagnostics,unsigned site,EntityKind kind,in
 __global__ void accumulateExchange(ResidentMaterialDriveHistory history,const GasWindowProgress* progress,
     std::uint64_t acceptedFrame,const int* cells,int cellCount,const int* offsets,const int* faces,bool particles,
     MaterialWindowCell* exchange,ImplicitWindowRemovalSum* removed,unsigned* receivers,
-    const ImplicitWindowReport* report,DeviceContext* diagnostics){
+    const ImplicitWindowReport* report,DeviceContext* diagnostics,WallHeatIntegral* heat){
     const int row=blockIdx.x*blockDim.x+threadIdx.x;
     if(row>=cellCount||(progress&&progress->stop==GasWindowStop::Fatal)||ugkp::diagnostics::hasFatal(diagnostics))return;
     const auto end=progress?progress->microSteps:acceptedFrame;
@@ -36,6 +36,20 @@ __global__ void accumulateExchange(ResidentMaterialDriveHistory history,const Ga
         }
     }
     exchange[cell]=sum;
+    if(!heat)return;
+    for(int entry=offsets[row];entry<offsets[row+1];++entry){
+        const int face=faces[entry];
+        WallHeatIntegral batch;
+        for(std::size_t frame=0;frame<count;++frame){
+            const auto& raw=history.surface[frame*history.faces+face];
+            batch.convection-=raw.primary.conductive+raw.pore.conductive;
+            batch.gasTransport-=(raw.primary.energy-raw.primary.conductive)+(raw.pore.energy-raw.pore.conductive);
+            batch.particleContact+=raw.particleWallEnergy;
+        }
+        heat[face].convection+=batch.convection;
+        heat[face].gasTransport+=batch.gasTransport;
+        heat[face].particleContact+=batch.particleContact;
+    }
 }
 
 __global__ void acceptExchangeBatch(const GasWindowProgress* progress,std::uint64_t acceptedFrame,
@@ -45,14 +59,14 @@ __global__ void acceptExchangeBatch(const GasWindowProgress* progress,std::uint6
 }
 
 void enqueueExchange(MaterialBackend& b,const ResidentMaterialDriveHistory& history,const GasWindowProgress* progress,
-    std::uint64_t acceptedFrame,bool particles,cudaStream_t stream){
+    std::uint64_t acceptedFrame,bool particles,cudaStream_t stream,WallHeatIntegral* heat){
     auto& s=b.implicit;const int owners=s.surfaceCells.size();
     const int threads=ugkp::gpu::workPlan().materialBlockThreads;
     if(history.faces!=s.surfaceFaces.size()||(owners&&!history.surface))
         throw std::logic_error("implicit material exchange history layout mismatch");
     if(owners)accumulateExchange<<<(owners+threads-1)/threads,threads,0,stream>>>(history,progress,acceptedFrame,
         s.surfaceCells.data(),owners,s.surfaceOffsets.data(),s.surfaceFaces.data(),particles,
-        s.exchange.data(),s.removed.data(),s.receivers.data(),s.report.data(),b.diagnostics.device());
+        s.exchange.data(),s.removed.data(),s.receivers.data(),s.report.data(),b.diagnostics.device(),heat);
     acceptExchangeBatch<<<1,1,0,stream>>>(progress,acceptedFrame,s.report.data(),b.diagnostics.device());
 }
 
@@ -127,18 +141,18 @@ bool beginImplicitMaterialExchange(MaterialBackend& b,const HostState& base,cons
 
 ugkp::gpu::ExecutionGraphNode appendImplicitMaterialExchange(MaterialBackend& b,const ResidentMaterialDriveHistory& history,
     const GasWindowProgress* progress,bool particles,ugkp::gpu::ExecutionGraph graph,ugkp::gpu::ExecutionGraphNode dependency,
-    void* executionStream){
+    void* executionStream,WallHeatIntegral* heat){
     using ugkp::gpu::executionGraphDetail::appendRecorded;
     const auto stream=static_cast<cudaStream_t>(executionStream);
     return appendRecorded(graph,{dependency},stream,[&]{
-        implicitWindowGpu::enqueueExchange(b,history,progress,0,particles,stream);
+        implicitWindowGpu::enqueueExchange(b,history,progress,0,particles,stream,heat);
     });
 }
 
 void enqueueImplicitMaterialFrame(MaterialBackend& b,const CoupledSurfaceDownload* surface,std::size_t faces,
     std::uint64_t acceptedFrame,bool particles,void* stream){
     implicitWindowGpu::enqueueExchange(b,{surface,nullptr,nullptr,1,faces,stream},nullptr,acceptedFrame,particles,
-        static_cast<cudaStream_t>(stream));
+        static_cast<cudaStream_t>(stream),nullptr);
 }
 
 void orderImplicitWindow(MaterialBackend& b,void* destination){

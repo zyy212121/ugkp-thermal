@@ -137,7 +137,6 @@ public:
 
     ugkp::gpu::DiscreteOrdinateRadiation& prepareParent
     (const MieDoSnapshot&, MieDoRadiationWorkspace&) const;
-    MieDoResult collect(MieDoRadiationWorkspace&) const;
     void freezeWarmStart(MieDoRadiationWorkspace&,ugkp::gpu::RadiationWarmStart&,void* nextWriter=nullptr) const;
     bool readWarmStart(MieDoRadiationWorkspace&,const std::string& path) const;
     bool writeWarmStart(MieDoRadiationWorkspace&,const std::string& path) const;

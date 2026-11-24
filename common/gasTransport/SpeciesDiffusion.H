@@ -1,9 +1,53 @@
 #pragma once
 #include "MixtureThermo.H"
+#include "GasStateView.H"
 
 namespace ugkwp
 {
 
+
+template<class State,class Primitive,class R>
+UGKWP_GAS_HD inline void gasFaceSpeciesTransportProperties(const State& s,int f,int own,int nei,
+    const Primitive& left,const Primitive& right,bool includeTurbulence,
+    R* diffusion,R& density,R& eddyViscosity,R& temperature)
+{
+    const R w=s.faceWeight[f]<R(0)?R(0):(s.faceWeight[f]>R(1)?R(1):s.faceWeight[f]);
+    temperature=nei>=0?w*left.T+(R(1)-w)*right.T:right.T;
+    const R pressure=nei>=0?w*left.p+(R(1)-w)*right.p:right.p;
+    density=nei>=0?w*left.rho+(R(1)-w)*right.rho:right.rho;
+    eddyViscosity=includeTurbulence&&s.turbulenceModel!=0
+        ?(nei>=0?w*s.nut[own]+(R(1)-w)*s.nut[nei]:s.nut[own]):R(0);
+    for(int k=0;k<GasStateTraits<State>::speciesCount;++k)
+        diffusion[k]=gasLocalMolecularDiffusivity(s,k,temperature,pressure);
+}
+
+template<class Real,int Ns>
+UGKWP_GAS_HD inline Real correctedSpeciesDiffusionRate(
+    const Real (&fraction)[Ns],const Real (&diffusion)[Ns],Real eddyViscosity,Real schmidt)
+{
+    if(!gasFinite(eddyViscosity)||!gasFinite(schmidt)||schmidt==Real(0))
+        return std::numeric_limits<Real>::quiet_NaN();
+    Real Y[Ns];
+    int dependent=0;
+    for(int k=0;k<Ns;++k){
+        if(!gasFinite(fraction[k])||!gasFinite(diffusion[k]))
+            return std::numeric_limits<Real>::quiet_NaN();
+        Y[k]=gasThermoDetail::maxValue(Real(0),gasThermoDetail::minValue(Real(1),fraction[k]));
+        if(Y[k]>Y[dependent])dependent=k;
+    }
+    Real independentFraction=0;
+    for(int k=0;k<Ns;++k)if(k!=dependent)independentFraction+=Y[k];
+    Real maximum=0;
+    for(int column=0;column<Ns;++column){
+        const Real coefficient=diffusion[column]+eddyViscosity/schmidt;
+        const Real diagonal=column!=dependent?Real(1):Real(0);
+        const Real norm=diagonal+independentFraction
+            -(column!=dependent?Real(2)*Y[column]:Real(0))
+            +gasThermoDetail::absValue(diagonal-independentFraction);
+        maximum=gasThermoDetail::maxValue(maximum,norm*gasThermoDetail::absValue(coefficient));
+    }
+    return maximum;
+}
 
 template<class Real, int Ns, class TableReal>
 UGKWP_GAS_HD inline bool correctedSpeciesDiffusion

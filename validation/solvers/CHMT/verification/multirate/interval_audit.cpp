@@ -13,7 +13,6 @@ int main(){try{
  WindowConservationAudit audit;check(auditCoupledCandidate(base,next,history,p,audit,e),"valid paired candidate");
  const Budget correctBudget=next.budget;next.budget.exchangeMass[SolidParticipant]=0;next.budget.exchangeMass[FilmParticipant]=-.1;next.budget.exchangeEnergy[SolidParticipant]=0;next.budget.exchangeEnergy[FilmParticipant]=-7;next.budget.exchangeSpecies[SolidParticipant][0]=0;next.budget.exchangeSpecies[FilmParticipant][0]=-.1;
  check(!auditCoupledCandidate(base,next,history,p,audit,e),"wrong CPU owner attribution accepted");next.budget=correctBudget;next.solid[0].energy+=1;check(!auditCoupledCandidate(base,next,history,p,audit,e),"unpaired heat passed audit");next.solid[0].energy-=1;
- check(finalizeIntervalLedger(history,next,e),"finalize ledger");check(next.ledger[0].consumerMask==requiredConsumers(next.ledger[0].kind),"actual ledger publication masks retained");
  WallProgram a,b;a.interval=b.interval=window;a.surface.area={1};b.surface=a.surface;WallKnot k;k.time=0;k.faces.resize(1);k.faces[0].temperature=300;k.gasPoints={{0,0,0}};a.knots={k,k};a.knots[1].time=1;b=a;b.knots[1].faces[0].temperature=310;
  WallProgramComparison difference;check(compareWallPrograms(a,b,p.tolerances,difference,e),"compare");check(difference.thermalError>1&&difference.geometryError==0&&difference.massPredictionError==0&&difference.regimeMatches,"error channels mixed");
  b=a;b.knots[1].gasPoints[0].x=.05;WallProgramComparison origin,translated;
@@ -35,7 +34,7 @@ int main(){try{
  check(compareWallPrograms(a,b,p.tolerances,difference,e)&&difference.regimeMatches,"half-open executed-owner program rejected");
 
  {
-  HostState prior=base,candidate=next;candidate.ledger.clear();candidate.budget=correctBudget;
+  HostState prior=base,candidate=next;candidate.budget=correctBudget;
   prior.budget.exchangeMomentum[GasParticipant].x=90;prior.budget.exchangeMomentum[SolidParticipant].x=-90;
   candidate.budget.exchangeMomentum[GasParticipant].x=180;
   candidate.budget.exchangeMomentum[SolidParticipant].x=std::nextafter(-180.,0.);

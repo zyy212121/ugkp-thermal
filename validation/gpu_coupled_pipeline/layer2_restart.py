@@ -37,7 +37,7 @@ def main():
         final = max(int(p.stem.split("-")[-1]) for p in (a.reference / "chmtOutput").glob("gas-*.csv"))
         assert final > a.checkpoint
         report["final_scaled_csv_errors"] = {}
-        for kind in ("accepted", "gas", "material", "exchange"):
+        for kind in ("accepted", "gas", "material"):
             name = f"{kind}-{final}.csv"
             report["final_scaled_csv_errors"][kind] = layer1.compare_csv(
                 a.reference / "chmtOutput" / name, case / "chmtOutput" / name)

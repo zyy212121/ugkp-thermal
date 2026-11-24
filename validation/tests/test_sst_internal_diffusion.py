@@ -28,6 +28,7 @@ def test_sst_internal_diffusion_and_stability(tmp_path):
     #include <iomanip>
     #include <algorithm>
     #include "GpuSstAlgebra.cuh"
+    #include "gasNumerics/GasScalarSolverControls.H"
     #include "gasTransport/GasCapabilities.H"
     #include "gasTransport/GasBoundaryLayerState.H"
     #include "gasTransport/GasGeometryValidation.H"
@@ -41,12 +42,14 @@ def test_sst_internal_diffusion_and_stability(tmp_path):
  ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
      int faceOwner[1]={0},faceNeighbour[1]={1},riemannBoundaryKind[1]={0},riemannBoundaryUFix[1]={1};
      int nInternalFaces=1,sstWallTreatment=0; bool periodic=false;
+     R Tgas[2]={300,300};
      R rho[2]={2,8},sstF1[2]={1,0},nut[2]={3,1},faceWeight[1]={.25},gasMu=.2,rhoMin=1e-6;
      R riemannBoundaryUx[1]={0},riemannBoundaryUy[1]={0},riemannBoundaryUz[1]={0};
      R Ux[2]={15,20},Uy[2]={0,0},Uz[2]={0,0},sstWallDistance[2]={.01,.02};
      R sstWallKappa=.41,sstWallE=9.8,magSf[1]={1},deltaCoeffs[1]={1};
      R sstPhiRhoK[1],sstPhiRhoOmega[1],boundaryRho=4;
      ugkwp::SstCoefficients sstCoefficients=ugkwp::defaultSstCoefficients();
+     ugkp::gasNumerics::ScalarSolverControls<R> gasScalarSolvers;
     };
     bool isPeriodicFace(const DeviceState&s,int){return s.periodic;}
     int coupledFaceNeighbour(const DeviceState&s,int f){return (f<s.nInternalFaces||s.periodic)?s.faceNeighbour[f]:-1;}

@@ -1,6 +1,5 @@
 #include "io/MultirateEvolution.H"
 #include "gpu/Backend.H"
-#include "coupling/IntervalAudit.H"
 #include "DiagnosticsFoam.H"
 #include <algorithm>
 #include <exception>
@@ -27,7 +26,7 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
 
         if(!retainStageGeometry){
             if(radiate&&!radiation->prepareParent(backend,program,base,error))return false;
-            if(!prepareGasWindow(backend,controls.gasMaxDt,error))return false;
+            if(!prepareGasWindow(backend,controls.gasMaxDt,error,false))return false;
         }
         MaterialBackend* bound=nullptr;
         const bool deferMaterial=retainStageGeometry||(radiate&&!gasWindowHasResidentRadiation(backend));
@@ -36,12 +35,14 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         if(!retainStageGeometry){
             GasMicroReport completed;
             if(!enqueuePreparedGasWindow(backend,error)||!collectGasWindow(backend,completed,error))return false;
+            report.acceptedGasMicrosteps=completed.microSequence;
             report.nextGasDt=completed.nextGasDt;gasTime=completed.time;gasElapsed=completed.localTime;
             std::cout<<"CHMT_GAS window="<<interval.identity.sequence<<" microstep="<<completed.microSequence
                 <<" time="<<completed.time<<" nextDt="<<completed.nextGasDt<<" execution=device_window"<<std::endl;
         } else while(gasElapsed<intervalDuration(interval)) {
             GasMicroReport micro;
             if(!advanceGasMicrostep(backend,controls.gasMaxDt,micro,error))return false;
+            report.acceptedGasMicrosteps=micro.microSequence;
             report.nextGasDt=micro.nextGasDt;
             if(micro.microSequence%1000==0)std::cout<<"CHMT_GAS window="<<interval.identity.sequence
                 <<" microstep="<<micro.microSequence<<" time="<<micro.time<<" nextDt="<<micro.nextGasDt<<std::endl;
@@ -56,26 +57,24 @@ bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const Mod
         HostState gasEndpoint;
         if(!(publishHostState?downloadGasWindow(backend,gasEndpoint,error):publishGasWindow(backend,gasEndpoint,error)))return false;
         const IntervalHistory& history=gasWindowHistory(backend);
-        EnergyReal externalRadiationHeat=0;
         if(radiate){
-            if(!radiation->advance(backend,program,gasEndpoint,externalRadiationHeat,error))return false;
+            if(!radiation->advance(backend,program,gasEndpoint,error))return false;
             report.radiationInterval=gasEndpoint.radiationTime-base.radiationTime;
         }
         HostState candidate;CpuMaterialReport cpu;
         ++report.materialSolves;
         if(!material.finishImplicitParent(base,gasEndpoint,interval,materialControls,history.externalRadiationDevice(),
             materialInParent,candidate,cpu,error))return false;
-        report.acceptedGasMicrosteps=history.records().size();
         if(!base.solid.empty()&&cpu.exchangeFrames!=report.acceptedGasMicrosteps){
             error="implicit material window did not consume all accepted gas frames";return false;
         }
-        if(!finalizeReleasedIntervalLedger(releaseGasWindowHistory(backend),candidate,error))return false;
-        if(!acceptCoupledWindow(backend,candidate,cpu.deviceCommit,externalRadiationHeat,report.nextGasDt,error)
+        releaseGasWindowHistory(backend);
+        if(!acceptCoupledWindow(backend,candidate,cpu.deviceCommit,report.nextGasDt,error)
             ||!material.commitImplicitInventory(candidate,error))return false;
         std::cout<<"CHMT_IMPLICIT_WINDOW window="<<interval.identity.sequence
             <<" materialSteps="<<cpu.materialSteps<<" nonlinearIterations="<<cpu.implicitIterations
             <<" converged="<<cpu.implicitConverged<<" geometrySolves="<<cpu.geometrySolves
-            <<" exchangePackets="<<cpu.exchangePackets<<" massResidualRatio="<<cpu.massResidual
+            <<" massResidualRatio="<<cpu.massResidual
             <<" energyResidualRatio="<<cpu.thermalResidual<<" recessionVolume="<<cpu.recessionVolume
             <<" gclResidual="<<cpu.gclResidual<<" exchangeFrames="<<cpu.exchangeFrames
             <<" linearSolves="<<cpu.materialLinearSolves<<" linearIterations="<<cpu.materialLinearIterations

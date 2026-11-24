@@ -4,6 +4,8 @@
 #include "../../../../../applications/gasUGKP/private_backend/GpuSstAlgebra.cuh"
 #include "../../../../../applications/gasUGKP/private_backend/OpenFoamWallFunctions.cuh"
 
+#include "../../../../../legacy/common/gasNumerics/LegacySstWallFunction.H"
+
 namespace
 {
 bool near(const double a, const double b, const double tolerance = 1.0e-12)

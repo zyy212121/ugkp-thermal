@@ -83,6 +83,22 @@ template<class Real> UGKWP_SST_HD inline Real sstMinimum(const Real a, const Rea
 UGKWP_SST_HD inline GpuReal sstMinimum(const GpuReal a, const GpuReal b)
 { return sstMinimum<GpuReal>(a, b); }
 
+inline constexpr int sstInternalDiffusionLimit = 2;
+
+template<class Real> UGKWP_SST_HD inline Real sstBoundedDiffusionGradient
+(
+    const Real corrected,
+    const Real twoPointGradient
+)
+{
+    if (!std::isfinite(corrected)) return corrected;
+    if (!std::isfinite(twoPointGradient)) return twoPointGradient;
+    const Real limit = Real(sstInternalDiffusionLimit)*twoPointGradient;
+    const Real lower = sstMinimum(Real(0), limit);
+    const Real upper = sstMaximum(Real(0), limit);
+    return sstMinimum(sstMaximum(corrected, lower), upper);
+}
+
 template<class Real> UGKWP_SST_HD inline Real sstPositive(const Real value, const Real floor)
 {
     return sstMaximum(value, floor);
@@ -184,7 +200,7 @@ template<class Real> UGKWP_SST_HD inline Real sstCrossDiffusion
     const SstCoefficientsT<Real>& coefficients
 )
 {
-    const Real omegaSafe = sstPositive(omega, Real(1e-300));
+    const Real omegaSafe = sstPositive(omega, Real(sizeof(Real)==sizeof(float)?1e-30:1e-300));
     return
         Real(2.0)*coefficients.alphaOmega2*gradKDotGradOmega/omegaSafe;
 }
@@ -208,8 +224,8 @@ template<class Real> UGKWP_SST_HD inline Real sstF1
 )
 {
     const Real kSafe = sstPositive(k, Real(0.0));
-    const Real omegaSafe = sstPositive(omega, Real(1e-300));
-    const Real ySafe = sstPositive(wallDistance, Real(1e-300));
+    const Real omegaSafe = sstPositive(omega, Real(sizeof(Real)==sizeof(float)?1e-30:1e-300));
+    const Real ySafe = sstPositive(wallDistance, Real(sizeof(Real)==sizeof(float)?1e-30:1e-300));
     const Real ySquared = ySafe*ySafe;
     const Real cdPlus = sstMaximum(cdKOmega, Real(1.0e-10));
     const Real viscousArgument = Real(500.0)*nu/(ySquared*omegaSafe);
@@ -249,8 +265,8 @@ template<class Real> UGKWP_SST_HD inline Real sstF2
 )
 {
     const Real kSafe = sstPositive(k, Real(0.0));
-    const Real omegaSafe = sstPositive(omega, Real(1e-300));
-    const Real ySafe = sstPositive(wallDistance, Real(1e-300));
+    const Real omegaSafe = sstPositive(omega, Real(sizeof(Real)==sizeof(float)?1e-30:1e-300));
+    const Real ySafe = sstPositive(wallDistance, Real(sizeof(Real)==sizeof(float)?1e-30:1e-300));
     const Real ySquared = ySafe*ySafe;
     const Real argument = sstMinimum(
         sstMaximum(
@@ -283,7 +299,7 @@ template<class Real> UGKWP_SST_HD inline Real sstNut
 )
 {
     const Real denominator = sstMaximum(
-        coefficients.a1*sstPositive(omega, Real(1e-300)),
+        coefficients.a1*sstPositive(omega, Real(sizeof(Real)==sizeof(float)?1e-30:1e-300)),
         coefficients.b1*f2*std::sqrt(sstPositive(s2, Real(0.0)))
     );
     return coefficients.a1*sstPositive(k, Real(0.0))/denominator;
@@ -381,6 +397,28 @@ UGKWP_SST_HD inline GpuReal sstOmegaProductionLimit
 )
 { return sstOmegaProductionLimit<GpuReal>(omega, s2, f2, coefficients); }
 
+template<class Real> struct SstLowReSources
+{
+    Real kProduction, omegaProduction, kDecay, omegaDecay;
+};
+
+template<class Real> UGKWP_SST_HD inline SstLowReSources<Real> sstLowReSources(
+    Real rho, Real k, Real omega, Real divU, Real productionK, Real gByNu, Real s2,
+    Real f1, Real f2, Real cdKOmega, const SstCoefficientsT<Real>& coefficients)
+{
+    const Real dilation = (Real(2)/Real(3))*divU;
+    const Real gamma = sstGamma(f1, coefficients);
+    const Real productionOmega = gamma*sstMinimum(gByNu, sstOmegaProductionLimit(omega, s2, f2, coefficients));
+    const Real crossDiffusion = f1 == Real(1) ? Real(0) : (Real(1)-f1)*cdKOmega;
+    return {
+        rho*(productionK - sstMinimum(dilation, Real(0))*k),
+        rho*(productionOmega - gamma*sstMinimum(dilation, Real(0))*omega + sstMaximum(crossDiffusion, Real(0))),
+        coefficients.betaStar*omega + sstMaximum(dilation, Real(0)),
+        sstBeta(f1, coefficients)*omega + gamma*sstMaximum(dilation, Real(0))
+          - sstMinimum(crossDiffusion, Real(0))/omega
+    };
+}
+
 template<class Real> UGKWP_SST_HD inline Real sstOmegaSource
 (
     const Real rho,
@@ -432,7 +470,7 @@ template<class Real> UGKWP_SST_HD inline Real sstLowReWallOmega
     const SstCoefficientsT<Real>& coefficients
 )
 {
-    const Real ySafe = sstPositive(wallDistance, Real(1e-300));
+    const Real ySafe = sstPositive(wallDistance, Real(sizeof(Real)==sizeof(float)?1e-30:1e-300));
     return Real(6.0)*nu/(coefficients.beta1*ySafe*ySafe);
 }
 

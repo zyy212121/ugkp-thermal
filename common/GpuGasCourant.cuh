@@ -1,4 +1,5 @@
 #pragma once
+#include "GpuGasTransportPreparation.cuh"
 
 struct GasCourantMaxima
 {
@@ -8,7 +9,8 @@ template<class GasHostState,class Time>
 int computeGasCurrentCourantField
 (
     GasHostState* s, Time dt, Time scheduleTime,
-    int cellBlock, int faceBlock, cudaStream_t stream
+    int cellBlock, int faceBlock, cudaStream_t stream,
+    bool limitDiffusiveTimeStep=false,ugkwp::GasTransportPreparation* preparation=nullptr
 )
 {
     const int cellGrid = (s->nCells + cellBlock - 1)/cellBlock;
@@ -56,9 +58,32 @@ int computeGasCurrentCourantField
         }
     }
 
+    if(limitDiffusiveTimeStep && s->hostTurbulenceModel==3){
+        recoverSstPrimitivesKernel<<<cellGrid,cellBlock,0,stream>>>(s->deviceState);
+        err=cudaGetLastError();
+        if(err!=cudaSuccess){setLastError("SST recovery for diffusive Courant",err);return 1;}
+    }
+
+    if(limitDiffusiveTimeStep && s->hostTurbulenceModel!=0
+        && prepareGasTransportCoefficients(s,cellBlock,stream,false,false,s->hostTurbulenceModel==3))return 1;
+
+    if(limitDiffusiveTimeStep && s->hostTurbulenceModel==3){
+        if(s->hostGasFluxScheme==7 && !ugkwp::mixtureGasActive(*s)){
+            computeGasHllcAdcSensorKernel<<<cellGrid,cellBlock,0,stream>>>(s->deviceState);
+            err=cudaGetLastError();
+            if(err!=cudaSuccess){setLastError("SST Courant boundary HLLC sensor",err);return 1;}
+        }
+        if(allFaceGrid>0){
+            prepareGasSstBoundaryMassFluxKernel<<<allFaceGrid,faceBlock,0,stream>>>(s->deviceState);
+            err=cudaGetLastError();
+            if(err!=cudaSuccess){setLastError("SST Courant boundary mass flux",err);return 1;}
+        }
+        if(prepareGasSstTransportCoefficients(s,cellBlock,stream))return 1;
+    }
+
     if (faceGrid > 0)
     {
-        computeGasCourantFieldKernel<<<faceGrid, faceBlock, 0, stream>>>(s->deviceState, dt);
+        computeGasCourantFieldKernel<<<faceGrid, faceBlock, 0, stream>>>(s->deviceState,dt,false,limitDiffusiveTimeStep);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -67,10 +92,19 @@ int computeGasCurrentCourantField
         }
     }
 
+    using Prepared=ugkwp::GasTransportPreparation;
+    unsigned preparedFields=0;
+    if(limitDiffusiveTimeStep && s->hostTurbulenceModel!=0){
+        preparedFields=Prepared::primitive|Prepared::gradient|Prepared::eddy;
+        if(s->hostTurbulenceModel==3){
+            preparedFields|=Prepared::sst|Prepared::sstPrimitive|Prepared::limiter;
+            if(s->hostGasFluxScheme==7 && !ugkwp::mixtureGasActive(*s))preparedFields|=Prepared::sensor;
+        }
+    }
     computeGasConvectiveCourantByCellKernel<<<cellGrid, cellBlock, 0, stream>>>
     (
         s->deviceState,
-        dt
+        dt,false,preparation,preparedFields,scheduleTime
     );
     err = cudaGetLastError();
     if (err != cudaSuccess)
@@ -92,10 +126,10 @@ int computeGasCurrentCourant
 (
     GasHostState* s, Time dt, Time scheduleTime,
     int cellBlock, int faceBlock, cudaStream_t stream,
-    GasCourantMaxima& result, MaximumReduction maximumReduction
+    GasCourantMaxima& result, MaximumReduction maximumReduction,bool limitDiffusiveTimeStep=false
 )
 {
-    if(computeGasCurrentCourantField(s,dt,scheduleTime,cellBlock,faceBlock,stream))return 1;
+    if(computeGasCurrentCourantField(s,dt,scheduleTime,cellBlock,faceBlock,stream,limitDiffusiveTimeStep))return 1;
     GasCourantMaxima computed;
     if(maximumReduction(s->gasFluxPositivityScale,s->nCells,stream,computed.convective))return 1;
     computed.maximum=computed.convective;

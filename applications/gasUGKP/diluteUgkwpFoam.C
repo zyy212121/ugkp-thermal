@@ -348,6 +348,7 @@ int main(int argc, char *argv[])
         configureResidentSst(resident);
 
         resident.configureMolecularTransport(molecularTransport.config());
+        resident.configureBoundaryLayer(boundaryLayerInput, runTime, mesh, Tgas);
 
 #ifdef UGKWP_STEADY_APPLICATION
         #include "../gasUGKPSteady/steadyParticleLoop.H"

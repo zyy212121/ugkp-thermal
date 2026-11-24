@@ -19,7 +19,7 @@ struct MaterialBackend;
 class CoupledHistoryArchive;
 struct GasExecutionOptions {int fluxScheme=1,reconstruction=0,limiter=0,timeIntegrator=1,turbulenceModel=0;
     int courantUpdateInterval=1;double maximumTimeStepGrowth=1.05;
-    bool adjustTimeStep=true;double fixedDeltaT=0;};
+    bool adjustTimeStep=true,limitDiffusiveTimeStep=false;double fixedDeltaT=0;};
 Backend* createBackend(const ModelConfig&,const ugkwp::GasModelConfiguration&,
     const ugkwp::GasMechanismConfiguration&,const GasExecutionOptions&,const HostState&,std::string&);
 void destroyBackend(Backend*) noexcept;
@@ -36,7 +36,7 @@ bool advanceGasMicrostep(Backend&,Real,GasMicroReport&,std::string&);
 
 struct GasWindowProgress;
 struct GasWindowDeviceView {const GasWindowProgress* progress=nullptr;void* producerStream=nullptr;};
-bool prepareGasWindow(Backend&,Real,std::string&);
+bool prepareGasWindow(Backend&,Real,std::string&,bool retainDriveHistory=true);
 ugkp::gpu::ExecutionGraphNode appendGasWindowBatch(Backend&,ugkp::gpu::ExecutionGraph,ugkp::gpu::ExecutionGraphNode);
 GasWindowDeviceView gasWindowDeviceView(const Backend&);
 bool acceptGasWindowExecution(Backend&,void* producerStream,std::string&);
@@ -60,7 +60,7 @@ bool publishGasWindow(Backend&,HostState&,std::string&);
 bool publishAcceptedState(Backend&,HostState&,std::string&);
 
 bool commitGasWindow(Backend&,HostState&,std::string&,bool preservePublishedEndpoint=false);
-bool acceptCoupledWindow(Backend&,HostState&,const MaterialWindowCommit&,Real externalHeat,Real nextDt,std::string&);
+bool acceptCoupledWindow(Backend&,HostState&,const MaterialWindowCommit&,Real nextDt,std::string&);
 bool downloadState(const Backend&,HostState&,std::string&);
 struct ParticleRadiationState {ugkp::gpu::RadiationParticleDeviceView resident{};std::vector<Real> mass,temperature,diameter,occupiedArea;ugkp::gpu::ParticleRadiationResponseView response{};};
 bool downloadRadiationState(Backend&,ParticleRadiationState&,std::string&);

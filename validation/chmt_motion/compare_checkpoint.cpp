@@ -24,7 +24,7 @@ struct NumericEncoder {
 HostState load(const char* directory){
  std::ifstream f(std::string(directory)+"/state.chmt",std::ios::binary|std::ios::ate);assert(f);Bytes bytes(size_t(f.tellg()));f.seekg(0);f.read(reinterpret_cast<char*>(bytes.data()),bytes.size());
  Decoder d(bytes);d.offset=72;ModelConfig model;d(model);assert(d.integer(8)==0x31474643504b4755ULL);ugkp::thermal::visitParticlePhaseConfiguration(d,model.particlePhase);ugkp::thermal::visitParticleContactConfiguration(d,model.particleContact);
- assert(!model.physics.enableFilm);HostState state;std::string error;if(!readCheckpoint(directory,model,state,error))throw std::runtime_error(error);state.ledger.clear();return state;
+ assert(!model.physics.enableFilm);HostState state;std::string error;if(!readCheckpoint(directory,model,state,error))throw std::runtime_error(error);return state;
 }
 int main(int argc,char** argv){if(argc!=3&&argc!=4)return 2;auto a=load(argv[1]),b=load(argv[2]);
  if(argc==4){
@@ -38,8 +38,6 @@ int main(int argc,char** argv){if(argc!=3&&argc!=4)return 2;auto a=load(argv[1])
  for(size_t f=0;f<a.filmAux.size();++f)
   if(std::isnan(a.filmAux[f].temperature)&&std::isnan(b.filmAux[f].temperature))
    a.filmAux[f].temperature=b.filmAux[f].temperature=0;
- if(a.budget.radiation!=b.budget.radiation)
-  std::cout<<std::setprecision(17)<<"RADIATION_BUDGET_J "<<a.budget.radiation<<" "<<b.budget.radiation<<"\n";
  NumericEncoder x,y;x(a);y(b);x(a.gasTemperature);y(b.gasTemperature);
  for(auto& p:a.particles)ugkp::thermal::visitParticleThermalHistory(x,p.thermal);for(auto& p:b.particles)ugkp::thermal::visitParticleThermalHistory(y,p.thermal);
  assert(x.data==y.data&&x.numbers.size()==y.numbers.size());double relative=0,absolute=0;int differences=0;

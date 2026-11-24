@@ -98,10 +98,9 @@ bool CoupledRadiation::prepareParent(Backend& backend,const WallProgram& program
     d.parentPrepared=true;error.clear();return true;
 }
 
-bool CoupledRadiation::advance(Backend& backend,const WallProgram& program,HostState& state,EnergyReal& externalHeat,std::string& error){
-    auto& d=*data_;externalHeat=0;
+bool CoupledRadiation::advance(Backend& backend,const WallProgram& program,HostState& state,std::string& error){
+    auto& d=*data_;
     if(d.parentPrepared){
-        externalHeat=-EnergyReal(d.coupler->collectEscapedEnergy());
         d.coupler->acceptParentSolve();
         state.radiationTime=state.time;d.parentPrepared=false;error.clear();return true;
     }
@@ -134,7 +133,6 @@ bool CoupledRadiation::advance(Backend& backend,const WallProgram& program,HostS
 
     if(!setWindowRadiationEnergy(backend,requested.resident,error))return false;
     state.radiationTime=state.time;
-    externalHeat=-EnergyReal(d.coupler->collectEscapedEnergy());
 
     return true;
 }

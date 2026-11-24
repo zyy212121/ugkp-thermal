@@ -25,13 +25,7 @@ def main():
   assert original==resumed,(original,resumed)
 
 
-  ledger_delta=0.
-  for left,right in zip(table(case/'chmtOutput/exchange-4.csv'),table(restart/'chmtOutput/exchange-4.csv')):
-   for key in left:
-    try:ledger_delta=max(ledger_delta,abs(float(left[key])-float(right[key])))
-    except ValueError:assert left[key]==right[key]
-  assert ledger_delta<1e-12,ledger_delta
-  reports.append(dict(model=model,seconds=seconds,particles=data,restart_checkpoint_byte_identical=exact,physical_state=original,maximum_ledger_difference_J=ledger_delta,
+  reports.append(dict(model=model,seconds=seconds,particles=data,restart_checkpoint_byte_identical=exact,physical_state=original,
     scope='impact to solidifying deposit, continued heat and restart; ordinary/cold caloric datum switch is not a conservation pass'))
  (out/'results.json').write_text(json.dumps(reports,indent=2)+'\n')
 if __name__=='__main__':main()

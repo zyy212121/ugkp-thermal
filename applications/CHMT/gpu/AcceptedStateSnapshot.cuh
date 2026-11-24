@@ -3,6 +3,7 @@ struct AcceptedStateSnapshot::Storage {
     ugkp::gpu::FrozenReadback transfer;
     ugkp::gpu::SnapshotRange<HostGasPublication> gas;
     ugkp::gpu::SnapshotRange<GpuReal> radiation;
+    ugkp::gpu::SnapshotRange<WallHeatIntegral> wallHeat;
     ugkp::gpu::SnapshotRange<GpuReal> temperature, fraction, pressure, residualMass;
     ugkp::gpu::SnapshotRange<int> sourceFaces;
     ugkp::gpu::SnapshotRange<ugkp::thermal::ParticleState<>> particles;
@@ -12,7 +13,7 @@ struct AcceptedStateSnapshot::Storage {
 AcceptedStateSnapshot::AcceptedStateSnapshot() : data_(new Storage) {}
 AcceptedStateSnapshot::~AcceptedStateSnapshot()=default;
 
-void AcceptedStateSnapshot::freeze(Backend& backend,const HostState& state,bool captureRadiation) {
+void AcceptedStateSnapshot::freeze(Backend& backend,const HostState& state,bool captureRadiation,bool captureWallHeat) {
     auto& s=*data_;
     s.sequence=state.commitSequence;
     s.gasVersion=state.gasMesh.geometryVersion;
@@ -24,9 +25,14 @@ void AcceptedStateSnapshot::freeze(Backend& backend,const HostState& state,bool 
     if (captureRadiation&&backend.windowRadiation.size()!=radiationCount)
         ugkp::gpu::snapshotDataFailure("accepted window radiation face data is incomplete");
     s.radiation=layout.allocate<GpuReal>(radiationCount);
+    const auto heatCount=captureWallHeat&&backend.wallHeatReady?state.surface.gasFace.size():0;
+    if(heatCount&&backend.windowWallHeat.size()!=heatCount)
+        ugkp::gpu::snapshotDataFailure("accepted window wall heat data is incomplete");
+    s.wallHeat=layout.allocate<WallHeatIntegral>(heatCount);
     if (!s.resident) {
         s.transfer.freeze(layout.bytes,stream,[&](unsigned char* bytes){
             s.radiation.copy(bytes,backend.windowRadiation.data(),stream);
+            s.wallHeat.copy(bytes,backend.windowWallHeat.data(),stream);
         });
         return;
     }
@@ -57,6 +63,7 @@ void AcceptedStateSnapshot::freeze(Backend& backend,const HostState& state,bool 
     s.residualMass=layout.allocate<GpuReal>(shape.sources);
     s.transfer.freeze(layout.bytes,stream,[&](unsigned char* bytes) {
         s.radiation.copy(bytes,backend.windowRadiation.data(),stream);
+        s.wallHeat.copy(bytes,backend.windowWallHeat.data(),stream);
         if (view.nCells) {
             const auto width=ugkp::gpu::workPlan().cellBlockThreads;
             packGasWindowCells<<<(view.nCells+width-1)/width,width,0,stream>>>(
@@ -73,17 +80,23 @@ void AcceptedStateSnapshot::freeze(Backend& backend,const HostState& state,bool 
     });
 }
 
-void AcceptedStateSnapshot::collect(HostState& state,std::vector<double>& radiationEnergy) {
+void AcceptedStateSnapshot::collect(HostState& state,std::vector<double>& radiationEnergy,
+    std::vector<WallHeatIntegral>& wallHeat) {
     auto& s=*data_;
     if (state.commitSequence!=s.sequence || state.gasMesh.geometryVersion!=s.gasVersion ||
         state.solidMesh.geometryVersion!=s.solidVersion)
         throw std::logic_error("accepted snapshot destination belongs to another endpoint");
     radiationEnergy.clear();
-    if (!s.resident&&!s.radiation.count) return;
+    wallHeat.clear();
+    if (!s.resident&&!s.radiation.count&&!s.wallHeat.count) return;
     const auto* bytes=s.transfer.collect();
     if (s.radiation.count) {
         const auto* energy=s.radiation.at(bytes);
         radiationEnergy.assign(energy,energy+s.radiation.count);
+    }
+    if (s.wallHeat.count) {
+        const auto* heat=s.wallHeat.at(bytes);
+        wallHeat.assign(heat,heat+s.wallHeat.count);
     }
     if (!s.resident) return;
     const auto* pressure=s.pressure.at(bytes);

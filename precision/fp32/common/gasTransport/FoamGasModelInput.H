@@ -164,6 +164,7 @@ public:
         request.boundaryLayerModel=boundaryLayerModel;
         request.particleCoupling=particles;
         request.pairedMixtureParticleCoupling=pairedMixtureParticleCoupling;
+        request.residentParticleWallCoupling=true;
         const auto result=ugkwp::validateGasCapabilities(request);
         if(!result) FatalErrorInFunction<<"Unsupported shared gas model: "<<result.message<<exit(FatalError);
     }

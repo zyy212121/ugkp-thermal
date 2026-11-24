@@ -78,7 +78,7 @@ private:
     std::shared_ptr<TransferStorage> transfers_;
     cudaStream_t lastProducer_=nullptr;
     std::size_t faces_=0,frames_=0,queuedFrames_=0;
-    bool matching_=false,sealed_=false,stopping_=false,recycled_=false;
+    bool matching_=false,retain_=true,sealed_=false,stopping_=false,recycled_=false;
     std::FILE* file_=nullptr;
     std::thread writer_;std::mutex mutex_;std::condition_variable changed_;
     std::deque<Job> jobs_;std::exception_ptr failure_;
@@ -177,8 +177,8 @@ private:
         if(file_){std::fclose(file_);file_=nullptr;}
     }
 public:
-    CoupledHistoryArchive(std::size_t faces,bool matching,TransferPool* pool=nullptr)
-        :faces_(faces),matching_(matching){
+    CoupledHistoryArchive(std::size_t faces,bool matching,TransferPool* pool=nullptr,bool retain=true)
+        :faces_(faces),matching_(matching),retain_(retain){
         if(faces>std::numeric_limits<std::size_t>::max()/slabFrames)ioFailure("history face count overflow");
         int device;
         checked(cudaGetDevice(&device),"read history device");
@@ -198,11 +198,13 @@ public:
     CoupledHistoryArchive(const CoupledHistoryArchive&)=delete;
     CoupledHistoryArchive& operator=(const CoupledHistoryArchive&)=delete;
     ~CoupledHistoryArchive(){release();}
+    bool retainsHistory()const{return retain_;}
+    std::size_t writeSlot()const{return retain_?(frames_/slabFrames)%transfers_->slabs.size():0;}
     Frame next(cudaStream_t producer=nullptr){
         if(sealed_)ioFailure("cannot append to sealed accepted history");
-        const auto slot=(frames_/slabFrames)%transfers_->slabs.size();
+        const auto slot=writeSlot();
         if(recycled_){checked(cudaStreamWaitEvent(producer,transfers_->slabs[0].produced,0),"order recycled history storage");recycled_=false;}
-        if(frames_==slabFrames && !file_){
+        if(retain_ && frames_==slabFrames && !file_){
             queue(0,slabFrames,lastProducer_);
             prepareSlab(transfers_->slabs[1],false);
         }
@@ -215,8 +217,8 @@ public:
             slab.interval+frames_%slabFrames};
     }
 
-    struct Batch {Frame storage{};std::size_t first=0,capacity=0;};
-    Batch reserveBatch(cudaStream_t producer){return {next(producer),frames_,slabFrames-frames_%slabFrames};}
+    struct Batch {Frame storage{};std::size_t first=0,capacity=0,slot=0;};
+    Batch reserveBatch(cudaStream_t producer){return {next(producer),frames_,slabFrames-frames_%slabFrames,writeSlot()};}
     void acceptedBatch(std::size_t count,cudaStream_t producer){
         if(sealed_||count>slabFrames-frames_%slabFrames)
             ioFailure("accepted history batch exceeds its reserved storage");
@@ -248,33 +250,9 @@ public:
     }
     bool spilled()const noexcept{return file_!=nullptr;}
 
-    template<class Visit> void forEachSurfaceFrame(Visit visit) const {
-        if(!sealed_)ioFailure("accepted packet history is still open");
-        if(!faces_||!frames_)return;
-        if(!file_){
-            auto block=chunk(0);
-            for(std::size_t i=0;i<frames_;++i)visit(block->surface.data()+i*faces_,faces_);
-            return;
-        }
-        std::vector<CoupledSurfaceDownload> block;
-        const int fd=::fileno(file_);
-        for(const auto& extent:offsets_){
-            block.resize(extent.frames*faces_);
-            auto* destination=reinterpret_cast<unsigned char*>(block.data());
-            const auto bytes=block.size()*sizeof(CoupledSurfaceDownload);
-            std::size_t done=0;
-            while(done<bytes){
-                const auto n=::pread(fd,destination+done,bytes-done,extent.offset+static_cast<off_t>(done));
-                if(n<0 && errno==EINTR)continue;
-                if(n<=0)ioFailure("accepted surface packet history is incomplete");
-                done+=static_cast<std::size_t>(n);
-            }
-            for(std::size_t i=0;i<extent.frames;++i)visit(block.data()+i*faces_,faces_);
-        }
-    }
     std::shared_ptr<const Chunk> chunk(std::size_t frame)const{
         std::lock_guard<std::mutex> lock(readMutex_);
-        if(!sealed_||frame>=frames_)ioFailure("requested accepted history frame is unavailable");
+        if(!retain_||!sealed_||frame>=frames_)ioFailure("requested accepted history frame is unavailable");
         const auto index=frame/slabFrames;
         for(auto it=cache_.begin();it!=cache_.end();++it)if(frame>=(*it)->first&&frame<(*it)->first+(*it)->frames){
             auto value=*it;cache_.erase(it);cache_.push_back(value);return value;

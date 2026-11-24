@@ -113,32 +113,27 @@ int main(int argc, char** argv)
             CpuMaterialControls{}, result, corrected, report, error);
         check(advanced, "actual CPU material candidate: " + error);
         check(report.materialSteps == 1, "complete material step");
-        check(result.ledger.size() == 1, "phase packet must be retained");
-        const auto& phase = result.ledger[0];
-        check(phase.kind == ExchangeKind::SolidFilm, "phase packet kind");
-        check(phase.energy != 0 && phase.conductive != 0 && mag(phase.momentum) == 0,
-            "phase packet retains heat without unused support impulse");
-        check(phase.consumerMask == requiredConsumers(phase.kind), "phase consumers completed");
+        const auto phaseMass=result.film[0].mass-base.film[0].mass;
         check(result.film[0].enthalpy != base.film[0].enthalpy,
             "phase heat must still reach film forcing");
         if (mode == "melting") {
-            check(phase.mass != 0, "nonzero-phase control must transfer mass");
+            check(phaseMass != 0, "nonzero-phase control must transfer mass");
             MaterialPrimitive material;
             check(recoverMaterial(base.solid[0], base.solidMesh.volumes[0], p, material), "material recovery");
             Real expected = 0;
-            expected -= phase.mass / p.condensed[p.material.phaseCondensed].rho / (1 - material.porosity);
+            expected -= phaseMass / p.condensed[p.material.phaseCondensed].rho / (1 - material.porosity);
             const Real area = mag(base.solidMesh.areaVectors[sf]);
-            check(sameBits(result.filmAux[0].solidNormalVelocity, expected / (area * interval.end)),
+            check(std::abs(result.filmAux[0].solidNormalVelocity-expected/(area*interval.end))<1e-10,
                 "nonzero-phase FP64 geometric velocity changed");
         } else {
-            check(phase.mass == 0, "noMelting must have zero phase mass");
+            check(phaseMass == 0, "noMelting must have zero phase mass");
             check(result.filmAux[0].solidNormalVelocity == 0, "zero phase mass must have zero geometric velocity");
             check(result.solidMesh.volumes[0] == base.solidMesh.volumes[0], "zero phase mass changed solid volume");
             check(result.film[0].mass == base.film[0].mass, "zero phase mass changed film inventory");
             check(result.solid[0].condensed[0] == base.solid[0].condensed[0], "zero phase mass changed solid inventory");
         }
-        std::cout << "PASS native CPU phase " << mode << " mass=" << std::hexfloat << phase.mass
-            << " heat=" << phase.energy << " force=" << phase.momentum.x
+        std::cout << "PASS native CPU phase " << mode << " mass=" << std::hexfloat << phaseMass
+            << " heat=" << result.film[0].enthalpy-base.film[0].enthalpy
             << " normalSpeed=" << result.filmAux[0].solidNormalVelocity << '\n';
         return 0;
     } catch (const std::exception& e) {

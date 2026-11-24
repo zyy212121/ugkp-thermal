@@ -1,7 +1,6 @@
 #ifndef CHMT_CORE_HOSTSTATE_H
 #define CHMT_CORE_HOSTSTATE_H
 #include "Configuration.H"
-#include "AcceptedLedger.H"
 #include "../../../common/SharedSnapshotVector.H"
 #include <vector>
 #include <array>
@@ -75,12 +74,10 @@ struct HostDynamicState {
     std::vector<EnergyReal> normalAcceptedWallHeat{};
 
 
-    AcceptedLedger ledger{};std::vector<FilmPressureVolumeUpdate> filmStorage{};
+    std::vector<FilmPressureVolumeUpdate> filmStorage{};
 
 
 
-    std::vector<ugkwp::gaswall::WallOutput<EnergyReal,Ns>> gasWallDiagnostics{};
-    Real gasWallDiagnosticTime=-1;
     GasSstIntegralAudit gasSstAudit{};
     Real time=0;std::uint64_t acceptedSteps=0,rejectedSteps=0,commitSequence=0;Budget budget{};
 };

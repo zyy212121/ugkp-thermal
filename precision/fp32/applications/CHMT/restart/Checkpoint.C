@@ -103,12 +103,6 @@ struct StreamingEncoder {
     unsigned configurationVersion=16;
     int fd;Bytes data;std::uint64_t bytes=0,hash;
     explicit StreamingEncoder(int descriptor,std::uint64_t initialHash):fd(descriptor),hash(initialHash){data.reserve(65536);}
-    void operator()(const AcceptedLedger& ledger){
-        integer(ledger.size(),8);
-        ledger.forEachChunk([&](const ExchangePacket* packets,std::size_t count){
-            for(std::size_t i=0;i<count;++i)(*this)(packets[i]);
-        });
-    }
     void flush(){
         if(data.empty())return;
         std::size_t done=0;
@@ -360,7 +354,8 @@ template<class Archive,class Value> void visitBudgetFields(Archive& a,Value& x){
     a(x.supportImpulse);
     a(x.supportWork);
     a(x.bodyWork);
-    a(x.radiation);
+    EnergyReal retiredRadiation=0;
+    a(retiredRadiation);
     a(x.gclResidual);
     a(x.exchangeMass);
     a(x.exchangeSpecies);
@@ -622,6 +617,7 @@ template<class Archive,class Value> void visitGasSstIntegralAuditFields(Archive&
 }
 template<class Archive> void visit(Archive& a,GasSstIntegralAudit& x){visitGasSstIntegralAuditFields(a,x);}
 template<class Archive> void visit(Archive& a,const GasSstIntegralAudit& x){visitGasSstIntegralAuditFields(a,x);}
+#include "CheckpointRetiredExchange.inl"
 template<class Archive,class Value> void visitHostStateFields(Archive& a,Value& x){
     if(a.configurationVersion>=13){a(x.particleSourceFaces);a(x.particleSourceResidualMass);}
     a(x.gasStages);
@@ -644,7 +640,7 @@ template<class Archive,class Value> void visitHostStateFields(Archive& a,Value& 
     a(x.normalEnthalpy);
     a(x.normalLiquidFraction);
     a(x.normalAcceptedWallHeat);
-    a(x.ledger);
+    visitRetiredExchangeRecords(a);
     a(x.filmStorage);
     a(x.gasSstAudit);
 

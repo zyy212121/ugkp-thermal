@@ -7,7 +7,8 @@ template<bool Capture> int launchBoundaryLayer(DeviceState* s)
         const int workers=analytic?s->gasBoundaryLayer.count:s->gasBoundaryLayerModel.workspaceCount;
         if(workers<=0){setLastErrorText("boundaryLayer scratch pool is empty");return 1;}
         const auto error=launchGasBoundaryLayerPool<Capture>(s->deviceState,
-            s->gasBoundaryLayerModel,s->gasBoundaryLayer.count,s->gasCaptureStream);
+            s->gasBoundaryLayerModel,s->gasBoundaryLayer.count,s->gasCaptureStream,
+            nullptr,s->gasBoundaryLayer.kernelTiming!=nullptr);
         if(error!=cudaSuccess){setLastError("prepare sparse boundaryLayer profiles",error);return 1;}
         if(s->gasBoundaryLayerModel.conservative.enabled){
 #define RECONSTRUCT_WALL_CAPACITY(N) case N: reconstructConservativeWallPool<N><<<workers,32,0,s->gasCaptureStream>>>(s->deviceState);break

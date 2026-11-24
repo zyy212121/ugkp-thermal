@@ -34,10 +34,10 @@ int main(){using namespace ugkp::diagnostics;
   ck(!hasFatal(&d)&&evaluated&&active==1&&s.gasSpecies.faceStatus[1]==0,"finite composition blocked wall transport");
   ck(d.warnings[clip?2:0].count==(clip?2u:1u),"wall composition warning missing");
   const Real ya=clip?Real(0):Real(.2),yb=clip?Real(1):Real(.3);
-  const Real cp=ya*1100+yb*1600,R=ugkwp::universalGasConstant<Real>()*(ya/Real(.028)+yb/Real(.04))/(ya+yb);
-  const auto expected=ugkpwall::sstJayatillekeThermalTransport(s.p[0]/(R*500),cp,s.gasMu,s.gasPrClamped,s.turbulentPrandtl,
-   s.sstWallCmu,s.sstWallKappa,s.sstWallE,s.sstJayatillekeP,s.sstThermalYPlus,s.k[0],Real(.5),Real(10),Real(2),Real(-400));
-  near(q,expected.heatFlux,"wall composition was not clipped componentwise or was renormalized");
+  const Real cp=ya*1100+yb*1600;
+  const auto expected=expectedWallLaw(s,cp,s.gasMu*cp/s.gasPrClamped);
+  ck(expected.thermal.valid,"reference wall transport invalid");
+  near(q,expected.thermal.heatFlux,"wall composition was not clipped componentwise or was renormalized");
   ck(s.gasSpecies.rho[0]==(clip?Real(-1):Real(.2))&&s.gasSpecies.rho[2]==(clip?Real(2):Real(.3)),"wall closure rewrote transported species");
  }
 }
@@ -100,7 +100,7 @@ def test_wall_and_bulk_transport_do_not_hide_nonfinite_inputs(tmp_path):
 int main(){using namespace ugkp::diagnostics;
  for(int fault=0;fault<7;++fault){
   State s;wall(s);DeviceContext d{};s.diagnostics=&d;const Real nan=std::numeric_limits<Real>::quiet_NaN();
-  if(fault==0)s.k[0]=nan;
+  if(fault==0)s.sstThermalYPlus=nan;
   if(fault==1)s.turbulentPrandtl=nan;
   if(fault==2)s.sstWallDistance[0]=nan;
   if(fault==3)s.gasThermalConductivity=0;

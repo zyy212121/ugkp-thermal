@@ -106,10 +106,9 @@ class IntervalHistory {
     std::vector<Real> externalRadiationEnergy_;
     IntervalRadiationDeviceView deviceRadiation_{};
     std::function<void(std::size_t,GasIntervalRecord&)> payloadReader_;
-    AcceptedLedger::Reader ledgerReader_;
 public:
     bool begin(const CouplingInterval& w,std::string& error){
-        interval_=w;records_.clear();externalRadiationEnergy_.clear();deviceRadiation_={};payloadReader_={};ledgerReader_={};started_=true;error.clear();return true;
+        interval_=w;records_.clear();externalRadiationEnergy_.clear();deviceRadiation_={};payloadReader_={};started_=true;error.clear();return true;
     }
     void setExternalRadiationEnergy(const std::vector<Real>& e){externalRadiationEnergy_=e;deviceRadiation_={};}
     const std::vector<Real>& externalRadiationEnergy()const{return externalRadiationEnergy_;}
@@ -119,19 +118,8 @@ public:
     const CouplingInterval& interval()const{return interval_;}
     const std::vector<GasIntervalRecord>& records()const{return records_;}
     bool externalPayload()const{return bool(payloadReader_);}
-    void setPayloadReader(std::function<void(std::size_t,GasIntervalRecord&)> reader,AcceptedLedger::Reader ledger={}){
+    void setPayloadReader(std::function<void(std::size_t,GasIntervalRecord&)> reader){
         payloadReader_=std::move(reader);
-        ledgerReader_=std::move(ledger);
-    }
-    AcceptedLedger::Reader releaseLedgerReader(){
-        if(ledgerReader_)return std::move(ledgerReader_);
-        return [history=std::move(*this)](const AcceptedLedger::ChunkVisitor& visit){
-            for(std::size_t i=0;i<history.records().size();++i){
-                auto record=history.readRecord(i);
-                for(auto& packet:record.packets)packet.consumerMask=requiredConsumers(packet.kind);
-                if(!record.packets.empty())visit(record.packets.data(),record.packets.size());
-            }
-        };
     }
     GasIntervalRecord readRecord(std::size_t index)const{
         auto value=records_.at(index);if(payloadReader_)payloadReader_(index,value);return value;

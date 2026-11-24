@@ -37,12 +37,13 @@ def simulate(binary, fixture, case, end, restart=None):
         mass = math.fsum([float(r['mass']) for r in gas] +
                          [float(v) for r in solid for k,v in r.items() if k.startswith('mass_')])
         energy = math.fsum(float(r['total_energy']) for r in gas+solid)
-        packets = load_rows(output/f'exchange-{step}.csv')
-        for r in packets:
-            assert int(r['consumer_mask']) & 3 == 3
-            parts = ('conductive','advective','pressure_work','viscous_work','radiation','liquid_kinetic_advection')
-            assert math.isclose(float(r['energy']), math.fsum(float(r[k]) for k in parts), rel_tol=4e-6, abs_tol=1e-12)
-        stamps.append(dict(step=step, time=float(row['time']), mass=mass, energy=energy, packets=len(packets)))
+        assert not (output/f'exchange-{step}.csv').exists()
+        heat_path = output/f'wall-heat-{step}.csv'
+        heat = load_rows(heat_path) if heat_path.exists() else []
+        for r in heat:
+            assert float(r['interval_s']) > 0
+            assert all(math.isfinite(float(r[k])) for k in ('convection_J','gas_transport_J','particle_contact_J'))
+        stamps.append(dict(step=step, time=float(row['time']), mass=mass, energy=energy, wall_faces=len(heat)))
     return stamps
 
 
@@ -102,7 +103,7 @@ def main():
     all_stamps = first+resumed[1:]
     for field in ('mass','energy'):
         assert all(math.isclose(r[field],first[0][field],rel_tol=32*2**-23) for r in all_stamps)
-    assert all(r['packets']>0 for r in all_stamps[1:])
+    assert all(r['wall_faces']>0 for r in first[1:]+resumed[1:])
     (args.output/'results.json').write_text(json.dumps(all_stamps,indent=2)+'\n')
     if args.radiation_fixture:
         events=radiating_tail(args.binary,args.radiation_fixture,args.output)

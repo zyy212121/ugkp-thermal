@@ -35,7 +35,6 @@ inline void mapInventories(const ModelConfig& saved,const ModelConfig& current,H
     for(auto& q:state.film)reorder(q.species,species);
     for(auto* mesh:{&state.gasMesh,&state.solidMesh})
         for(auto& q:mesh->boundaryPrimitive)reorder(q.Y,species);
-    for(auto& q:state.ledger){reorder(q.species,species);reorder(q.pore,species);reorder(q.condensed,condensed);}
     reorder(state.budget.boundarySpecies,species);reorder(state.budget.boundaryElements,elements);
     for(auto& q:state.budget.exchangeSpecies)reorder(q,species);
 }

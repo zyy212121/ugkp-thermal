@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdlib>
 #include <new>
 #include "gasTransport/GasBoundaryLayerWorkspace.H"
 extern "C" int ugkwpGpuResidentStrictConfigureBoundaryLayerV1
@@ -11,6 +12,7 @@ try
     if(validateState(s,"configure boundaryLayer") || !config)
     {setLastErrorText("missing boundaryLayer resident or configuration");return 1;}
     const auto& a=*config;
+    const bool singleOde=ugkwp::compiledGasSpecies==1 && a.model==2 && !ugkwp::mixtureGasActive(*s);
     if(!a.wallCount)
     {
         if(releaseSharedGasTrialStorage(s->gasTrial))return 1;
@@ -23,7 +25,7 @@ try
     }
     if(!faces || !qOffsets || !mOffsets || !mCells || !geometry || !mWeight || !speciesFlux
         || (a.quadratureCount&&(!qDistance||!qWeight)) || !s->faceOwner || !s->magSf
-        || (!s->gasSpecies.diffusivity&&!ugkwp::gasVariableDiffusivity(*s)))
+        || (!singleOde&&!s->gasSpecies.diffusivity&&!ugkwp::gasVariableDiffusivity(*s)))
     {setLastErrorText("missing consumed boundaryLayer arrays or species values");return 1;}
     if(a.wallCount&&a.model==0&&(ugkwp::gasVariableViscosity(*s)||ugkwp::gasVariableDiffusivity(*s)||s->gasViscosity.prandtlSpecies>=0))
     {setLastErrorText("constantTransport wall is an analytic constant-transport limit; select equilibriumOde or reactingSst for variable transport");return 1;}
@@ -56,9 +58,14 @@ try
     std::vector<ugkwp::gaswall::WallInput<double,ugkwp::compiledGasSpecies>> inputs(a.wallCount);
     BoundaryLayerAllocation candidate;auto& w=candidate.gasBoundaryLayer;auto& model=candidate.gasBoundaryLayerModel;
     w.count=a.wallCount;int rc=0;
+    if(singleOde&&!ugkwp::configureSingleGasWallThermo(*s,model)){
+        setLastErrorText("invalid single-gas caloric inputs for equilibriumOde");return 1;
+    }
 #define WALL_ALLOC(field,count) rc|=allocateSharedGasZero(candidate.field,count)
     WALL_ALLOC(gasBoundaryLayer.exchange,a.wallCount);WALL_ALLOC(gasBoundaryLayer.sst,a.wallCount);
     WALL_ALLOC(gasBoundaryLayer.status,a.wallCount);WALL_ALLOC(gasBoundaryLayer.speciesFlux,std::size_t(a.wallCount)*ugkwp::compiledGasSpecies);
+    if(singleOde&&a.nodes==8&&std::getenv("CHT_WALL_LAYER_TIMING"))
+        WALL_ALLOC(gasBoundaryLayer.kernelTiming,1);
     WALL_ALLOC(gasBoundaryLayerModel.input,a.wallCount);WALL_ALLOC(gasBoundaryLayerModel.output,a.wallCount);
     WALL_ALLOC(gasBoundaryLayerModel.status,a.wallCount);
     WALL_ALLOC(gasBoundaryLayerModel.evaluationOutput,sizing.slots);
@@ -156,7 +163,12 @@ extern "C" int ugkwpGpuResidentStrictDownloadBoundaryLayerV1
         || copyToHost(exchange.data(),s->gasBoundaryLayer.exchange,walls,"read wall readiness")
         || copyToHost(faces.data(),s->gasBoundaryLayerModel.faces,walls,"read wall face map")
         || copyToHost(owners.data(),s->faceOwner,owners.size(),"read wall owner map"))return 1;
+    ugkwp::WallKernelTiming timing;
+    if(s->gasBoundaryLayer.kernelTiming
+        && copyToHost(&timing,s->gasBoundaryLayer.kernelTiming,1,"read wall kernel timing"))return 1;
     if(s->diagnosticOwner->completeReadback(0,walls!=0||!owners.empty()))return 1;
+    if(s->gasBoundaryLayer.kernelTiming)
+        std::fprintf(stderr,"WALL_LAYER_TIMING launches=%llu gpuNanoseconds=%llu\n",timing.launches,timing.nanoseconds);
     const unsigned columns=ugkwpGpu::boundaryLayerDiagnosticScalars+2*species;
     std::vector<double> result(std::size_t(walls)*columns);
     for(unsigned slot=0;slot<walls;++slot)

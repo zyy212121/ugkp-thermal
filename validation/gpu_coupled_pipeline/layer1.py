@@ -45,7 +45,6 @@ def compare_csv(left,right):
             if key in discrete or key=='sst_chemistry_integral_audit_collection' or value=='':assert value==y[key];continue
             try:u,v=float(value),float(y[key])
             except ValueError:assert value==y[key];continue
-            if left.name.startswith('wall-layer-') and key=='owner_k_source_integral' and math.isnan(u) and math.isnan(v):continue
             assert math.isfinite(u) and math.isfinite(v),(left,key,u,v)
             error=abs(u-v);scale=max(abs(u),abs(v))
             maximum[key]=max(maximum.get(key,0.),error/max(1.,scale))
@@ -55,15 +54,26 @@ def compare_csv(left,right):
 
 
 def compare_chmt(left,right):
-    result={};paths=sorted((left/'chmtOutput').glob('*.csv'))
-    assert {p.name for p in paths}=={p.name for p in (right/'chmtOutput').glob('*.csv')}
-    for path in paths:
-        errors=compare_csv(path,right/'chmtOutput'/path.name)
+    folders=[case/'chmtOutput' for case in (left,right)]
+    def filenames(folder):
+        return {p.name for p in folder.glob('*.csv')
+                if not p.name.startswith(('exchange-','wall-heat-','wall-layer-'))}
+    files=filenames(folders[0])
+    assert files==filenames(folders[1])
+    heat=[{p.name for p in folder.glob('wall-heat-*.csv')} for folder in folders]
+    if all(heat):
+        assert heat[0]==heat[1]
+        files|=heat[0]
+    result={}
+    for name in sorted(files):
+        errors=compare_csv(*(folder/name for folder in folders))
         for key,error in errors.items():result[key]=max(error,result.get(key,0.))
     def payload(case):
         wire=matrix.terminal(case).read_bytes();header=matrix.HEADER.unpack_from(wire)
         return wire[matrix.HEADER.size+header[-3]:]
-    return dict(maximum_scaled_csv_errors=result,checkpoint_payload_bitwise_equal=payload(left)==payload(right))
+    detail_layout=[any(folder.glob('exchange-*.csv')) for folder in folders]
+    equal=payload(left)==payload(right) if detail_layout[0]==detail_layout[1] else None
+    return dict(maximum_scaled_csv_errors=result,checkpoint_payload_bitwise_equal=equal)
 
 
 def field(path,count=8):
@@ -82,13 +92,23 @@ def field(path,count=8):
 def scalar_sum(path,count=8):return math.fsum(field(path,count))/count
 
 
+def gas_wall_energy(output, step):
+    heat=output/f'wall-heat-{step}.csv'
+    if heat.exists():
+        return -math.fsum(r['convection_J']+r['gas_transport_J'] for r in physical_rows(heat))
+    historical=output/f'exchange-{step}.csv'
+    if historical.exists():
+        return math.fsum(r['energy'] for r in physical_rows(historical) if int(r['kind']) in (0,3))
+    return None
+
+
 def audit_chmt(case,closed):
     out=case/'chmtOutput';steps=sorted(int(p.stem.split('-')[1]) for p in out.glob('gas-*.csv'))
-    result=dict(snapshots=len(steps),closed_domain=closed,max_mass_residual=0.,max_energy_residual=0.,max_species_sum_residual=0.,max_packet_energy_residual=0.,max_gas_exchange_residual=0.,max_material_exchange_residual=0.)
+    result=dict(snapshots=len(steps),closed_domain=closed,max_mass_residual=0.,max_energy_residual=0.,max_species_sum_residual=0.,max_gas_exchange_residual=0.,max_material_exchange_residual=0.)
     initial=None;previous=None;initial_components=None;component_residuals={}
     for step in steps:
-        g=physical_rows(out/f'gas-{step}.csv');s=physical_rows(out/f'material-{step}.csv');exchange=physical_rows(out/f'exchange-{step}.csv')
-        assert all(math.isfinite(v) for row in g+s+exchange for v in row.values())
+        g=physical_rows(out/f'gas-{step}.csv');s=physical_rows(out/f'material-{step}.csv')
+        assert all(math.isfinite(v) for row in g+s for v in row.values())
         gm=math.fsum(r['mass'] for r in g);sm=math.fsum(v for r in s for k,v in r.items() if k.startswith('mass_'))
         ge=math.fsum(r['total_energy'] for r in g);se=math.fsum(r['total_energy'] for r in s)
         current=(gm+sm,ge+se,ge,se)
@@ -102,19 +122,14 @@ def audit_chmt(case,closed):
             residual=abs(math.fsum(v for k,v in row.items() if k.startswith('mass_'))-row['mass'])
             result['max_species_sum_residual']=max(result['max_species_sum_residual'],residual)
             assert residual<=1e-10+1e-10*abs(row['mass'])
-        for row in exchange:
-            assert row['consumer_mask']==3,(case,'packet not consumed by both participants')
-            residual=abs(row['energy']-math.fsum(row[k] for k in ('conductive','advective','pressure_work','viscous_work','radiation','liquid_kinetic_advection')))
-            result['max_packet_energy_residual']=max(result['max_packet_energy_residual'],residual)
-            assert residual<=1e-10+1e-10*abs(row['energy'])
         mr=abs(current[0]-initial[0]);er=abs(current[1]-initial[1])
         result['max_mass_residual']=max(result['max_mass_residual'],mr)
         result['max_energy_residual']=max(result['max_energy_residual'],er)
         if closed:
             assert mr<=1e-10*max(1.,initial[0]),(case,'closed mass',mr)
             assert er<=max(2e-5,2e-13*abs(initial[1])),(case,'closed energy',er)
-            if previous is not None:
-                transferred=math.fsum(r['energy'] for r in exchange)
+            transferred=gas_wall_energy(out,step)
+            if previous is not None and transferred is not None:
                 gr=abs(ge-previous[2]-transferred);sr=abs(se-previous[3]+transferred)
                 result['max_gas_exchange_residual']=max(result['max_gas_exchange_residual'],gr)
                 result['max_material_exchange_residual']=max(result['max_material_exchange_residual'],sr)

@@ -21,9 +21,9 @@ def wall_probe( tmp_path_factory):
     begin = flux.index('            const bool velocityFixed = boundaryKind == 2')
     end = flux.index('            normalTemperatureGradient = targetNormalGradT;', begin)
     end += len('            normalTemperatureGradient = targetNormalGradT;')
-    source = source.replace('// PRODUCTION_BOUNDARY_FRAGMENT', flux[begin:end])
-    caller = (ROOT / 'common/operators/gasFaceSubgridTransportProperties.cuh').read_text()
-    source = source.replace('// PRODUCTION_GAS_FACE_CALLER', caller.replace('#pragma once', '').replace('asm("trap;");', 'std::abort();'))
+    point = ' return {{{gradUxX'
+    assert source.count(point) == 1
+    source = source.replace(point, flux[begin:end] + '\n' + point)
     path = work / 'probe.cpp'
     path.write_text(source)
     exe = work / 'probe'

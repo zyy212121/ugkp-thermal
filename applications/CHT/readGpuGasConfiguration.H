@@ -490,5 +490,6 @@ BoundaryLayerInput boundaryLayerInput(momentumTransportProperties,sharedGasModel
 boundaryLayerInput.configureSolverControls(runTime,mesh.name());
 if(boundaryLayerInput.active()){sstWallTreatment=2;sstWallTreatmentName="boundaryLayer";}
 sharedGasModel.validateNumerics(gasFluxScheme,gasReconstruction,gasLimiter,gasTimeIntegrator,
-    gasTurbulenceModel,!gpuScheduling.pureGasOnly,sstWallTreatment);
+    gasTurbulenceModel,!gpuScheduling.pureGasOnly,sstWallTreatment,boundaryLayerInput.model(),
+    false);
 #endif

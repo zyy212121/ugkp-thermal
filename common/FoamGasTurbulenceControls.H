@@ -105,9 +105,10 @@ else if (gasTurbulenceModelName == "kOmegaSST")
     {
         sstWallTreatment = 0;
     }
-    else if (sstWallTreatmentName == "wallFunction")
+    else if (sstWallTreatmentName == "wallFunction"
+        || sstWallTreatmentName == "compressibleWallFunction")
     {
-        sstWallTreatment = 1;
+        sstWallTreatment = int(ugkwp::gaswall::WallFamily::WallFunction);
     }
     else if(sstWallTreatmentName=="boundaryLayer")sstWallTreatment=2;
     else
@@ -115,7 +116,7 @@ else if (gasTurbulenceModelName == "kOmegaSST")
         FatalErrorInFunction
             << "Unsupported kOmegaSST wallTreatment '"
             << sstWallTreatmentName
-            << "'. Valid values are lowRe, wallFunction and boundaryLayer."
+            << "'. Valid values are lowRe, wallFunction, compressibleWallFunction and boundaryLayer."
             << exit(FatalError);
     }
 }

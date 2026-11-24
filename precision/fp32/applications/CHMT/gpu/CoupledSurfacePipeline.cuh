@@ -19,11 +19,6 @@ __global__ void archiveMaterialDriveInterval(const CoupledGasInterval* current,R
     if(!threadIdx.x&&!blockIdx.x)*output={current->localBegin,current->localEnd,current->actualDt};
 }
 #include "gpu/CoupledSurfaceArchive.inc"
-__global__ void packCoupledWallDiagnosticsKernel(const CoupledSurfaceRecord* records,int count,
-    ugkwp::gaswall::WallExchangeOutput<EnergyReal,Ns>* output){
-    const int slot=blockIdx.x*blockDim.x+threadIdx.x;
-    if(slot<count)output[slot]=records[slot].rates.layer;
-}
 __global__ void publishParticleMaterialSurfaceKernel(int count,const int* faces,
     const CoupledSurfaceInput* geometry,const WallFaceSample* program,GasWallProgramPosition position,
     GpuReal* temperature,GpuReal* ux,GpuReal* uy,GpuReal* uz,GpuReal* effusivity,const CoupledGasInterval* interval=nullptr){
@@ -178,9 +173,6 @@ __global__ void applyCoupledSurfaceKernel(SharedGasDeviceView* state,const int* 
     for(int c=0;c<Nc;++c)input.condensedRate[c]=w.condensedRate[c];
     auto identity=geometry.identity;identity.step=sequence;identity.geometry=geometryVersion;
     if(!evaluateGasWall(input,identity,p,record.rates)){record.failed=1;return;}
-
-
-    if(input.preparedLayer)record.rates.layer=*input.preparedLayer;
     const auto a=packetDelta(record.rates.primary).gas,c=packetDelta(record.rates.pore).gas;
     record.raw=(a+c)*(-PhysicalReal(1)/PhysicalReal(dt));
     record.raw.energy=-(a.energy+c.energy)/EnergyReal(dt);

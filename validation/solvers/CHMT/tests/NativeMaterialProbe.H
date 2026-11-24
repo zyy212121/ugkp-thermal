@@ -103,16 +103,6 @@ inline void physicalSnapshot(const char* label,const chmt::HostState& state,cons
     }
     physicalMesh(state.solidMesh);physicalMesh(state.gasMesh);physicalValues(state.solidSweepRemainder);
     physicalValues(state.gasVoidFraction);physicalValues(state.normalEnthalpy);physicalValues(state.normalLiquidFraction);physicalValues(state.normalAcceptedWallHeat);
-    physicalValue(state.ledger.size());for(const auto& q:state.ledger){
-        physicalValue(q.step);physicalValue(q.geometry);physicalValue(q.face);physicalValue(q.stage);physicalValue(int(q.kind));
-        physicalValue(q.gasCell);physicalValue(q.solidCell);physicalValue(q.filmFace);physicalValue(q.particleIndex);
-        physicalValue(q.mass);for(auto value:q.species)physicalValue(value);for(auto value:q.condensed)physicalValue(value);
-        for(auto value:q.pore)physicalValue(value);for(auto value:q.poreSweep)physicalValue(value);
-
-
-        if(q.kind!=chmt::ExchangeKind::SolidFilm)physicalValue(q.momentum);
-        physicalValue(q.energy);physicalValue(q.conductive);physicalValue(q.advective);physicalValue(q.pressureWork);physicalValue(q.viscousWork);physicalValue(q.radiation);physicalValue(q.liquidKineticAdvection);physicalValue(q.consumerMask);
-    }
     physicalValue(state.filmStorage.size());for(const auto& q:state.filmStorage){
         physicalValue(q.step);physicalValue(q.geometry);physicalValue(q.face);physicalValue(q.stage);physicalValue(q.filmFace);physicalValue(q.oldPV);physicalValue(q.newPV);physicalValue(q.consumed);
     }

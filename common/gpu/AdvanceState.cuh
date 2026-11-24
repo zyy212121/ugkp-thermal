@@ -1,6 +1,7 @@
 #ifndef UGKP_GPU_ADVANCE_STATE_CUH
 #define UGKP_GPU_ADVANCE_STATE_CUH
 #include "AdvanceState.H"
+#include "../gasTransport/GasTransportPreparation.H"
 #include "PhysicalEventClock.H"
 #include "AdvanceExtension.H"
 #include "GraphContinuationTask.cuh"
@@ -29,6 +30,7 @@ struct AdvanceGraphStorage {
     double* maximumWorkspace=nullptr;std::size_t maximumParts=0;
     SteadyAdvanceControls steadyControls{};double* residualScales=nullptr;bool steadyConfigured=false;
     AdvanceRequest* hostRequest=nullptr;
+    ugkwp::GasTransportPreparation* transportPreparation=nullptr;
     AdvanceReceipt* receipt=nullptr;
     AdvanceReceipt* hostReceipt=nullptr;
     AdvanceProgressPoint* hostProgress=nullptr;
@@ -56,7 +58,7 @@ struct AdvanceGraphStorage {
     PinnedTransferQueue transfers;
     GraphContinuationTask task;
     std::shared_ptr<AdvanceExtension> extension;
-    bool pending=false,pureGas=false,includesCourant=false;unsigned long long epoch=0;
+    bool pending=false,pureGas=false,includesCourant=false,includesDiffusion=false;unsigned long long epoch=0;
     int tasksReady=0,preparedKind=-1,baseReady=0,splitActive=0,injectionActive=0;
     void initialise(std::size_t parts){
         using executionGraphDetail::checked;
@@ -64,6 +66,7 @@ struct AdvanceGraphStorage {
         checked(cudaEventCreateWithFlags(&completed,cudaEventDisableTiming|cudaEventBlockingSync));
         checked(cudaMalloc(reinterpret_cast<void**>(&state),sizeof(*state)));
         checked(cudaMalloc(reinterpret_cast<void**>(&request),sizeof(*request)));
+        checked(cudaMalloc(reinterpret_cast<void**>(&transportPreparation),sizeof(*transportPreparation)));
         checked(cudaMallocHost(reinterpret_cast<void**>(&hostRequest),sizeof(*hostRequest)));
         checked(cudaMalloc(reinterpret_cast<void**>(&receipt),sizeof(*receipt)));
         checked(cudaMallocHost(reinterpret_cast<void**>(&hostReceipt),sizeof(*hostReceipt)));
@@ -84,6 +87,7 @@ struct AdvanceGraphStorage {
         if(receipt)cudaFree(receipt);
         if(hostReceipt)cudaFreeHost(hostReceipt);
         if(hostRequest)cudaFreeHost(hostRequest);
+        if(transportPreparation)cudaFree(transportPreparation);
         if(hostProgress)cudaFreeHost(hostProgress);
         if(residualScales)cudaFree(residualScales);
         if(reportBatches && batches)

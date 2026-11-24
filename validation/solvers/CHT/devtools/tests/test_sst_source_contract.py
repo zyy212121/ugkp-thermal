@@ -137,7 +137,10 @@ def test_sst_wall_function_configuration_and_resident_path() -> None:
     cuda = read("gpu/GpuResidentStrict.cu")
     header = read("gpu/GpuResidentStrict.H")
     wall = read("gpu/OpenFoamWallFunctions.cuh")
-    combined = cuda + header
+    resident = (SOURCE_ROOT/"common/thermal/GpuResidentStrict.cu").read_text()
+    sst = (SOURCE_ROOT/"common/operators/computeGasPrimitiveGradientsKernel.cuh").read_text()
+    wall_transport = (SOURCE_ROOT/"common/operators/gasFaceSubgridTransportProperties.cuh").read_text()
+    combined = cuda + header + resident + sst + wall_transport
 
     for token in (
         'lookupOrDefault<word>("wallTreatment", "lowRe")',
@@ -155,14 +158,15 @@ def test_sst_wall_function_configuration_and_resident_path() -> None:
         "sstWallCmu",
         "applySstWallFunctionStateKernel",
         "omegaWallFunctionState",
-        "jayatillekeWallHeatFlux",
-        "jayatillekeWallHeatFluxPrecomputed",
         "sstJayatillekeP",
         "sstThermalYPlus",
         "directWallHeatFluxActive",
     ):
         assert token in combined + wall + main
 
+    wall_face = (SOURCE_ROOT/"common/operators/CompressibleSstWallFace.cuh").read_text()
+    assert "CompressibleWallFunction::evaluate" in wall_face
+    assert "jayatillekeWallHeatFluxPrecomputed" not in wall
     assert "wallTreatment=" in main
     assert "fvm::" not in combined
     assert "solve(omega" not in combined

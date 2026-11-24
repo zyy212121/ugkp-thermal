@@ -132,13 +132,13 @@ ck(s.gasSpecies.faceStatus[1]==0,"finite wall composition defect refused");ck(st
 @pytest.mark.parametrize('negative',['mu','cp'])
 def test_jayatilleke_evaluable_signed_transport_publishes_heat(tmp_path,negative):
     compile_probe(tmp_path,fixture()+r'''
+#include "../legacy/common/gasNumerics/LegacySstWallFunction.H"
 int main(){Real mu=Real(.001),cp=1000;NEGATIVE=-NEGATIVE;
-const Real rho=1,Pr=Real(.7),Prt=Real(.9),Cmu=Real(.09),kappa=Real(.41),E=Real(9.8),P=Real(2),yt=12,k=Real(.1),y=Real(.5),du=2,grad=10;
-auto v=ugkpwall::sstJayatillekeThermalTransport(rho,cp,mu,Pr,Prt,Cmu,kappa,E,P,yt,k,y,du,Real(0),grad);
-const Real star=sqrt(sqrt(Cmu))*sqrt(k),yp=star*y*rho/mu;const bool viscous=yp<yt;
-const Real tp=viscous?Pr*yp:Prt*(log(E*yp)/kappa+P),uc=viscous?Real(0):star/kappa*log(E*yt);
-const Real C=Real(.5)*rho*star*(viscous?Pr*du*du:Prt*du*du+(Pr-Prt)*uc*uc);
-const Real expectedK=fmax(mu*cp/Pr,cp*rho*star*y/tp),expectedQ=-expectedK*grad+C/tp;
+const Real Pr=Real(.7),Prt=Real(.9),kappa=Real(.41),E=Real(9.8),P=Real(2),yt=12,yp=100,grad=10;
+const Real molecular=mu*cp/Pr;
+auto v=ugkpwall::sstJayatillekeThermalTransport(molecular,Pr,Prt,kappa,E,P,yt,yp,grad);
+const Real tp=Prt*(log(E*yp)/kappa+P);
+const Real expectedK=molecular*fmax(Real(1),Pr*yp/tp),expectedQ=-expectedK*grad;
 ck(v.valid&&v.conductivity==expectedK&&v.heatFlux==expectedQ,"finite signed Jayatilleke candidate refused or changed");}
 '''.replace('NEGATIVE',negative))
 

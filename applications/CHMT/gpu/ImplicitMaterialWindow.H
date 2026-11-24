@@ -1,4 +1,5 @@
 #pragma once
+#include "core/WallHeatIntegral.H"
 #include "core/Types.H"
 #include "../../../common/GpuPrecisionTypes.H"
 #include "../../../common/gpu/ExecutionGraph.H"
@@ -19,7 +20,7 @@ struct GasWindowProgress;
 struct IntervalRadiationDeviceView;
 struct ImplicitWindowRemoval {PhysicalReal mass[Nc]{};};
 struct ImplicitWindowReport {
-    std::uint64_t packets=0,frames=0;
+    std::uint64_t frames=0;
     int iterations=0,linearSolves=0,linearIterations=0;
     bool initialized=false,linearPrepared=false,requiresLinearSolve=false,complete=false,converged=false,capacity=false;
     PhysicalReal massResidual=0,temperatureResidual=0;
@@ -35,7 +36,7 @@ struct ImplicitWindowThermalFields {
 bool beginImplicitMaterialExchange(MaterialBackend&,const HostState&,const CouplingInterval&,
     const CpuMaterialControls&,std::string&);
 ugkp::gpu::ExecutionGraphNode appendImplicitMaterialExchange(MaterialBackend&,const ResidentMaterialDriveHistory&,
-    const GasWindowProgress*,bool,ugkp::gpu::ExecutionGraph,ugkp::gpu::ExecutionGraphNode,void*);
+    const GasWindowProgress*,bool,ugkp::gpu::ExecutionGraph,ugkp::gpu::ExecutionGraphNode,void*,WallHeatIntegral*);
 void enqueueImplicitMaterialFrame(MaterialBackend&,const CoupledSurfaceDownload*,std::size_t faces,
     std::uint64_t acceptedFrame,bool particles,void* stream);
 bool collectImplicitWindowRemoval(MaterialBackend&,std::vector<ImplicitWindowRemoval>&,std::string&);

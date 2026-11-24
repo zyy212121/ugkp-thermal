@@ -25,15 +25,17 @@ def main():
         interval=float(re.search(r"couplingInterval\s+([^;]+)",(case/"constant/scheme").read_text())[1])
         matrix.entry(case/"constant/scheme","maxDeltaT",interval/7)
         matrix.run([binary.resolve(),"-case",case],case/"run.log")
-        exchanges=[p for p in (case/"chmtOutput").glob("exchange-*.csv") if evidence.rows(p)]
-        micro=[len({row["step"] for row in evidence.rows(p)}) for p in exchanges]
+        micro=[int(n) for n in re.findall(r"gasMicrosteps=(\d+)",(case/"run.log").read_text())]
         assert micro and min(micro)>=7,(case,micro)
-        wall=list((case/"chmtOutput").glob("wall-layer-*.csv"))
-        assert wall and any(evidence.rows(p) for p in wall),case
+        output=case/"chmtOutput"
+        wall=list(output.glob("wall-heat-*.csv"))
+        if kind=="candidate":
+            assert wall and all(evidence.rows(p) for p in wall),case
+            assert not any(output.glob("wall-layer-*.csv")),case
         runs[kind]={"binary_sha256":evidence.digest(binary),"microsteps_per_window":micro,
             "wall_output_snapshots":len(wall),"audit":evidence.audit_chmt(case,False)}
     parity=evidence.compare_chmt(out/"baseline",out/"candidate")
-    assert parity["checkpoint_payload_bitwise_equal"],parity
+    assert parity["checkpoint_payload_bitwise_equal"] is not False,parity
     assert all(error<=2e-12 for error in parity["maximum_scaled_csv_errors"].values()),parity
     result={"runs":runs,"parity":parity}
     (out/"results.json").write_text(json.dumps(result,indent=2,allow_nan=False)+"\n")

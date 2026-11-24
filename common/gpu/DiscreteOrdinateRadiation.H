@@ -56,7 +56,6 @@ struct RadiationResult {
     RadiationReal materialRelativeResidual=0,transportRelativeResidual=0;
     RadiationReal materialResidualTarget=0,transportResidualTarget=0;
     int sourceStop=0;unsigned long long matvecs=0,workLimit=0;
-    double wideResidual=0,arithmeticDelta=0;
     int sourceIterations=0,lastLinearIterations=0,lastLinearStopReason=0;
     unsigned long long linearSolves=0,totalLinearIterations=0;
     RadiationReal sourceResidualTarget=0,lastLinearResidual=0;

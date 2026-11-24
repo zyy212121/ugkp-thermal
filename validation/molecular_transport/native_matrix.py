@@ -114,7 +114,7 @@ def compare_chmt(reference,result):
         return data[begin:],header[2:8]
     assert payload(a)==payload(b),'checkpoint physical state differs'
     step=a.parent.name.split('-')[-1]
-    for name in ('gas','material','accepted','exchange'):
+    for name in ('gas','material','accepted'):
         filename=f'{name}-{step}.csv'
         assert (a.parent.parent/filename).read_bytes()==(b.parent.parent/filename).read_bytes(),filename
     return {'state_payload_bitwise_equal':True,'accepted_step':int(step)}

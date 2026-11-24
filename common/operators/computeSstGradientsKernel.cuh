@@ -1,9 +1,11 @@
 #pragma once
+#include "gasTransport/GasTransportPreparation.H"
 #include "GpuCellNeighbour.cuh"
 
 template<class GasState>
-__global__ void computeSstGradientsKernel(GasState* sp)
+__global__ void computeSstGradientsKernel(GasState* sp,const ugkwp::GasTransportPreparation* preparation=nullptr)
 {
+    if(ugkwp::gasTransportPrepared(*sp,preparation,ugkwp::GasTransportPreparation::sst))return;
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;

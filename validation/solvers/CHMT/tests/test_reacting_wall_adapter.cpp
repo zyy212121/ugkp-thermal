@@ -56,12 +56,17 @@ int main(){
     const Real latent=liquidH(melting,600,bulk.pressure)-condensedE(melting.condensed[0],600)-bulk.pressure/melting.condensed[0].rho;
     const Real incoming=.8/.8*(bulk.temperature-600)+.02*64/(2*.8);
     near(born.phaseMass,(2/.1*(800-600)+incoming)/latent,"birth heat includes boundaryLayer heat and mechanical heating once");
-    auto prepared=gas.layer;prepared.matchingSpeciesFlux[0]=123;prepared.reactionIntegral[0]=456;
+    Real blowing[Ns]{};
+    for(int s=0;s<Ns;++s)blowing[s]=in.speciesRate[s]+in.poreRate[s];
+    InterfaceGasClosure sampled;
+    check(evaluateInterfaceGasClosure(in.bulk,in.gradient,in.temperature,in.gasDistance,in.velocity,in.normal,
+        in.normalSpeed,blowing,p.tolerances.absoluteMass/(in.dt*in.gasArea),p,in.wallContext,sampled),"prepare reusable wall solution");
+    auto prepared=sampled.layer;prepared.matchingSpeciesFlux[0]=123;prepared.reactionIntegral[0]=456;
     in.preparedLayer=&prepared;in.wallContext.workspace=nullptr;
     GasWallResult reused;check(evaluateGasWall(in,id,p,reused),"prepared device closure reused without duplicate solve");
     near(reused.primary.energy,gas.primary.energy,"auxiliary chemistry cannot enter exchange packet");
     prepared.traceTemperature+=1;check(evaluateGasWall(in,id,p,reused),"stale prepared Tw selects actual closure");
-    near(reused.layer.traceTemperature,in.temperature,"fresh prescribed Tw recomputed");
+    near(reused.trace.temperature,in.temperature,"fresh prescribed Tw recomputed");
     near(reused.primary.energy,gas.primary.energy,"fresh closure matches original input");
     prepared.traceTemperature-=1;
     auto invalid=p;invalid.material.gasContactResistance=.1;
@@ -88,9 +93,14 @@ int main(){
     mechanism.stoichiometricBasis=basis;mechanism.independentRank=1;
     GasWallResult reactive;check(evaluateGasWall(chemical,id,reacting,reactive),"CHMT finite-rate canonical mechanism and thermo agree");
     near(reactive.trace.Y[0],bulk.Y[0]/std::cosh(std::sqrt(2/1e-4)*.01),"independent finite-rate diffusion wall composition",.002);
-    check(std::abs(reactive.layer.reactionIntegral[0])>1e-4,"wall auxiliary chemistry is resolvable");
+    Real noBlowing[Ns]{};
+    InterfaceGasClosure chemistry;
+    check(evaluateInterfaceGasClosure(chemical.bulk,chemical.gradient,chemical.temperature,chemical.gasDistance,
+        chemical.velocity,chemical.normal,chemical.normalSpeed,noBlowing,reacting.tolerances.absoluteMass/chemical.dt,
+        reacting,chemical.wallContext,chemistry),"sample wall chemistry closure");
+    check(std::abs(chemistry.layer.reactionIntegral[0])>1e-4,"wall auxiliary chemistry is resolvable");
     check(reactive.primary.mass==0&&reactive.primary.species[0]==0&&reactive.pore.mass==0,"auxiliary reaction is never material production");
-    check(!reactive.layer.chemistryMismatchAvailable,"no coarse chemistry comparison is fabricated");
+    check(!chemistry.layer.chemistryMismatchAvailable,"no coarse chemistry comparison is fabricated");
     reacting.gasMode=ugkwp::GasMode::MixtureFrozen;GasWallResult frozen;
     check(evaluateGasWall(chemical,id,reacting,frozen),"same finite-rate core frozen control");
     near(frozen.trace.Y[0],bulk.Y[0],"frozen composition contrast");

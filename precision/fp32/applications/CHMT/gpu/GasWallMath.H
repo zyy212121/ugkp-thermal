@@ -25,7 +25,7 @@ struct GasWallInput {
     ExchangeKind primaryKind=ExchangeKind::GasSolid;
     PhysicalReal speciesRate[Ns]{},condensedRate[Nc]{},poreRate[Ns]{},poreSweepRate[Ns]{};
 };
-struct GasWallResult { ExchangePacket primary{},pore{}; GasPrimitive trace{}; PhysicalVec3 traction{}; ugkwp::gaswall::WallExchangeOutput<EnergyReal,Ns> layer{}; };
+struct GasWallResult { ExchangePacket primary{},pore{}; GasPrimitive trace{}; PhysicalVec3 traction{}; };
 CHMT_HD inline bool evaluateGasWall(const GasWallInput& in,const SurfacePacketIdentity& identity,
     const PhysicsConfig& p,GasWallResult& output) {
     const PhysicalReal ratio=in.area/in.gasArea;
@@ -75,7 +75,7 @@ CHMT_HD inline bool evaluateGasWall(const GasWallInput& in,const SurfacePacketId
                 }
             }
         }
-        if(reuse){closure.layer=layer;closure.traction={layer.traction[0],layer.traction[1],layer.traction[2]};
+        if(reuse){closure.traction={layer.traction[0],layer.traction[1],layer.traction[2]};
             closure.conductiveHeatFlux=layer.conductiveHeatFlux;}
     }
     if(!reuse){
@@ -83,7 +83,7 @@ CHMT_HD inline bool evaluateGasWall(const GasWallInput& in,const SurfacePacketId
             in.normalSpeed,species,p.tolerances.absoluteMass/(PhysicalReal(in.dt)*in.gasArea),p,in.wallContext,closure);
         if(!evaluated)return false;
     }
-    result.trace=closure.trace;result.traction=closure.traction;result.layer=closure.layer;
+    result.trace=closure.trace;result.traction=closure.traction;
     const PhysicalReal mechanicalPressure=p.wallModel.family==ugkwp::gaswall::WallFamily::BoundaryLayer
         ?in.wallContext.mechanicalPressure:result.trace.pressure;
     const PhysicalReal scale=in.area*PhysicalReal(in.dt),gasScale=in.gasArea*PhysicalReal(in.dt);

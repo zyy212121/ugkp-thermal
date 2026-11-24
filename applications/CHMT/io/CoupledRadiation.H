@@ -16,6 +16,6 @@ public:
     bool writeWarmStart(const std::string&) const;
     bool due(const CouplingInterval&,const CouplingControls&,const HostState&,bool) const override;
     bool prepareParent(Backend&,const WallProgram&,const HostState&,std::string&) override;
-    bool advance(Backend&,const WallProgram&,HostState&,EnergyReal&,std::string&) override;
+    bool advance(Backend&,const WallProgram&,HostState&,std::string&) override;
 };
 }

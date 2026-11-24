@@ -381,7 +381,7 @@ template<class R> void matchingReconstruction(const WallGeometryMesh<R>&m,
     for(int mode=0;mode<10;++mode){L norm2=0;
         for(int j=0;j<n;++j)norm2+=moment[j][mode]*moment[j][mode];
         matrixNorm=std::max(matrixNorm,std::sqrt(norm2));}
-    const L roundoff=64*L(n+10)*std::numeric_limits<R>::epsilon()*matrixNorm;
+    const L roundoff=std::sqrt(L(std::numeric_limits<R>::epsilon()))*matrixNorm;
     std::vector<std::vector<L>> basis;std::vector<L> beta,weights(n,0);weights[0]=1;
     bool normalLinear=false,normalQuadratic=false;
     for(int mode=0;mode<10;++mode){std::vector<L> row(n);L rhs=(mode==0?1.L:0.L)-moment[0][mode];

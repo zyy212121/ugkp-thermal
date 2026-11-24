@@ -73,30 +73,24 @@ def execute(work, baseline, candidate):
             assert not (case/"chmtOutput").exists(), (case, "use a fresh run directory")
             elapsed = matrix.run([binary, "-case", case], case/"run.log")
             output = case/"chmtOutput"
-            exchanges = sorted((path for path in output.glob("exchange-*.csv") if evidence.rows(path)),
-                               key=lambda path: int(path.stem.split("-")[-1]))
-            counts = [len({row["step"] for row in evidence.rows(path)}) for path in exchanges]
+            counts = [int(n) for n in re.findall(r"gasMicrosteps=(\d+)",(case/"run.log").read_text())]
             assert counts and min(counts) >= 4, (case, counts)
-            stage_snapshots = 0
+            heat_snapshots = 0
             if name == "moving-microsteps":
-
-
                 assert all(count == 4 for count in counts), (case, counts)
                 props = (case/"constant/chmtProperties").read_text()
                 dt = float(re.search(r"\bgasMaxDt\s+([^;]+)", props)[1])
-                for path in output.glob("wall-layer-*.csv"):
+                for path in output.glob("wall-heat-*.csv"):
                     wall = evidence.rows(path)
-                    if not wall or float(wall[0]["accepted_time"]) == 0:
-                        continue
-                    stage_snapshots += 1
+                    assert wall, path
+                    heat_snapshots += 1
                     for row in wall:
-                        accepted, stage = float(row["accepted_time"]), float(row["stage_time"])
-                        expected = accepted-dt/2
-                        tolerance = 32*math.ulp(max(abs(accepted), abs(dt)))
-                        assert abs(stage-expected) <= tolerance, (path, stage, expected)
-                assert stage_snapshots == len(exchanges), (case, stage_snapshots)
-            runs[kind] = dict(elapsed_seconds=elapsed, coupling_windows=len(exchanges),
-                              microsteps_per_window=counts, checked_rk_stage_snapshots=stage_snapshots,
+                        assert math.isclose(float(row["interval_s"]), 4*dt, rel_tol=1e-12), (path, row)
+                if kind == "candidate":
+                    assert heat_snapshots == len(counts), (case, heat_snapshots)
+                    assert not any(output.glob("wall-layer-*.csv")), case
+            runs[kind] = dict(elapsed_seconds=elapsed, coupling_windows=len(counts),
+                              microsteps_per_window=counts, checked_wall_heat_snapshots=heat_snapshots,
                               audit=evidence.audit_chmt(case, name == "mixture"))
         parity = evidence.compare_chmt(work/(name+"-baseline"), work/(name+"-candidate"))
         report["cases"][name] = dict(runs=runs, parity=parity)

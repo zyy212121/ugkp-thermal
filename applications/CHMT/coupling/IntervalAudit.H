@@ -18,47 +18,6 @@ inline Real intervalNormalizedError(Real a,Real b,Real absolute,Real relative){
 
 
 
-template<class Records,class Release>
-inline bool finalizeIntervalLedgerRecords(Records& records,HostState& candidate,std::string& error,Release release){
-    std::vector<ExchangePacket> ledger;std::size_t size=0;
-    for(const auto& p:candidate.ledger.values())if(p.kind==ExchangeKind::SolidFilm)++size;
-    for(const auto& r:records)size+=r.packets.size();
-    ledger.reserve(size);
-    for(const auto& p:candidate.ledger.values())if(p.kind==ExchangeKind::SolidFilm)ledger.push_back(p);
-    for(auto& r:records){
-        for(auto p:r.packets){p.consumerMask=requiredConsumers(p.kind);ledger.push_back(p);}
-        release(r);
-    }
-    candidate.ledger=std::move(ledger);error.clear();return true;
-}
-inline bool finalizeReleasedIntervalLedger(std::vector<GasIntervalRecord> records,HostState& candidate,std::string& error){
-
-
-    std::size_t count=0;
-    const bool ok=finalizeIntervalLedgerRecords(records,candidate,error,[&](GasIntervalRecord& r){
-        r=GasIntervalRecord{};if(++count%512==0)ugkp::releaseUnusedHostPages();
-    });
-    ugkp::releaseUnusedHostPages();return ok;
-}
-
-
-inline bool finalizeReleasedIntervalLedger(IntervalHistory history,HostState& candidate,std::string& error){
-    if(!history.externalPayload())return finalizeReleasedIntervalLedger(history.releaseRecords(),candidate,error);
-    std::vector<ExchangePacket> solidFilm;
-    candidate.ledger.forEachChunk([&](const ExchangePacket* packets,std::size_t count){
-        for(std::size_t i=0;i<count;++i)
-            if(packets[i].kind==ExchangeKind::SolidFilm)solidFilm.push_back(packets[i]);
-    });
-    candidate.ledger.freeze([first=std::move(solidFilm),packets=history.releaseLedgerReader()](const AcceptedLedger::ChunkVisitor& visit){
-        if(!first.empty())visit(first.data(),first.size());
-        packets(visit);
-    });
-    error.clear();return true;
-}
-inline bool finalizeIntervalLedger(const IntervalHistory& history,HostState& candidate,std::string& error){
-    if(history.externalPayload())return finalizeReleasedIntervalLedger(history,candidate,error);
-    return finalizeIntervalLedgerRecords(history.records(),candidate,error,[](const GasIntervalRecord&){});
-}
 inline bool intervalSampleWallLocal(const WallProgram& program,WindowTime localTime,WallKnot& result,std::string& error){
     const Real time=windowAbsolute(program.interval.begin,localTime);
     if(program.knots.size()<2)return intervalFailure(error,"wall comparison time outside program");

@@ -1214,15 +1214,10 @@ public:
     labelList particleContactFluidPatchIds;
     autoPtr<surfaceScalarField> gasConvectiveWallHeatFlux;
     autoPtr<surfaceScalarField> particleRadiationWallHeatFlux;
-    autoPtr<volScalarField> particleRadiationAbsorptionCoefficient;
-    autoPtr<volScalarField> particleRadiationScatteringCoefficient;
-    autoPtr<volScalarField> particleRadiationExtinctionCoefficient;
-    autoPtr<volScalarField> particleRadiationAsymmetryFactor;
     autoPtr<surfaceScalarField> particleStuckWallHeatFlux;
     autoPtr<surfaceScalarField> particleReflectedWallHeatFlux;
 
     std::shared_ptr<ugkp::gpu::ThermalEventGraph> thermalEvent;
-    ugkp::gpu::DiscreteOrdinateRadiation* parentTransport=nullptr;
     ugkp::gpu::RadiationMaterialDeviceView parentRadiation;
     ugkp::gpu::ThermalInterfaceStateDeviceView parentWall;
 
@@ -1269,10 +1264,6 @@ public:
         particleContactFluidPatchIds(),
         gasConvectiveWallHeatFlux(nullptr),
         particleRadiationWallHeatFlux(nullptr),
-        particleRadiationAbsorptionCoefficient(nullptr),
-        particleRadiationScatteringCoefficient(nullptr),
-        particleRadiationExtinctionCoefficient(nullptr),
-        particleRadiationAsymmetryFactor(nullptr),
         particleStuckWallHeatFlux(nullptr),
         particleReflectedWallHeatFlux(nullptr)
     {
@@ -1518,62 +1509,6 @@ public:
             );
             particleRadiationCoupler->readWarmStart
             ((runTime.timePath()/"domWarmStart.bin").c_str());
-            particleRadiationAbsorptionCoefficient.reset
-            (
-                new volScalarField
-                (
-                    IOobject
-                    (
-                        "particleRadiationAbsorptionCoefficient",
-                        runTime.timeName(), fluidMesh,
-                        IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE, true
-                    ),
-                    fluidMesh,
-                    dimensionedScalar("zero", dimless/dimLength, scalar(0))
-                )
-            );
-            particleRadiationScatteringCoefficient.reset
-            (
-                new volScalarField
-                (
-                    IOobject
-                    (
-                        "particleRadiationScatteringCoefficient",
-                        runTime.timeName(), fluidMesh,
-                        IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE, true
-                    ),
-                    fluidMesh,
-                    dimensionedScalar("zero", dimless/dimLength, scalar(0))
-                )
-            );
-            particleRadiationExtinctionCoefficient.reset
-            (
-                new volScalarField
-                (
-                    IOobject
-                    (
-                        "particleRadiationExtinctionCoefficient",
-                        runTime.timeName(), fluidMesh,
-                        IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE, true
-                    ),
-                    fluidMesh,
-                    dimensionedScalar("zero", dimless/dimLength, scalar(0))
-                )
-            );
-            particleRadiationAsymmetryFactor.reset
-            (
-                new volScalarField
-                (
-                    IOobject
-                    (
-                        "particleRadiationAsymmetryFactor",
-                        runTime.timeName(), fluidMesh,
-                        IOobject::READ_IF_PRESENT, IOobject::AUTO_WRITE, true
-                    ),
-                    fluidMesh,
-                    dimensionedScalar("zero", dimless, scalar(0))
-                )
-            );
         }
         labelList primaryCoupledPatchIds(mapper->solidPatchIds());
         labelList primaryOwnerConductivityPatchIds;
@@ -2158,7 +2093,7 @@ bool GpuSolidThermalCoupler::configureDeviceAdvance(volScalarField& Tgas){
             d.particleHeatFactor,d.solidContactCouplingInterval*d.radiationCouplingFrequency,
             d.resident.particleRadiationResponse(),resident};
         const auto parent=d.particleRadiationCoupler->prepareParent(snapshot,&d.thermalEvent->deviceState()->radiationInterval);
-        d.parentTransport=parent.radiation;d.thermalEvent->bindRadiation(*parent.radiation,*parent.material);d.parentRadiation=parent.material->deviceView();
+        d.thermalEvent->bindRadiation(*parent.radiation,*parent.material);d.parentRadiation=parent.material->deviceView();
     }
     d.resident.bindAdvanceExtension(d.thermalEvent);return true;
 }
@@ -2168,17 +2103,7 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::collectDeviceEvents(const ugkp:
     const auto state=d.thermalEvent->collect();
     if(!state.committed)solidFailure("thermal parent result was not committed");
     d.solidCandidateSolver->acceptResidentContact();if(d.threeRegion)d.auxiliaryCandidateSolver->acceptResidentContact();
-    if(advance.submissionRadiationEvents&&d.parentTransport){
-        const auto r=d.parentTransport->collect(false);
-        d.particleRadiationCoupler->acceptParentSolve();
-        Info<<"DOM_TRANSPORT sourceIterations="<<r.sourceIterations<<" sourceStop="<<r.sourceStop
-            <<" converged="<<r.sourceConverged<<" intensityChange="<<r.maximumRelativeChange
-            <<" materialResidual="<<r.materialRelativeResidual<<" publishedResidual="<<r.transportRelativeResidual
-            <<" target="<<r.transportResidualTarget<<" wideResidual="<<r.wideResidual<<" arithmeticDelta="<<r.arithmeticDelta
-            <<" lastLinearResidual="<<r.lastLinearResidual<<" lastLinearStop="<<r.lastLinearStopReason
-            <<" preconditions="<<Foam::string(std::to_string(r.totalLinearIterations))
-            <<" matvecs="<<Foam::string(std::to_string(r.matvecs))<<" workLimit="<<Foam::string(std::to_string(r.workLimit))<<nl;
-    }
+    if(advance.submissionRadiationEvents&&d.radiationEnabled)d.particleRadiationCoupler->acceptParentSolve();
     auto completed=d.writeState.committedState();completed.formatVersion=4;completed.initialState=false;
     completed.exchangeSequence=state.sequence;completed.previousExchangeSimulationTimeS=state.previousTime;
     completed.completedSimulationTimeS=state.completedTime;completed.completedRadiationSimulationTimeS=state.completedRadiationTime;
@@ -2579,18 +2504,14 @@ label GpuSolidThermalCoupler::persistAtWriteTime
         ThermalRestartPreflight::stateDictionary(completed)
     );
     if(data_->lastRadiationIntervalS>0){
-        const auto radiation=data_->particleRadiationCoupler->collect();
-        data_->particleRadiationAbsorptionCoefficient->primitiveFieldRef()=radiation.absorptionCoefficientInvM;
-        data_->particleRadiationScatteringCoefficient->primitiveFieldRef()=radiation.scatteringCoefficientInvM;
-        data_->particleRadiationExtinctionCoefficient->primitiveFieldRef()=radiation.extinctionCoefficientInvM;
-        data_->particleRadiationAsymmetryFactor->primitiveFieldRef()=radiation.asymmetryFactor;
+        const auto radiation=data_->particleRadiationCoupler->collectBoundaryEnergy();
         data_->particleRadiationWallHeatFlux->primitiveFieldRef()=scalar(0);
         forAll(data_->particleRadiationWallHeatFlux->boundaryField(),patchI)
             data_->particleRadiationWallHeatFlux->boundaryFieldRef()[patchI]=scalar(0);
         forAll(data_->mapper->fluidPatchIds(),pairI){
             const label patchI=data_->mapper->fluidPatchIds()[pairI];
             auto& flux=data_->particleRadiationWallHeatFlux->boundaryFieldRef()[patchI];
-            const auto& energy=radiation.solidWallRadiationEnergyJ[patchI];
+            const auto& energy=radiation[patchI];
             const auto& area=data_->fluidMesh.magSf().boundaryField()[patchI];
             forAll(flux,faceI)flux[faceI]=energy[faceI]/(area[faceI]*data_->lastRadiationIntervalS);
         }

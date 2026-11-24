@@ -56,7 +56,7 @@ int main(){
     input.resident={true,2,1,2,mass.p,tm.p,dm.p,wall.p,contact.p,scale.p,1,100,producer,emissivity.p,diagnostics};
     RadiationControls controls;controls.parallelAngles=true;controls.sourceTolerance=1e-12;controls.sourceIterations=1000;
     DiscreteOrdinateRadiation radiation(g,t,controls);ParticleRadiationMaterial material(t);
-    ParticleRadiationMaterialInput transaction;transaction.coupledBoundary={1,1};transaction.heatFactor=1000;
+    ParticleRadiationMaterialInput transaction;transaction.coupledBoundary={1,0};transaction.heatFactor=1000;
     transaction.elapsed=.01;transaction.minimumTemperature=100;transaction.maximumTemperature=2000;
 
     radiation.solve(input,false,false);transaction.resident=radiation.deviceView();material.solve(transaction,false);material.collect();
@@ -85,21 +85,23 @@ int main(){
     same(expected.boundaryEnergy,actual.boundaryEnergy,"resident boundary energy mismatch");same(expectedLedger,actualLedger,"resident consumption sequence mismatch");
 
     const auto boundary=material.collectBoundaryEnergy();
-    same(actual.boundaryEnergy,boundary.boundaryEnergy,"raw boundary collection mismatch");
-    same({actual.escapedEnergy},{boundary.escapedEnergy},"escaped boundary collection mismatch");
+    same(actual.boundaryEnergy,boundary,"coupled boundary collection mismatch");
+    if(expected.escapedEnergy==0||actual.escapedEnergy!=0)
+        throw std::runtime_error("only explicit exports should calculate escaped heat");
     ugkp::diagnostics::DeviceContext report{};check(cudaMemcpy(&report,diagnostics,sizeof(report),cudaMemcpyDeviceToHost));
     if(report.fatalClaim)throw std::runtime_error("unexpected deferred radiation failure");
 
-    auto bad=g;bad.boundaryType[0]=RadiationBoundary::Fixed;bad.fixedIntensity[0]=-1e8;
-    DiscreteOrdinateRadiation invalid(bad,t,controls);invalid.solve(input,false,false);
+    Buffer invalidWall({0,std::nan(""),std::nan("")});
+    auto bad=input;bad.resident.boundaryTemperature=invalidWall.p;
+    DiscreteOrdinateRadiation invalid(g,t,controls);invalid.solve(bad,false,false);
     transaction.resident=invalid.deviceView();const auto rejected=material.solve(transaction);
     check(cudaMemcpy(&report,diagnostics,sizeof(report),cudaMemcpyDeviceToHost));
     if(!report.fatalClaim||report.firstFatal.sourceSiteId!=34000)throw std::runtime_error("missing deferred radiation failure");
     for(double q:rejected.energy)if(q!=0)throw std::runtime_error("failed radiation committed particle energy");
     for(double q:rejected.boundaryEnergy)if(q!=0)throw std::runtime_error("failed radiation committed boundary energy");
     const auto failedBoundary=material.collectBoundaryEnergy();
-    for(double q:failedBoundary.boundaryEnergy)if(q!=0)throw std::runtime_error("failed radiation committed boundary collection");
-    if(failedBoundary.escapedEnergy!=0)throw std::runtime_error("failed radiation published nonzero escaped heat");
+    for(double q:failedBoundary)if(q!=0)throw std::runtime_error("failed radiation committed boundary collection");
+    if(rejected.escapedEnergy!=0)throw std::runtime_error("failed radiation published nonzero escaped heat");
     bool caught=false;try{invalid.collect();}catch(const RadiationError&){caught=true;}
     if(!caught)throw std::runtime_error("explicit radiation publication lost native failure");
     check(cudaFree(diagnostics));check(cudaEventDestroy(ready));check(cudaStreamDestroy(producer));

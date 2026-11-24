@@ -47,12 +47,13 @@ def execute(work, baseline, candidate, models):
             case = work/(model+"-"+kind)
             elapsed = matrix.run([binary, "-case",case],case/"run.log")
             output = case/"chmtOutput"
-            exchanges = [p for p in output.glob("exchange-*.csv") if evidence.rows(p)]
-            micro_counts = [len({r["step"] for r in evidence.rows(p)}) for p in exchanges]
-            assert exchanges and min(micro_counts)>=4, (case, micro_counts)
-            wall_outputs = list(output.glob("wall-layer-*.csv"))
-            assert wall_outputs and any(evidence.rows(p) for p in wall_outputs), case
-            runs[kind] = dict(elapsed_seconds=elapsed, coupling_windows=len(exchanges),
+            micro_counts = [int(n) for n in re.findall(r"gasMicrosteps=(\d+)",(case/"run.log").read_text())]
+            assert micro_counts and min(micro_counts)>=4, (case, micro_counts)
+            wall_outputs = list(output.glob("wall-heat-*.csv"))
+            if kind == "candidate":
+                assert wall_outputs and all(evidence.rows(p) for p in wall_outputs), case
+                assert not any(output.glob("wall-layer-*.csv")), case
+            runs[kind] = dict(elapsed_seconds=elapsed, coupling_windows=len(micro_counts),
                 microsteps_per_window=micro_counts, wall_output_snapshots=len(wall_outputs),
                 audit=evidence.audit_chmt(case,False))
         parity = evidence.compare_chmt(work/(model+"-baseline"),work/(model+"-candidate"))

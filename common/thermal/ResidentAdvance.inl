@@ -29,7 +29,10 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         s->gasGraphMode = !value || std::strcmp(value, "1") == 0;
     }
     if (s->gasGraphMode && !s->particlesMayBePresent && !s->gravityEnabled)
-        return advancePureGasGraph(s, dt, simulationTime-dt);
+    {
+        if(advancePureGasGraph(s,dt,simulationTime-dt))return 1;
+        return ChtSpeciesTrialPolicy::commitInterval(s);
+    }
 #endif
 
     const int block = s->reductionBlockThreads;
@@ -111,6 +114,7 @@ extern "C" int ugkwpGpuResidentStrictAdvance
         return 1;
     }
 
+    if(ChtSpeciesTrialPolicy::commitInterval(s))return 1;
     UGKP_DEV_PROBE_LEAVE(ProbeBoundary);
 
 #ifdef UGKP_DEVELOPMENT_PROBES

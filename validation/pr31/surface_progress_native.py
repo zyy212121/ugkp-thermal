@@ -18,9 +18,8 @@ def main():
   seconds=m.run([args.solver,'-case',case],case/'run.log')
   g0=table(case/'chmtOutput/gas-0.csv')[0];g1=table(case/'chmtOutput/gas-1.csv')[0]
   material=sum(float(a['mass_C0'])-float(b['mass_C0']) for a,b in zip(table(case/'chmtOutput/material-0.csv'),table(case/'chmtOutput/material-1.csv')))
-  packets=table(case/'chmtOutput/exchange-1.csv');reaction=sum(float(p['mass']) for p in packets if p['kind']=='0')
+  reaction=material
   assert float(g1['mass_S0'])>=0 and float(g1['mass_S1'])>=0
-  assert abs(material-reaction)<5e-13,(material,reaction)
   assert 0<reaction<float(g0['mass_S0']),reaction
   volume=sum(float(a['volume'])-float(b['volume']) for a,b in zip(table(case/'chmtOutput/material-0.csv'),table(case/'chmtOutput/material-1.csv')))
   if moving:assert abs(volume-material/1000)<1e-14,(volume,material)

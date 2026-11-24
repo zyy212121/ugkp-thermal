@@ -6,7 +6,7 @@ from validation.tools.paths import SOURCE_ROOT as ROOT
 def test_root_failure_is_not_a_successful_zero(tmp_path):
     src=tmp_path/'root.cpp'
     src.write_text(r'''
-#include "gasNumerics/OpenFoamWallFunctions.cuh"
+#include "../legacy/common/gasNumerics/LegacySstWallFunction.H"
 #include <cassert>
 #include <cmath>
 #include <limits>

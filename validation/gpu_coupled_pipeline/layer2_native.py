@@ -59,7 +59,7 @@ def audit(case, scenario, material):
         step = int(name.split('-')[-1])
         out = case / 'chmtOutput'
         gas = layer1.physical_rows(out / f'gas-{step}.csv')
-        wall = layer1.physical_rows(out / f'exchange-{step}.csv')
+        transferred = layer1.gas_wall_energy(out,step)
         total = lambda rows, key: math.fsum(r[key] for r in rows)
         state = {
             'step': step,
@@ -88,13 +88,13 @@ def audit(case, scenario, material):
                 maximum[key] = max(maximum.get(key, 0.), residual)
                 tolerance = max(2e-5, 2e-13 * abs(initial[key])) if key == 'energy' else 1e-10 * max(1., abs(initial[key]))
                 assert residual <= tolerance, (case, key, residual)
-            for key, state_key, sign in [('mass', 'gas_mass', 1), ('energy', 'gas_energy', 1), ('energy', 'material_energy', -1)]:
-                residual = abs(state[state_key] - previous[state_key] - sign * total(wall, key))
-                maximum[state_key + '_exchange'] = max(maximum.get(state_key + '_exchange', 0.), residual)
-                tolerance = 2e-5 if key == 'energy' else 1e-10 * max(1., initial['mass'])
-                assert residual <= tolerance, (case, state_key, residual)
+            if transferred is not None:
+                for state_key, sign in [('gas_energy', 1), ('material_energy', -1)]:
+                    residual = abs(state[state_key] - previous[state_key] - sign * transferred)
+                    maximum[state_key + '_exchange'] = max(maximum.get(state_key + '_exchange', 0.), residual)
+                    assert residual <= 2e-5, (case, state_key, residual)
         states.append(state)
-    return {'maximum_absolute_residuals': maximum, 'states': states, 'scope': 'Closed inventories, signed interface mass/energy, and dry-case stoichiometric yields/progress; source-rate CPU/GPU parity is covered separately by kernel oracles.'}
+    return {'maximum_absolute_residuals': maximum, 'states': states, 'scope': 'Closed inventories, signed wall energy, and dry-case stoichiometric yields/progress; source-rate CPU/GPU parity is covered separately by kernel oracles.'}
 
 
 def main():

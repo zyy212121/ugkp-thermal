@@ -1,5 +1,7 @@
 #pragma once
 #include "GasModel.H"
+#include "GasBuildConfig.H"
+#include "../gasWall/WallFamily.H"
 
 namespace ugkwp
 {
@@ -51,8 +53,10 @@ UGKWP_GAS_HD inline GasCapabilityResult validateGasCapabilities(const GasCapabil
 {
     if (r.sstWallTreatment == 2)
     {
-        if (r.mode == GasMode::SingleLegacy || (r.particleCoupling&&!r.residentParticleWallCoupling))
-            return {GasTransportCode::UnsupportedConfiguration, "boundaryLayer requires shared mixture thermo and gas-only storage"};
+        if (r.mode==GasMode::SingleLegacy && !(compiledGasSpecies==1 && r.boundaryLayerModel==2))
+            return {GasTransportCode::UnsupportedConfiguration, "boundaryLayer requires shared species thermo or a single-gas equilibriumOde adapter"};
+        if (r.particleCoupling&&!r.residentParticleWallCoupling)
+            return {GasTransportCode::UnsupportedConfiguration, "boundaryLayer particle exchange is not configured"};
         if (r.boundaryLayerModel != 0 && r.boundaryLayerModel != 1 && r.boundaryLayerModel != 2)
             return {GasTransportCode::UnsupportedConfiguration, "selected boundaryLayer model has no implementation"};
     }

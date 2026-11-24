@@ -8,6 +8,7 @@ from test_mixture_state import ROOT, HERE
 
 PREAMBLE = (HERE / 'gas_state_probe.cpp').read_text().split('void hashBytes')[0]
 MAIN = r'''
+#include "../legacy/common/gasNumerics/LegacySstWallFunction.H"
 #include <limits>
 #include <cfenv>
 bool same(Real a,Real b){return (std::isnan(a)&&std::isnan(b))||std::memcmp(&a,&b,sizeof(a))==0;}
@@ -86,9 +87,10 @@ int main(int argc,char**argv){ck(argc==2,"scenario");State s;initialise(s);const
   s.turbulenceModel=3;s.sstWallTreatment=1;s.gasMu=1.8e-5;s.sstWallKappa=.41;s.sstWallE=9.8;s.sstWallCmu=.09;s.turbulentPrandtl=.9;s.sstWallDistance[0]=.5;s.k[0]=.1;s.Ux[0]=3;s.riemannBoundaryKind[1]=2;s.riemannBoundaryTFix[1]=1;s.riemannBoundaryT[1]=0;
   Real mu=-11,k=-12,heat=-13;int active=-14;gasFaceSubgridTransportProperties(s,1,0,-1,2,Real(1),mu,k,heat,active);ck(s.gasSpecies.faceStatus[1]!=0,"subgrid certificate");ck(mu>=0&&std::isnan(k)&&std::isnan(heat)&&active==1,"subgrid real closure outputs");
  }else if(!std::strcmp(test,"thermal")){
-  std::feclearexcept(FE_ALL_EXCEPT);auto t=ugkpwall::sstJayatillekeThermalTransport(Real(1),Real(1000),Real(0),Real(.7),Real(.9),Real(.09),Real(.41),Real(9.8),Real(0),Real(10),Real(.1),Real(.5),Real(3),Real(0),Real(2));
-  ck(!t.valid&&t.heatFlux==0&&std::fetestexcept(FE_DIVBYZERO),"thermal actual zero-viscosity division");
-  t=ugkpwall::sstJayatillekeThermalTransport(Real(1),Real(1000),Real(1.8e-5),Real(.7),Real(.9),Real(.09),Real(.41),Real(9.8),Real(0),Real(10),Real(.1),Real(.5),Real(3),Real(0),inf);ck(!t.valid&&t.heatFlux==-inf,"actual nonfinite thermal gradient tail");
+  std::feclearexcept(FE_ALL_EXCEPT);
+  auto t=ugkpwall::sstJayatillekeThermalTransport(Real(.03),Real(.7),Real(0),Real(.41),Real(9.8),Real(0),Real(10),Real(20),Real(2));
+  ck(!t.valid&&!std::fetestexcept(FE_DIVBYZERO),"zero temperaturePlus triggered a division");
+  t=ugkpwall::sstJayatillekeThermalTransport(Real(.03),Real(.7),Real(.9),Real(.41),Real(9.8),Real(0),Real(10),Real(20),inf);ck(!t.valid&&t.heatFlux==-inf,"actual nonfinite thermal gradient tail");
  }else if(!std::strcmp(test,"original_status_skip")){
   s.gasSpecies.faceStatus[0]=int(ugkwp::GasTransportCode::InvalidThermodynamics);Real out[5]={-11,-12,-13,-14,-15};ck(computeRiemannGasFaceFluxDevice<false>(s,0,out[0],out[1],out[2],out[3],out[4]),"original internal computed-return blocked by old face status");ck(computeRiemannGasFaceFluxDevice<false>(s,0,out[0],out[1],out[2],out[3],out[4],true),"original strict internal computed-return changed");
  }else if(!std::strcmp(test,"legacy_periodic")){

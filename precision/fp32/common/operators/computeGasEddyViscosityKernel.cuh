@@ -1,4 +1,5 @@
 #pragma once
+#include "gasTransport/GasTransportPreparation.H"
 #include "Diagnostics.H"
 template<class GasState>
 __device__ bool gasEddyFinite(const GasState& s, int c, GPU_OPERATOR_REAL value,
@@ -12,8 +13,9 @@ __device__ bool gasEddyFinite(const GasState& s, int c, GPU_OPERATOR_REAL value,
 }
 
 template<class GasState>
-__global__ void computeGasEddyViscosityKernel(GasState* sp)
+__global__ void computeGasEddyViscosityKernel(GasState* sp,const ugkwp::GasTransportPreparation* preparation=nullptr)
 {
+    if(ugkwp::gasTransportPrepared(*sp,preparation,ugkwp::GasTransportPreparation::eddy))return;
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;

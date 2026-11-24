@@ -21,11 +21,12 @@ int main(){
  if(MOVING)moving(s,oldV,newV,sweeps,dt);
 
 
- Real sk,so;ck(sstSourcesForCell(s,0,MOVING?Real(100):Real(0),sk,so),"source evaluation");
+ Real sk,so,dk,doo;ck(sstSourceTermsForCell(s,0,MOVING?Real(100):Real(0),sk,so,dk,doo),"source evaluation");
  const Real ov=1,nv=MOVING?newV[0]:Real(1);
  const Real initial=component?s.rhoOmega[0]:s.rhoK[0];
  const Real source=component?so:sk;
- const Real flux=(initial*ov+dt*ov*source-target*nv)/dt;
+ const Real decay=component?doo:dk;
+ const Real flux=(initial*ov+dt*ov*source-target*nv*(1+dt*decay))/dt;
  if(component)s.sstPhiRhoOmega[0]=flux;else s.sstPhiRhoK[0]=flux;
  applySstFluxAndSourceKernel(&s,dt);
  const Real floor=s.rho[0]*(component?s.sstOmegaMin:s.sstKMin)*ov/nv;
@@ -65,7 +66,7 @@ int main(){using namespace ugkp::diagnostics;
 '''.replace('COMPONENT',str(component)))
 
 
-def test_acoustic_cfl_does_not_bound_explicit_lowre_sst_source(tmp_path):
+def test_lowre_diffusion_bound_and_stiff_source(tmp_path):
     compile_probe(tmp_path, fixture()+r'''
 #include "DiagnosticsHost.H"
 int main(){using namespace ugkp::diagnostics;
@@ -78,16 +79,17 @@ int main(){using namespace ugkp::diagnostics;
  s.rhoOmega[0]=s.rho[0]*s.omega[0];
  const Real a=std::sqrt(s.gammaGas*s.p[0]/s.rho[0]);
  const Real dt=.7*height/a;
- s.riemannBoundaryKind[1]=2;s.sstWallTreatment=0;
- for(int f=0;f<2;++f){threadIdx.x=f;computeGasCourantFieldKernel(&s,dt);}
+ s.riemannBoundaryKind[1]=2;s.sstWallTreatment=0;s.deltaCoeffs[0]=s.deltaCoeffs[1]=1/height;
+ for(int f=0;f<2;++f){threadIdx.x=f;computeGasCourantFieldKernel(&s,dt,false,true);}
  threadIdx.x=0;computeGasConvectiveCourantByCellKernel(&s,dt);
- near(s.gasFluxPositivityScale[0],Real(.7),"production acoustic CFL");
+ ck(s.gasFluxPositivityScale[0]>Real(.7),"viscous rate is missing from low-Re step selection");
  Real sk,so;ck(sstSourcesForCell(s,0,Real(0),sk,so),"source calculation");
  const Real raw=s.rhoK[0]+dt*sk;ck(raw<0,"source witness no longer unstable");
+ const auto expected=s.rhoK[0]/(1+dt*s.sstCoefficients.betaStar*s.omega[0]);
  applySstFluxAndSourceKernel(&s,dt);
- auto snap=takeSnapshot(d);ck(!snap.hasFatal&&s.gasSpecies.cellStatus[0]==0,"source warning stopped solver");
- ck(!snap.warnings.empty()&&snap.warnings[0].sample.observed==raw,"source clipping silent");
- ck(s.rhoK[0]==2e-12,"production floor changed");
+ auto snap=takeSnapshot(d);ck(!snap.hasFatal&&s.gasSpecies.cellStatus[0]==0,"valid stiff source rejected");
+ ck(snap.warnings.empty(),"implicit source was clipped");
+ near(s.rhoK[0],expected,"implicit damping did not match analytic one-step result");
 }
 ''')
 

@@ -145,7 +145,7 @@ bool CpuMaterialDriver::finishImplicitParent(const HostState& base,const HostSta
         ||!sameMeshConnectivity(base.gasMesh,gasEndpoint.gasMesh)){
         error="resident material window endpoint does not match the gas window";return false;
     }
-    HostState next=gasEndpoint;next.ledger.clear();
+    HostState next=gasEndpoint;
     if(base.solid.empty()){output=std::move(next);return true;}
     auto& device=*data_->gpu;
     if(!implicitWindowHostDiagnostics(base,window,data_->model.physics,error,[&](const PhysicsConfig& physics){
@@ -169,7 +169,7 @@ bool CpuMaterialDriver::finishImplicitParent(const HostState& base,const HostSta
     next.budget.boundaryEnergy+=receipt.boundaryEnergy;
     report.materialSteps=1;report.implicitIterations=receipt.iterations;report.implicitConverged=receipt.converged;
     report.massResidual=receipt.massResidual;report.thermalResidual=receipt.energyResidual;
-    report.exchangePackets=receipt.packets;report.exchangeFrames=receipt.frames;
+    report.exchangeFrames=receipt.frames;
     report.materialLinearSolves=receipt.linearSolves;report.materialLinearIterations=receipt.linearIterations;
     report.deviceCommit={window.end,window.identity.sequence,base.acceptedSteps+1,true};
     report.failureOrigin=MaterialFailureOrigin::None;

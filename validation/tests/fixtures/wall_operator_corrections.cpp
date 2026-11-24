@@ -4,7 +4,7 @@
 #include <iostream>
 #include <limits>
 #include <string>
-#include "OpenFoamWallFunctions.cuh"
+#include "../legacy/common/gasNumerics/LegacySstWallFunction.H"
 #include "OpenFoamViscousFlux.cuh"
 #include "gasTransport/GasStateView.H"
 #define __device__
@@ -17,6 +17,11 @@ R clampMin(R a,R b){return std::max(a,b);}
 R finiteOr(R a,R b){return std::isfinite(a)?a:b;}
 struct DeviceState {
  int turbulenceModel=3,sstWallTreatment=1;
+ int nFaces=1,nCells=1,faceOwner[1]={0};
+ R rho[1]={R(1.3)},faceWeight[1]={R(.5)};
+ R magSf[1]={1},Sfx[1]={1},Sfy[1]={0},Sfz[1]={0};
+ ugkp::diagnostics::DeviceContext* diagnostics=nullptr;
+ ugkp::gasNumerics::ScalarSolverControls<R> gasScalarSolvers;
  int riemannBoundaryUFix[1]={1},riemannBoundaryTFix[1]={1};
  R Ux[1]={20},Uy[1]={-8},Uz[1]={3},Tgas[1]={310};
  R riemannBoundaryUx[1]={2},riemannBoundaryUy[1]={-1},riemannBoundaryUz[1]={1};
@@ -31,6 +36,8 @@ struct Prim {R rho=R(1.3),ux=2,uy=-1,uz=1;};
 Prim riemannFacePrimitiveForGradient(const DeviceState&,int,int){return {};}
 bool useRiemannBoundaryVelocity(const DeviceState&s,int f,const Prim&){return s.riemannBoundaryUFix[f]!=0;}
 R molecularGasConductivity(const DeviceState&s){return s.gasMu*s.gasCp/s.gasPrClamped;}
+#include "operators/clampRange.cuh"
+#include "operators/gasFaceSubgridTransportProperties.cuh"
 
 int failures=0;
 void check(const char*name,long double got,long double expected,long double tol=0){
@@ -84,8 +91,13 @@ void spaldingTests(){
   check("law uTau independent of patch gradient",separate.uTau,reference.uTau);
   check("law yPlus uses law distance",separate.yPlus,reference.yPlus);
   check("separate helper uses patch gradient for nut",separate.nut,expectedNut);
+  s.Tgas[0]=s.riemannBoundaryT[0];
+  s.gasCp=R(1e12);
+  const R slip=std::hypot(duy,duz);
+  const auto tangential=ugkpwall::spaldingWallState(slip,R(1)/delta,nu,s.sstWallKappa,s.sstWallE);
+  const R tangentialNut=std::max(R(0),tangential.uTau*tangential.uTau/(slip*delta)-nu);
   R mu,k,q;int active=0;gasFaceSubgridTransportProperties(s,0,0,-1,2,rho,mu,k,q,active);
-  check("gas caller converts uTau using patch snGrad",mu/rho,expectedNut, 1e-10L);
+  check("gas caller uses tangential slip and face-normal distance",mu/rho,tangentialNut,1e-10L);
   require("wall transport thermal flux finite",std::isfinite(q)&&active==1);
  }
 
@@ -103,13 +115,13 @@ void thermalTests(){
 
 
  const R nan=std::numeric_limits<R>::quiet_NaN(),inf=std::numeric_limits<R>::infinity();
- for(R ratio:{R(0),R(-1),nan,inf})check("invalid Pr ratio rejected",ugkpwall::jayatillekeThermalYPlus(ratio),0);
- check("no physical intersection rejected",ugkpwall::jayatillekeThermalYPlus(1,10,R(.1)),0);
+ for(R ratio:{R(0),R(-1),nan,inf})
+  require("invalid Pr ratio rejected",std::isnan(ugkpwall::jayatillekeThermalYPlus(ratio)));
+ require("no physical intersection rejected",std::isnan(ugkpwall::jayatillekeThermalYPlus(1,10,R(.1))));
  for(R badRoot:{R(0),R(-1),nan,inf}){
-  for(R kin:{R(0),R(.2)}){
-   auto invalid=ugkpwall::sstJayatillekeThermalTransport(1,1005,R(1.8e-5),1,R(.85),R(.09),R(.41),R(9.8),0,badRoot,kin,R(.01),0,0,0);
-   require("thermal transport reports actual completed branch",bool(invalid.valid)==(kin==0||badRoot==inf));
-   if(invalid.valid)require("unused root keeps actual molecular heat",std::isfinite(invalid.conductivity)&&invalid.heatFlux==0);
+  if(!std::isfinite(badRoot)){
+   auto invalid=ugkpwall::sstJayatillekeThermalTransport(R(.03),1,R(.85),R(.41),R(9.8),0,badRoot,20,0);
+   require("nonfinite transition rejected",invalid.valid==0);
   }
   auto invalid=ugkpwall::jayatillekeWallHeatFluxPrecomputed(1,1005,1,R(.85),R(.41),R(9.8),0,badRoot,1,100,310,300);
   require("precomputed heat rejects invalid root",invalid.valid==0);
@@ -146,18 +158,14 @@ void thermalTests(){
   long double above=root*1.01L;
   require("outer log branch permits positive turbulent conductivity",ratio*above>std::log(9.8L*above)/.41L+P);
   for(R multiple:{R(.5),R(1.01),R(3)}){
-   R rho=R(1.2),cp=1005,mu=R(1.8e-5),cmu=R(.09),kin=R(.2),speed=R(12),wallSpeed=R(3);
-   R uStar=std::sqrt(std::sqrt(cmu))*std::sqrt(kin),y=R(root)*multiple*mu/(uStar*rho),yp=uStar*y*rho/mu;
-   bool visc=yp<root;
-   R tp=visc?Pr*yp:Prt*(std::log(R(9.8)*yp)/R(.41)+P);
-   R uc=visc?0:uStar/R(.41)*std::log(R(9.8)*R(root))-wallSpeed;
-   R C=R(.5)*rho*uStar*(visc?Pr*speed*speed:Prt*speed*speed+(Pr-Prt)*uc*uc);
-   R conductivity=std::max(mu*cp/Pr,cp*rho*uStar*y/tp);
+   const R molecular=R(.01809)/Pr,yp=R(root)*multiple;
+   const R tp=yp<root?Pr*yp:Prt*(std::log(R(9.8)*yp)/R(.41)+P);
+   const R conductivity=molecular*std::max(R(1),Pr*yp/tp);
    for(R gradient:{R(-10000),R(10000),R(-1e-10),R(0),R(1e-10)}){
-    auto state=ugkpwall::sstJayatillekeThermalTransport(rho,cp,mu,Pr,Prt,cmu,R(.41),R(9.8),P,yt,kin,y,speed,wallSpeed,gradient);
+    auto state=ugkpwall::sstJayatillekeThermalTransport(molecular,Pr,Prt,R(.41),R(9.8),P,yt,yp,gradient);
     require("hot/cold/zero gradient closure valid",state.valid==1);
-    check("original conductivity formula retained",state.conductivity,conductivity,2e-11L);
-    check("signed heat and kinetic C/tPlus retained",state.heatFlux,-conductivity*gradient+C/tp,2e-11L);
+    check("v14 conductivity",state.conductivity,conductivity,2e-11L);
+    check("signed Fourier heat",state.heatFlux,-conductivity*gradient,2e-11L);
    }
   }
  }

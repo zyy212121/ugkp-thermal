@@ -38,7 +38,7 @@ struct CpuMaterialReport {
     MaterialDonorPlan donorPlan{};
     WallProgramComparison wallComparison{};
     bool streamedWallComparison=false;MaterialWindowCommit deviceCommit{};
-    std::uint64_t exchangePackets=0,exchangeFrames=0;
+    std::uint64_t exchangeFrames=0;
 };
 
 

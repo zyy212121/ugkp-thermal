@@ -6,6 +6,7 @@
 #include "wallPolyPatch.H"
 #include "GpuBackendApi.H"
 #include "gasTransport/GasModelIO.H"
+#include "GasBuildConfig.H"
 #include "gasWall/WallGeometryBuilder.H"
 #include "DiagnosticsFoam.H"
 #include "DiagnosticsCatalogue.H"
@@ -138,6 +139,8 @@ public:
 
         if(d.lookupOrDefault<bool>("writeProfiles",false))profileWriter_=&BoundaryLayerInput::writeProfiles;
         speciesNames_=gasModel.speciesNames;
+        if(gasModel.mode==ugkwp::GasMode::SingleLegacy && ugkwp::compiledGasSpecies==1)
+            speciesNames_={"gas"};
         config_.speciesCount=checkedCount(speciesNames_.size(),"species count");
         const label nodes=ugkwp::gaswall::defaultWallNodes;
         const label slots=d.lookupOrDefault<label>("workspaceSlots",0);

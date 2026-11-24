@@ -1,4 +1,5 @@
 #pragma once
+#include "gasTransport/GasTransportPreparation.H"
 #include "GpuOperatorContract.cuh"
 #include "gasStencilDiagnostics.cuh"
 #include "GpuCellNeighbour.cuh"
@@ -154,8 +155,9 @@ __device__ __forceinline__ bool limitGasGradients(GasState& s,int c,bool nativeR
 }
 
 template<class GasState,bool clearLaminarViscosity=false>
-__global__ void computeGasGradientLimiterKernel(GasState* sp,const bool nativeRefinement=false)
+__global__ void computeGasGradientLimiterKernel(GasState* sp,const bool nativeRefinement=false,const ugkwp::GasTransportPreparation* preparation=nullptr)
 {
+    if(ugkwp::gasTransportPrepared(*sp,preparation,ugkwp::GasTransportPreparation::limiter))return;
     if (!ugkp::diagnostics::blockMayProceed(sp->diagnostics)) return;
     const int c=blockIdx.x*blockDim.x+threadIdx.x;
     if (c>=sp->nCells || !limitGasGradients(*sp,c,nativeRefinement)) return;

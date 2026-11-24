@@ -47,6 +47,12 @@ template<class R> UGKWP_GAS_HD inline R boundaryLayerSstFlux(
     const R t=(y-closure.kFluxHeight[l])/(closure.kFluxHeight[l+1]-closure.kFluxHeight[l]);
     return flux[l]+t*(flux[l+1]-flux[l]);
 }
+struct WallKernelTiming
+{
+    unsigned long long invertedStart=0,end=0,nanoseconds=0,launches=0;
+    unsigned int finishedBlocks=0;
+};
+
 template<class Real> struct GasBoundaryLayerState
 {
     bool enabled=false;
@@ -65,6 +71,7 @@ template<class Real> struct GasBoundaryLayerState
     GasBoundaryLayerExchange<Real>* exchange=nullptr;
     GasBoundaryLayerSstClosure<Real>* sst=nullptr;
     Real* speciesFlux=nullptr;
+    WallKernelTiming* kernelTiming=nullptr;
 
 
 

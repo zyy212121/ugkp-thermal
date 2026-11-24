@@ -212,7 +212,7 @@ __global__ void recoverConservativeEnergy(IterationView v,const GpuReal* solutio
     auto& metrics=v.cellMetrics[c];
     metrics.energy=defect/maxValue(threshold,std::numeric_limits<EnergyReal>::min());
     metrics.change=absValue(endpoint.temperature-v.temperature[c])/maxValue(PhysicalReal(1),absValue(endpoint.temperature));
-    metrics.boundary=boundary;metrics.packets=v.exchange[c].packets;
+    metrics.boundary=boundary;
     v.temperature[c]=endpoint.temperature;
 }
 
@@ -230,7 +230,7 @@ __global__ void checkEnergyFaces(IterationView v){
 __device__ void merge(ImplicitWindowMetrics& a,const ImplicitWindowMetrics& b){
     a.mass=maxValue(a.mass,b.mass);a.change=maxValue(a.change,b.change);
     a.energy=maxValue(a.energy,b.energy);a.boundary+=b.boundary;
-    a.initialResidual+=b.initialResidual;a.scale+=b.scale;a.packets+=b.packets;
+    a.initialResidual+=b.initialResidual;a.scale+=b.scale;
 }
 __device__ void reduceBlock(ImplicitWindowMetrics value,ImplicitWindowMetrics* result){
     extern __shared__ __align__(16) unsigned char scratch[];
@@ -299,7 +299,7 @@ __global__ void finishIteration(IterationView v,const ImplicitWindowMetrics* par
             38527,4,linear->iterations,EntityKind::None,-1,-1,linear->finalResidual,linear->targetResidual,0,Quantity::LinearSystem));
     }
     ++report.iterations;report.linearPrepared=false;
-    report.massResidual=total->mass;report.energyResidual=total->energy;report.packets=total->packets;
+    report.massResidual=total->mass;report.energyResidual=total->energy;
     report.boundaryEnergy=total->boundary;report.temperatureResidual=total->change/controls.changeGoal;
     report.converged=total->mass<=1&&total->energy<=1&&total->change<=controls.changeGoal;
     report.complete=report.converged||report.iterations>=controls.iterations;

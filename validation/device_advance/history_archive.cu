@@ -1,7 +1,6 @@
 
 #include "gpu/CoupledHistoryArchive.cuh"
 #include "materials/MaterialDrive.H"
-#include "coupling/IntervalAudit.H"
 #include <cassert>
 #include <cstring>
 #include <iostream>
@@ -40,11 +39,6 @@ int main(){
                 assert(tail->surface[length-1-tail->first].bulk.temperature==300+length-1);
             };
             std::thread reader(verify);verify();reader.join();
-            int visited=0;
-            prior->forEachSurfaceFrame([&](const CoupledSurfaceDownload* row,std::size_t n){
-                assert(n==1 && row->bulk.temperature==300+visited);++visited;
-            });
-            assert(visited==length);
         }
         assert(next->chunk(0)->surface[0].bulk.temperature==9300);
     }
@@ -98,9 +92,16 @@ int main(){
         assert(eagerDrive.slabEndLocal(WindowTime(begin),WindowTime(window.end),.05,1,first,error));
         assert(lazyDrive.slabEndLocal(WindowTime(begin),WindowTime(window.end),.05,1,last,error));assert(first==last);
     }
-    HostState lhs,rhs;assert(finalizeIntervalLedger(eager,lhs,error)&&finalizeIntervalLedger(lazy,rhs,error));
-    const auto& p=lhs.ledger.values();const auto& q=rhs.ledger.values();assert(p.size()==q.size());
-    for(std::size_t i=0;i<p.size();++i)assert(p[i].energy==q[i].energy&&p[i].consumerMask==q[i].consumerMask);
+    CoupledHistoryArchive transient(1,false,nullptr,false);
+    auto* storage=transient.reserveBatch(stream).storage.surface;
+    for(int i=0;i<count;++i){
+        auto frame=transient.next(stream);
+        fill<<<1,1,0,stream>>>(frame,i,1);
+        transient.accepted(stream);
+    }
+    assert(!transient.spilled()&&transient.frames()==count);
+    assert(transient.reserveBatch(stream).storage.surface==storage+(count%CoupledHistoryArchive::slabFrames));
+    transient.releaseProducer(stream);
     check(cudaStreamDestroy(stream));
-    std::cout<<"bounded archive: four full slabs plus tail, random access, exact partial slices, drive selection, consumed ledger passed\n";
+    std::cout<<"bounded archive: four full slabs plus tail, random access, exact partial slices, drive selection and bounded transient reuse passed\n";
 }

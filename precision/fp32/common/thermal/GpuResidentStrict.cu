@@ -15,6 +15,7 @@
 #include "GpuParticleExecutionContext.H"
 #include "GpuCsrConditionalGraph.H"
 #include "gasTransport/GasResidentInterval.H"
+#include "gasTransport/GasTransportPreparation.H"
 #include "ParticleRadiationApi.H"
 #include "wall/GpuColdWall1DHandles.cuh"
 #include "GpuFrozenParticleRelease.cuh"
@@ -300,6 +301,7 @@ struct DeviceState
     ugkp::gpu::CsrChoiceGraphs csrChoiceGraphs;
     ugkp::gpu::CsrAutomaticRuntime* csrAutomaticRuntime=nullptr;
     ugkwp::GasResidentInterval gasResidentInterval;
+    ugkwp::GasTransportPreparation* gasCourantPreparation=nullptr;
     cudaGraphNode_t gasGraphIntervalNode=nullptr;
     cudaKernelNodeParams gasGraphIntervalParams{};
     ugkwp::GasResidentInterval gasGraphLastInterval{};
@@ -4079,6 +4081,7 @@ extern "C" int ugkwpGpuResidentStrictConfigureSst
     const double* boundaryOmega
 )
 {
+    wallTreatment = ugkwp::gaswall::canonicalWallTreatment(wallTreatment);
     const GpuReal alphaK1 = static_cast<GpuReal>(alphaK1Wire);
     const GpuReal alphaK2 = static_cast<GpuReal>(alphaK2Wire);
     const GpuReal alphaOmega1 = static_cast<GpuReal>(alphaOmega1Wire);
@@ -5045,7 +5048,8 @@ extern "C" int ugkwpGpuResidentStrictAdvanceGasOnly
             return 1;
         }
     }
-    return finaliseGasBoundaryStage(s, dt, simulationTime);
+    if(finaliseGasBoundaryStage(s,dt,simulationTime))return 1;
+    return ChtSpeciesTrialPolicy::commitInterval(s);
 }
 
 extern "C" int ugkwpGpuResidentStrictDownloadFields

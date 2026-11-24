@@ -1,4 +1,5 @@
 #pragma once
+#include "gasTransport/GasTransportPreparation.H"
 #include "gasTransport/GasPseudoTime.H"
 #include "gasTransport/PositiveInventory.H"
 #include "GpuWallEnergySink.cuh"
@@ -127,7 +128,7 @@ __global__ void computeGasFluxPositivityScaleKernel(GasState* sp, const GPU_OPER
 }
 
 template<class GasState>
-__global__ void applyGasFluxPositivityScaleKernel(GasState* sp, const bool nativeRefinement=false)
+__global__ void applyGasFluxPositivityScaleKernel(GasState* sp, const bool nativeRefinement=false,ugkwp::GasTransportPreparation* preparation=nullptr)
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
@@ -191,10 +192,15 @@ __global__ void applyGasFluxPositivityScaleKernel(GasState* sp, const bool nativ
                 s.gasSpecies.flux[k*s.nFaces+f]=ugkwp::scaleInventoryFlux(s.gasSpecies.flux[k*s.nFaces+f],scale);
         }
     }
+    const auto priorMassFlux=s.gasPhiRho[f];
     s.gasPhiRho[f] = ugkwp::scaleInventoryFlux(s.gasPhiRho[f],scale);
     s.gasPhiRhoUx[f] = ugkwp::scaleInventoryFlux(s.gasPhiRhoUx[f],scale);
     s.gasPhiRhoUy[f] = ugkwp::scaleInventoryFlux(s.gasPhiRhoUy[f],scale);
     s.gasPhiRhoUz[f] = ugkwp::scaleInventoryFlux(s.gasPhiRhoUz[f],scale);
     s.gasPhiRhoE[f] = ugkwp::scaleInventoryFlux(s.gasPhiRhoE[f],scale);
+    if(priorMassFlux<GPU_OPERATOR_R(0) && !(s.gasPhiRho[f]<GPU_OPERATOR_R(0))
+        && s.sstConfigured && f>=s.nInternalFaces && s.riemannBoundaryKind[f]==0
+        && (s.sstBoundaryKMode[f]==2 || s.sstBoundaryOmegaMode[f]==2))
+        ugkwp::invalidateGasTransportPreparation(preparation,ugkwp::GasTransportPreparation::sst);
     publishLimitedGasWallEnergy(s, f, 0);
 }

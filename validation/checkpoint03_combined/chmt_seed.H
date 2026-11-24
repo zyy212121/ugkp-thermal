@@ -33,7 +33,6 @@
  X(budget.boundaryEnergy,"J",29.234567891) \
  X(budget.supportWork,"J",-30.345678912) \
  X(budget.bodyWork,"J",31.456789123) \
- X(budget.radiation,"J",-32.567891234) \
  X(budget.exchangeEnergy[0],"J",33.678912345) \
  X(budget.exchangeEnergy[1],"J",-34.789123456) \
  X(budget.exchangeEnergy[2],"J",35.891234567) \
@@ -160,7 +159,7 @@ inline void chmtSeed(chmt::ModelConfig& model,chmt::HostState& h,bool legacyCarr
  h.surface.topTemperature.resize(1);h.surface.bottomHeatFlux.resize(1);h.surface.topHeatFlux.resize(1);
  h.gasMesh.boundaryPrimitive.resize(1);h.gasMesh.points.resize(1);h.gasMesh.volumes.resize(1);
  h.surface.area.resize(1);h.surface.gasDistance.resize(1);h.solidSweepRemainder.resize(1);
- h.ledger.push_back(chmt::ExchangePacket{});h.filmStorage.resize(1);
+ h.filmStorage.resize(1);
  h.particleSourceFaces={0};h.particleSourceResidualMass.resize(1);
  h.gasChemistryAudit.resize(1);h.particles.resize(1);h.gasVoidFraction.resize(1);
  h.normalLiquidFraction.resize(1);h.surface.normalLayerMass.resize(1);

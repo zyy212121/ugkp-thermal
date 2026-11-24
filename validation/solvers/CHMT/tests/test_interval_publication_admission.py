@@ -36,7 +36,7 @@ int main(){std::string e;double origin=1099511627776.;CouplingControls controls;
 
  IntervalHistory h;CouplingInterval w;w.begin=w.end=origin;assert(h.begin(w,e));GasIntervalRecord r;r.begin=r.end=origin;r.gasTrace.resize(1);r.gasGradient.resize(2);r.radiationEnergy={2};
  ExchangePacket p;p.kind=ExchangeKind::SolidFilm;p.mass=9;p.consumerMask=0;r.packets={p};assert(h.appendAccepted(r,e));
- HostState state;state.time=-1;state.ledger={p};assert(finalizeIntervalLedger(h,state,e));assert(state.ledger.size()==2&&state.ledger[0].mass==9&&state.ledger[0].consumerMask==0);
+ assert(h.readRecord(0).packets[0].mass==9&&h.readRecord(0).packets[0].consumerMask==0);
  std::vector<SolidQ> solid(1);MaterialDonorReserve reserve;assert(reserve.reset(solid,{},0,e));MaterialDonorPlan plan;plan.interval.begin=7;plan.interval.end=8;
  MaterialReserveKnot a,b;a.time=8;b.time=7;a.cumulativeSolid.resize(1);b.cumulativeSolid.resize(1);plan.knots={a,b};assert(reserve.setPlan(plan,e));
 

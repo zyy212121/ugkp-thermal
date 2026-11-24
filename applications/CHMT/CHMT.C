@@ -57,6 +57,7 @@ int main(int argc,char** argv) {
         }
         chmt::GasExecutionOptions options;
         options.adjustTimeStep=input.gasTime.adjustTimeStep;
+        options.limitDiffusiveTimeStep=input.gasTime.limitDiffusiveTimeStep;
         options.fixedDeltaT=time.controlDict().lookup<Foam::scalar>("deltaT");
         options.fluxScheme=input.gasNumerics.gasFluxScheme;options.reconstruction=input.gasNumerics.gasReconstruction;
         options.limiter=input.gasNumerics.gasLimiter;options.timeIntegrator=input.gasNumerics.gasTimeIntegrator;
@@ -126,19 +127,18 @@ int main(int argc,char** argv) {
             const auto due=[&](Foam::label interval){return force||(interval>0&&step%interval==0);};
             return chmt::io::OutputSelection{due(diagnosticInterval),due(fieldInterval),due(checkpointInterval)};
         };
-        const auto publish=[&](chmt::io::OutputSelection choice,double radiationInterval=0){
-            output.submit(choice,*backend,input.state,radiation.get(),radiationInterval);
+        const auto publish=[&](chmt::io::OutputSelection choice,double radiationInterval=0,double heatInterval=0){
+            output.submit(choice,*backend,input.state,radiation.get(),radiationInterval,heatInterval);
         };
         try {
         if(writeInitial||(writeFinal&&input.state.time>=end))publish(selection(input.state.acceptedSteps,true));
-        input.state.ledger.clear();
         while(input.state.time<end){
             output.collectReady();
             auto choice=selection(input.state.acceptedSteps+1,false);
             chmt::WindowEvolutionReport report;
+            const auto windowStart=input.state.time;
             chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error,radiation.get(),false),error);
-            publish(writeFinal&&input.state.time>=end?selection(input.state.acceptedSteps,true):choice,report.radiationInterval);
-            input.state.ledger.clear();ugkp::releaseUnusedHostPages();
+            publish(writeFinal&&input.state.time>=end?selection(input.state.acceptedSteps,true):choice,report.radiationInterval,input.state.time-windowStart);
             if
             (
                 ugkwp::logging::progressLogDue

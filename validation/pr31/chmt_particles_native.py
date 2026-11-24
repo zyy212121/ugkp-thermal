@@ -61,7 +61,7 @@ def main():
     output=case/'chmtOutput';indices=sorted(int(p.stem.split('-')[1]) for p in output.glob('particles-*.csv'))
     first,last=inventory(output,indices[0]),inventory(output,indices[-1]);assert len(last['parcels'])==1 and int(last['parcels'][0]['status'])==1
     assert first['parcels'][0]['temperature']!=last['parcels'][0]['temperature']
-    heat=sum(float(q['energy']) for i in indices[1:] for q in table(output/f'exchange-{i}.csv') if q['kind']=='5')
+    heat=sum(float(q['particle_contact_J']) for i in indices[1:] for q in table(output/f'wall-heat-{i}.csv'))
     report=dict(elapsed_seconds=seconds,model=args.model,impact=args.impact,first=first,last=last,particle_wall_energy_J=heat,
         total_energy_change_J=sum(last[k]-first[k] for k in ('gas','solid','particle')))
     if args.impact:assert heat!=0,report
@@ -111,7 +111,7 @@ int main(int argc,char** argv){
  ugkp::thermal::visitParticlePhaseConfiguration(decoder,model.particlePhase);
  ugkp::thermal::visitParticleContactConfiguration(decoder,model.particleContact);
  chmt::HostState state;std::string error;if(!chmt::readCheckpoint(argv[1],model,state,error)){std::cerr<<error;return 4;}
- state.ledger.clear();chmt::Encoder physical;physical(state);physical(state.gasTemperature);
+ chmt::Encoder physical;physical(state);physical(state.gasTemperature);
  for(const auto& p:state.particles)ugkp::thermal::visitParticleThermalHistory(physical,p.thermal);
  std::cout.write(reinterpret_cast<const char*>(physical.data.data()),physical.data.size());
 }
@@ -120,16 +120,6 @@ int main(int argc,char** argv){
         subprocess.run(['g++','-std=c++17','-O2','-I'+str(ROOT/'applications/CHMT'),'-I'+str(ROOT/'common'),str(probe),'-o',str(exe)],check=True)
         physical_left=subprocess.check_output([exe,reference.parent]);physical_right=subprocess.check_output([exe,resumed.parent])
         assert physical_left==physical_right,'restart changed physical owner or internal contact history'
-        left_ledger=table(output/f'exchange-{indices[-1]}.csv');right_ledger=table(restart/'chmtOutput'/f'exchange-{indices[-1]}.csv')
-        assert len(left_ledger)==len(right_ledger)
-        maximum=0.
-        for left,right in zip(left_ledger,right_ledger):
-            for key in left:
-                if key not in ('energy','conductive'):assert left[key]==right[key];continue
-                x,y=float(left[key]),float(right[key]);delta=abs(x-y)
-                assert delta<=64*2.220446049250313e-16*max(1.,abs(x),abs(y)),(key,x,y)
-                maximum=max(maximum,delta)
         report['restart_physical_owner_bitwise_equal']=True
-        report['restart_ledger_max_absolute_difference_J']=maximum
     (case/'particle-results.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))
 if __name__=='__main__':main()

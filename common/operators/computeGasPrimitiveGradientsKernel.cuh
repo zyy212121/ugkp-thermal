@@ -1,5 +1,7 @@
 
 #pragma once
+#include "gasTransport/GasTransportPreparation.H"
+#include "gasWall/WallFamily.H"
 #include "gasStencilDiagnostics.cuh"
 #include "gasTransport/GasGeometryValidation.H"
 
@@ -8,8 +10,9 @@ __global__ void computeGasPrimitiveGradientsKernel
 (
     GasState* sp,
     const bool nativeRefinement=false
-)
+,const ugkwp::GasTransportPreparation* preparation=nullptr)
 {
+    if(ugkwp::gasTransportPrepared(*sp,preparation,ugkwp::GasTransportPreparation::gradient))return;
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
@@ -118,7 +121,7 @@ __device__ GPU_OPERATOR_REAL sstDynamicOmegaWallValue
 {
     const GPU_OPERATOR_REAL rhoSafe = clampMin(riemannFacePrimitiveForGradient(s, owner, f).rho, s.rhoMin);
     const GPU_OPERATOR_REAL nu = ugkwp::gasFaceMolecularViscosity(s,f,owner,-1)/rhoSafe;
-    if (s.sstWallTreatment != 1
+    if (!ugkwp::gaswall::usesAlgebraicWallFunction(s.sstWallTreatment)
         && !(ugkwp::gasBoundaryLayerUsesMacroSst(s)
             && ugkwp::gasBoundaryLayerOwnerSlot(s,owner)>=0))
     {
@@ -171,7 +174,7 @@ __device__ GPU_OPERATOR_REAL sstBoundaryValue
         {
 
 
-            return s.sstWallTreatment != 1 && ugkwp::gasBoundaryLayerFaceSlot(s,f)<0
+            return !ugkwp::gaswall::usesAlgebraicWallFunction(s.sstWallTreatment) && ugkwp::gasBoundaryLayerFaceSlot(s,f)<0
               ? GPU_OPERATOR_R(0.0) : centre;
         }
 
@@ -292,8 +295,9 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
 }
 
 template<class GasState>
-__global__ void applySstWallFunctionStateKernel(GasState* sp, const bool nativeRefinement=false)
+__global__ void applySstWallFunctionStateKernel(GasState* sp, const bool nativeRefinement=false,const ugkwp::GasTransportPreparation* preparation=nullptr)
 {
+    if(ugkwp::gasTransportPrepared(*sp,preparation,ugkwp::GasTransportPreparation::sstPrimitive))return;
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     applySstWallFunctionStateCell
     (
@@ -360,7 +364,7 @@ __device__ void recoverSstPrimitiveCell(GasState& s, const int c, const bool nat
         clampMin(s.rhoOmega[c], rhoOmegaFloor);
     s.k[c] = s.rhoK[c]/rhoSafe;
     s.omega[c] = s.rhoOmega[c]/rhoSafe;
-    if (s.sstWallTreatment == 0 || s.sstWallTreatment == 1
+    if (s.sstWallTreatment == 0 || ugkwp::gaswall::usesAlgebraicWallFunction(s.sstWallTreatment)
         || (s.sstWallTreatment == 2 && (ugkwp::gasBoundaryLayerOwnerSlot(s,c)<0
             || ugkwp::gasBoundaryLayerSlotReady(s,ugkwp::gasBoundaryLayerOwnerSlot(s,c)))))
     {
@@ -373,8 +377,9 @@ __device__ void recoverSstPrimitiveCell(GasState& s, const int c, const bool nat
 }
 
 template<class GasState>
-__global__ void recoverSstPrimitivesKernel(GasState* sp, const bool nativeRefinement=false)
+__global__ void recoverSstPrimitivesKernel(GasState* sp, const bool nativeRefinement=false,const ugkwp::GasTransportPreparation* preparation=nullptr)
 {
+    if(ugkwp::gasTransportPrepared(*sp,preparation,ugkwp::GasTransportPreparation::sstPrimitive))return;
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     recoverSstPrimitiveCell(*sp, blockIdx.x*blockDim.x + threadIdx.x,nativeRefinement);
 }
