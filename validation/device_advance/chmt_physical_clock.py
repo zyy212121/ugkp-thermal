@@ -50,14 +50,16 @@ def simulate(binary, fixture, case, end, restart=None):
 def radiating_tail(binary, fixture, output):
     from cht_physical_clock import replace_entry
 
-    period=float(re.search(r'\bcouplingInterval\s+([^;]+);',(fixture/'constant/scheme').read_text())[1])
+    period=float(re.search(r'\bwriteInterval\s+([^;]+);',(fixture/'system/controlDict').read_text())[1])
     def advance(name,end,fields,checkpoints,restart=None):
         case=output/name
         case.mkdir()
         for directory in ('0','constant','system'):
             shutil.copytree(fixture/directory,case/directory)
         scheme=case/'constant/scheme'
-        scheme.write_text(re.sub(r'(\bthermalCoupling\s*\{)',r'\1\n    radiationCouplingFrequency 3;',scheme.read_text()))
+        contents=re.sub(r'\b(?:solidContactCouplingInterval|radiationCouplingFrequency)\s+[^;]+;', '', scheme.read_text())
+        scheme.write_text(re.sub(r'(\bthermalCoupling\s*\{)',
+                                r'\1\n    solidContactCouplingInterval 0.2;\n    radiationCouplingFrequency 0.5;',contents))
         control=case/'system/controlDict'
         for key,value in dict(endTime=end*period,fieldInterval=fields,checkpointInterval=checkpoints,
                               diagnosticInterval=1,logInterval=1,writeFinal='true').items():
@@ -67,21 +69,27 @@ def radiating_tail(binary, fixture, output):
         with log.open('x') as out:
             subprocess.run([binary,'-case',case],stdout=out,stderr=subprocess.STDOUT,check=True)
         text=log.read_text()
-        assert 'radiationFrequency=3' in text
+        clock=re.search(r'CHMT_COUPLING_CLOCK outputPeriod=(\S+) contactPeriod=(\S+) radiationPeriod=(\S+)',text)
+        assert clock and all(math.isclose(float(x),y*period,rel_tol=1e-12)
+                             for x,y in zip(clock.groups(),(1,.2,.5))),text[-2000:]
         return [(float(t)/period,float(r)/period) for t,r in re.findall(r'CHMT_REPRO step=\d+ time=(\S+) radiationTime=(\S+)',text)]
-    first=advance('radiating',4.25,2,4)
-    assert first==[(1,0),(2,0),(3,3),(4,3),(4.25,4.25)],first
+    def check(actual,expected):
+        assert len(actual)==len(expected),(actual,expected)
+        assert all(math.isclose(a,b,rel_tol=1e-12,abs_tol=1e-12)
+                   for row,want in zip(actual,expected) for a,b in zip(row,want)),(actual,expected)
+    first=advance('radiating',1.25,1,1)
+    check(first,[(.2,0),(.4,0),(.5,.5),(.6,.5),(.8,.5),(1,1),(1.2,1),(1.25,1.25)])
     published=output/'radiating/checkpointOutput'
-    assert not (published/'wall-radiation-2.csv').exists()
-    assert not (published/'wall-radiation-4.csv').exists()
-    radiation=load_rows(published/'wall-radiation-5.csv')
-    assert radiation and all(float(r['radiation_time'])==4.25*period and
-                             float(r['interval_s'])==1.25*period and
+    assert not (published/'wall-radiation-3.csv').exists()
+    assert (published/'wall-radiation-6.csv').is_file()
+    radiation=load_rows(published/'wall-radiation-8.csv')
+    assert radiation and all(math.isclose(float(r['radiation_time']),1.25*period,rel_tol=1e-12) and
+                             math.isclose(float(r['interval_s']),.25*period,rel_tol=1e-12) and
                              math.isfinite(float(r['energy_J'])) for r in radiation)
-    restart=published/'checkpoint-5'
+    restart=published/'checkpoint-8'
     assert (restart/'domWarmStart.bin').stat().st_size>0
-    second=advance('radiating-resumed',6.5,0,0,restart)
-    assert second==[(5,4.25),(6,6),(6.5,6.5)],second
+    second=advance('radiating-resumed',2.5,0,0,restart)
+    check(second,[(1.4,1.25),(1.5,1.5),(1.6,1.5),(1.8,1.5),(2,2),(2.2,2),(2.4,2),(2.5,2.5)])
     return dict(first=first,resumed=second)
 
 
@@ -92,7 +100,7 @@ def main():
     parser.add_argument('--radiation-fixture',type=lambda p:Path(p).resolve())
     args = parser.parse_args()
     args.output.mkdir(parents=True)
-    period = float(re.search(r'\bcouplingInterval\s+([^;]+);',(args.fixture/'constant/scheme').read_text())[1])
+    period = float(re.search(r'\bwriteInterval\s+([^;]+);',(args.fixture/'system/controlDict').read_text())[1])
     clipped = 1.25*period
     first = simulate(args.binary,args.fixture,args.output/'initial',clipped)
     assert [r['time'] for r in first] == [0,period,clipped]

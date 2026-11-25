@@ -8,7 +8,6 @@ struct Backend;
 struct WindowRadiation {
     virtual ~WindowRadiation()=default;
 
-    virtual bool due(const CouplingInterval&,const CouplingControls&,const HostState&,bool) const {return true;}
     virtual bool prepareParent(Backend&,const WallProgram&,const HostState&,std::string&){return true;}
     virtual bool advance(Backend&,const WallProgram&,HostState&,std::string&)=0;
 };
@@ -20,6 +19,7 @@ struct MicrostepGeometryReport {
 struct WindowEvolutionReport {
     std::uint64_t acceptedGasMicrosteps=0,materialSolves=0;
     Real nextGasDt=0,radiationInterval=0;
+    bool physicalOutput=false;
     std::vector<MicrostepGeometryReport> geometry{};
 };
 
@@ -27,6 +27,7 @@ struct WindowEvolutionReport {
 
 bool advanceCoupledWindow(Backend&,CpuMaterialDriver&,const ModelConfig&,
     const CouplingControls&,const CpuMaterialControls&,Real targetTime,
-    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport&,std::string& error,WindowRadiation* radiation=nullptr,bool publishHostState=true);
+    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport&,std::string& error,WindowRadiation* radiation=nullptr,bool publishHostState=true,
+    bool forceFinalOutput=true,bool windowOutput=false);
 }
 #endif

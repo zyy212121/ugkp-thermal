@@ -39,8 +39,9 @@ def configure(case,bits,adaptive,app):
     set_entry(scheme,'precision',bits)
     for key,value in {'maxCo':.4,'maxDeltaT':LIMIT,'courantUpdateInterval':1,'maximumTimeStepGrowth':2}.items():module_entry(scheme,'gasTimeStep',key,value)
     if app in ('CHT','CHMT'):
-        module_entry(scheme,'thermalCoupling','couplingInterval',WINDOW)
-        if app=='CHT':module_entry(scheme,'thermalCoupling','solidContactCouplingInterval',WINDOW)
+        set_entry(control,'writeControl','adjustableRunTime')
+        set_entry(control,'writeInterval',WINDOW)
+        module_entry(scheme,'thermalCoupling','solidContactCouplingInterval',1)
     ct=control.read_text();st=scheme.read_text()
     assert len(re.findall(r'\badjustTimeStep\s+',ct))==1
     assert not re.search(r'\badjustTimeStep\s+',st)

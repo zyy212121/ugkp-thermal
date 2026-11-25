@@ -24,7 +24,7 @@ def prepare(*args,**kwargs):
 
 
  scheme=case/'constant/scheme'
- existing.set_input(scheme,'couplingInterval',1e-6)
+ existing.set_input(case/'system/controlDict','writeInterval',1e-6)
 
 
  bits=int(sys.argv[sys.argv.index('--precision')+1]) if '--precision' in sys.argv else 64

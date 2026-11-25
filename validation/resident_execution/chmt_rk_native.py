@@ -41,7 +41,7 @@ def prepare(work):
         overrides = {"ddtSchemes/default": "SSPRK3"}
         if name == "moving-microsteps":
             props = baseline/"constant/chmtProperties"
-            interval = float(re.search(r"couplingInterval\s+([^;]+)", (baseline/"constant/scheme").read_text())[1])
+            interval = float(re.search(r"writeInterval\s+([^;]+)", (baseline/"system/controlDict").read_text())[1])
             matrix.entry(baseline/"constant/scheme", "maxDeltaT", interval/4)
             text, count = re.subn(r"\bmodel\s+reactingSst;", "model constantTransport;", props.read_text())
             assert count == 1, props

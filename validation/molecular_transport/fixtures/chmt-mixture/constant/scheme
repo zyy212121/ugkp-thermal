@@ -69,5 +69,5 @@ regions
 }
 thermalCoupling
 {
-    couplingInterval 0.00050000000000000001;
+    solidContactCouplingInterval 1;
 }

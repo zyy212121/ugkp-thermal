@@ -82,7 +82,7 @@ IntervalHistory releaseGasWindowHistory(Backend& b){return std::move(b.history);
 
 int main(){
  using namespace chmt;
- ModelConfig model;CpuMaterialControls material;CouplingControls controls;controls.interval=.1;controls.gasMaxDt=.01;
+ ModelConfig model;CpuMaterialControls material;CouplingControls controls;controls.clock.contactPeriod=.1;controls.gasMaxDt=.01;
  HostState initial;GasQ gas;gas.mass=1;gas.species[0]=1;gas.energy=3;initial.gas={gas};initial.gasMesh.points={{0,0,0}};
  CpuMaterialDriver cpu(model,nullptr);std::string error;
  for(bool full:{false,true}){

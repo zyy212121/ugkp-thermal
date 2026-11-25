@@ -10,7 +10,7 @@
 #include <cmath>
 namespace chmt {
 struct CoupledRadiation::Data {
-    Foam::fvMesh& mesh;const ModelConfig& model;int frequency;
+    Foam::fvMesh& mesh;const ModelConfig& model;
     Foam::IOdictionary properties;
     std::unique_ptr<Foam::gpuThermal::MieTable> table;
     std::unique_ptr<Foam::gpuThermal::MieDoRadiationSolver> solver;
@@ -18,12 +18,11 @@ struct CoupledRadiation::Data {
     Foam::labelList patches;Foam::volScalarField wallTemperature;
     Foam::List<Foam::scalarField> wallEmissivity;
     std::vector<Vec3> previousPoints;bool parentPrepared=false;
-    Data(Foam::Time& time,Foam::fvMesh& mesh_,const ModelConfig& config,const HostState& state,int every)
-      :mesh(mesh_),model(config),frequency(every),
+    Data(Foam::Time& time,Foam::fvMesh& mesh_,const ModelConfig& config,const HostState& state)
+      :mesh(mesh_),model(config),
        properties(Foam::IOobject("radiationProperties",time.constant(),time,Foam::IOobject::MUST_READ,Foam::IOobject::NO_WRITE)),
        wallTemperature(Foam::IOobject("chmtRadiationWallTemperature",time.timeName(),mesh,Foam::IOobject::NO_READ,Foam::IOobject::NO_WRITE),
            mesh,Foam::dimensionedScalar("T",Foam::dimTemperature,300)){
-        if(frequency<=0)throw std::runtime_error("invalid radiation coupling frequency");
         const auto& m=properties.subDict("model");Foam::fileName path(m.lookup("mieTable"));
         if(!path.isAbsolute())path=time.path()/path;
         table.reset(new Foam::gpuThermal::MieTable(path));
@@ -52,19 +51,14 @@ struct CoupledRadiation::Data {
             config.particlePhase.minimumTemperature,config.particlePhase.maximumTemperature));
     }
 };
-CoupledRadiation::CoupledRadiation(Foam::Time& time,Foam::fvMesh& mesh,const ModelConfig& config,const HostState& state,int frequency)
- :data_(new Data(time,mesh,config,state,frequency)){}
+CoupledRadiation::CoupledRadiation(Foam::Time& time,Foam::fvMesh& mesh,const ModelConfig& config,const HostState& state)
+ :data_(new Data(time,mesh,config,state)){}
 CoupledRadiation::~CoupledRadiation()=default;
 void CoupledRadiation::freezeWarmStart(ugkp::gpu::RadiationWarmStart& slot,void* nextWriter) const {
     data_->coupler->freezeWarmStart(slot,nextWriter);
 }
 bool CoupledRadiation::readWarmStart(const std::string& path){return data_->coupler->readWarmStart(path);}
 bool CoupledRadiation::writeWarmStart(const std::string& path)const{return data_->coupler->writeWarmStart(path);}
-
-bool CoupledRadiation::due(const CouplingInterval& window,const CouplingControls& controls,const HostState& accepted,bool output)const{
-    return ugkp::gpu::radiationDueAt(accepted.radiationTime,window.end,controls.scheduleOrigin,controls.interval,
-        data_->frequency,window.identity.sequence,output);
-}
 
 bool CoupledRadiation::prepareParent(Backend& backend,const WallProgram& program,const HostState& state,std::string& error){
     auto& d=*data_;d.parentPrepared=false;

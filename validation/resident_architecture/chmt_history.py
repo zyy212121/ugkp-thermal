@@ -22,7 +22,7 @@ def main():
         case=out/kind;matrix.prepare(matrix.HERE/"fixtures/chmt-moving-short",case,meta)
         props=case/"constant/chmtProperties"
         props.write_text(props.read_text().replace("model reactingSst;","model equilibriumOde;"))
-        interval=float(re.search(r"couplingInterval\s+([^;]+)",(case/"constant/scheme").read_text())[1])
+        interval=float(re.search(r"writeInterval\s+([^;]+)",(case/"system/controlDict").read_text())[1])
         matrix.entry(case/"constant/scheme","maxDeltaT",interval/7)
         matrix.run([binary.resolve(),"-case",case],case/"run.log")
         micro=[int(n) for n in re.findall(r"gasMicrosteps=(\d+)",(case/"run.log").read_text())]

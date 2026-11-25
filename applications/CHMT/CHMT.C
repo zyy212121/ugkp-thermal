@@ -96,13 +96,15 @@ int main(int argc,char** argv) {
             <<std::endl;
         chmt::CpuMaterialDriver material(input.model,input.solidMesh.get(),&input.gasMechanism);
         std::unique_ptr<chmt::CoupledRadiation> radiation;
-        if(input.thermalSchedule.radiationEnabled)
-            radiation.reset(new chmt::CoupledRadiation(time,*input.gasMesh,input.model,input.state,input.thermalSchedule.radiationFrequency));
+        if(input.coupling.clock.radiationPeriod>0)
+            radiation.reset(new chmt::CoupledRadiation(time,*input.gasMesh,input.model,input.state));
         if(radiation&&!restart.empty()){
             radiation->readWarmStart((restart/"domWarmStart.bin").c_str());
         }
-        std::cout<<"CHMT couplingInterval="<<input.coupling.interval<<" radiationFrequency="
-            <<(radiation?input.thermalSchedule.radiationFrequency:0)<<std::endl;
+        const bool physicalOutput=input.coupling.clock.outputPeriod>0;
+        std::cout<<"CHMT_COUPLING_CLOCK outputPeriod="<<input.coupling.clock.outputPeriod
+            <<" contactPeriod="<<input.coupling.clock.contactPeriod
+            <<" radiationPeriod="<<input.coupling.clock.radiationPeriod<<std::endl;
         const chmt::Real end=time.controlDict().lookup<Foam::scalar>("endTime");
         const Foam::fileName directory=time.path()/chmt::io::text(time.controlDict(),"outputDirectory","chmtOutput");
         namespace fs=std::filesystem;
@@ -118,7 +120,7 @@ int main(int argc,char** argv) {
         const auto diagnosticInterval=outputControls.lookupOrDefault<Foam::label>("diagnosticInterval",1);
         const auto fieldInterval=outputControls.lookupOrDefault<Foam::label>("fieldInterval",1);
         const auto checkpointInterval=outputControls.lookupOrDefault<Foam::label>("checkpointInterval",1);
-        chmt::io::require(diagnosticInterval>=0&&fieldInterval>=0&&checkpointInterval>=0,"output intervals must be nonnegative accepted-step counts");
+        chmt::io::require(diagnosticInterval>=0&&fieldInterval>=0&&checkpointInterval>=0,"output strides must be nonnegative");
         const bool writeInitial=chmt::io::flag(outputControls,"writeInitial",true);
         const bool writeFinal=chmt::io::flag(outputControls,"writeFinal",true);
         chmt::io::AcceptedOutputWriter output(directory.c_str(),resumedStep,input.model,ugkp::diagnostics::makeFoamSink());
@@ -133,10 +135,13 @@ int main(int argc,char** argv) {
         if(writeInitial||(writeFinal&&input.state.time>=end))publish(selection(input.state.acceptedSteps,true));
         while(input.state.time<end){
             output.collectReady();
-            auto choice=selection(input.state.acceptedSteps+1,false);
+            auto choice=physicalOutput?chmt::io::OutputSelection{}:selection(input.state.acceptedSteps+1,false);
             chmt::WindowEvolutionReport report;
             const auto windowStart=input.state.time;
-            chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error,radiation.get(),false),error);
+            chmt::io::require(chmt::advanceCoupledWindow(*backend,material,input.model,input.coupling,input.material,end,false,input.state,report,error,
+                radiation.get(),false,writeFinal,choice.summary||choice.fields||choice.checkpoint),error);
+            if(report.physicalOutput)
+                choice=selection(chmt::CouplingWindowController::outputIndex(input.state.time,input.coupling),false);
             publish(writeFinal&&input.state.time>=end?selection(input.state.acceptedSteps,true):choice,report.radiationInterval,input.state.time-windowStart);
             if
             (

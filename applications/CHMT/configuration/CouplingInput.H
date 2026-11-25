@@ -26,7 +26,6 @@ struct CoupledCaseInput {
     HostState state;
     ugkp::solverControls::GasTimeStepControls gasTime;
     CouplingControls coupling;
-    ugkp::thermal::CouplingSchedule thermalSchedule{0,1,false};
     CpuMaterialControls material;
     std::unique_ptr<Foam::fvMesh> gasMesh,solidMesh;
 };
@@ -175,11 +174,9 @@ inline void readCoupledCase(Foam::Time& time,const Foam::dictionary& d,CoupledCa
     require(validateRuntimeState(candidate.model,state,error),error);
     const Real dt=time.controlDict().lookup<Foam::scalar>("deltaT");
     candidate.state.nextDt=dt;
-    candidate.thermalSchedule=ugkp::thermal::readCouplingSchedule(sharedCoupling,time);
-    candidate.coupling=readCouplingControls(time,dt,candidate.thermalSchedule.interval);
     Foam::IOdictionary radiationProperties(Foam::IOobject("radiationProperties",time.constant(),time,
         Foam::IOobject::READ_IF_PRESENT,Foam::IOobject::NO_WRITE,false));
-    ugkp::thermal::readRadiationSchedule(candidate.thermalSchedule,radiationProperties,time);
+    candidate.coupling=readCouplingControls(time,dt,radiationProperties.lookupOrDefault<bool>("enabled",false));
     candidate.material=readMaterialSolverControls(time,solidRegion);
     candidate.coupling.gasMaxDt=candidate.model.physics.maxDt;
     candidate.coupling.materialMaxSubstep=candidate.material.maxSubstep;

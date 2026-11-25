@@ -20,12 +20,13 @@ int main(){try{
  std::vector<SolidQ> solid(1);solid[0].condensed[0]=.15;std::vector<FilmQ> film;MaterialDonorReserve reserve;
  require(reserve.reset(solid,film,0,e),"reserve reset");require(reserve.apply(r,e),"reserve first");
  auto over=record(.3,.6,2,.1,0);require(reserve.apply(over,e),"negative reserve admitted");require(std::abs(reserve.solid()[0].condensed[0]+.05)<1e-16,"actual negative reserve preserved");
- CouplingControls controls;controls.interval=1;controls.gasMaxDt=.001;
+ CouplingControls controls;controls.clock.contactPeriod=1;controls.gasMaxDt=.001;
  CouplingWindowController control;require(control.begin(0,2,1,controls,e),"controller begin");require(control.interval().end==1,"gas dt constrained macro H");
- WindowAssessment assessment;assessment.predictionError=100;require(control.assess(assessment)==WindowDecision::Accept,"optional accuracy forced replay");
- assessment.geometryMatches=false;require(control.assess(assessment)==WindowDecision::Replay,"geometry mismatch accepted");
- require(control.replay(e),"replay");require(control.interval().identity.epoch==1,"epoch unchanged");
- require(control.shorten(.4,e),"shorten");require(control.interval().end==.4,"shorten endpoint");
+ require(control.begin(0,.4,1,controls,e),"clipped target");
+ require(control.interval().end==.4,"clipped endpoint");
+ require(control.begin(.4,2,2,controls,e),"resume accepted endpoint");
+ require(control.interval().begin==.4&&control.interval().end==1,"physical phase changed on resume");
+ require(control.interval().identity.sequence==2&&control.interval().identity.epoch==0,"single-pass identity");
  IntervalHistory masks;require(masks.begin(w,e),"mask history begin");auto unapplied=r;unapplied.packets[0].consumerMask=0;require(masks.appendAccepted(unapplied,e),"supplied mask preserved");
  IntervalHistory radiated;require(radiated.begin(w,e),"radiation history begin");auto ra=r;ra.radiationEnergy={2};ra.radiationReceiver={ConsumeSolid};require(radiated.appendAccepted(ra,e),"radiation first");auto rb=second;rb.radiationEnergy={3};rb.radiationReceiver={ConsumeFilm};require(radiated.appendAccepted(rb,e),"supplied radiation receiver admitted");
  std::vector<SolidQ> emptyPore(1);MaterialDonorReserve generated;require(generated.reset(emptyPore,film,0,e),"generated reserve reset");

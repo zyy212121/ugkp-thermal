@@ -5,20 +5,9 @@
 #include "../FoamSolverScheme.H"
 #include "../gpu/PhysicalEventClock.H"
 namespace ugkp { namespace thermal {
-struct CouplingSchedule {Foam::scalar interval;Foam::label radiationFrequency;bool radiationEnabled;};
-inline CouplingSchedule readCouplingSchedule(const Foam::dictionary& coupling,const Foam::Time& time) {
-    const auto& scheme=ugkp::solverControls::startupScheme(time);
-    const auto controls=scheme.section("thermalCoupling");
-
-    const auto base=controls.lookup<Foam::scalar>("couplingInterval");
-    Foam::scalar interval=base;Foam::label frequency=1;
-    scheme.read("thermalCoupling","solidContactCouplingInterval",interval,"couplingInterval");
-    scheme.read("thermalCoupling","radiationCouplingFrequency",frequency);
-    return {interval,frequency,coupling.lookupOrDefault<bool>("radiationEnabled",true)};
-}
-inline gpu::OutputCouplingClock readChtCouplingClock
+inline gpu::OutputCouplingClock readOutputCouplingClock
 (
-    const Foam::Time& time,bool radiationEnabled
+    const Foam::Time& time,bool radiationEnabled,double zeroContactPeriod=0
 )
 {
     const auto& scheme=ugkp::solverControls::startupScheme(time);
@@ -30,12 +19,12 @@ inline gpu::OutputCouplingClock readChtCouplingClock
     const auto write=controls.lookupOrDefault<Foam::scalar>("writeInterval",1);
     const double outputPeriod=(mode=="runTime"||mode=="adjustableRunTime") && write>0
         ?time.userTimeToTime(write):0;
-    return gpu::makeOutputCouplingClock(outputPeriod,contact,radiation,radiationEnabled);
+    auto clock=gpu::makeOutputCouplingClock(outputPeriod,contact,radiation,radiationEnabled);
+    if(clock.contactPeriod==0 && zeroContactPeriod>0){
+        clock.contactPeriod=zeroContactPeriod;
+        clock.radiationPeriod=radiationEnabled?zeroContactPeriod*gpu::couplingFraction(radiation):0;
+    }
+    return clock;
 }
 
-inline void readRadiationSchedule(CouplingSchedule& schedule,const Foam::dictionary& radiation,const Foam::Time& time){
-    schedule.radiationEnabled=radiation.lookupOrDefault<bool>("enabled",false);
-    schedule.radiationFrequency=1;
-    ugkp::solverControls::startupScheme(time).read("thermalCoupling","radiationCouplingFrequency",schedule.radiationFrequency);
-}
 }}

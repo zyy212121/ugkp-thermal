@@ -37,15 +37,6 @@ UGKP_CLOCK_HD inline double nextPeriodicTime(double origin, double period, doubl
 }
 
 
-UGKP_CLOCK_HD inline bool radiationDueAt(double begin,double end,double origin,double heatPeriod,
-    unsigned long long frequency,unsigned long long exchange,bool output)
-{
-    if(!frequency || !(end>begin))return false;
-    if(output || frequency==1)return true;
-    if(!(heatPeriod>0))return exchange%frequency==0;
-    return reachedEventTime(end,nextPeriodicTime(origin,heatPeriod*frequency,begin),end-begin);
-}
-
 UGKP_CLOCK_HD inline double couplingFraction(double value)
 {
     return value>0 && value<1 ? value : 1;

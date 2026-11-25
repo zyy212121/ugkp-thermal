@@ -1283,7 +1283,7 @@ public:
           || (formatVersion != 1
            && coupling.found("solidSolidInterfaces", false, false));
         radiationEnabled=coupling.lookupOrDefault<bool>("radiationEnabled",true);
-        couplingClock=ugkp::thermal::readChtCouplingClock(runTime,radiationEnabled);
+        couplingClock=ugkp::thermal::readOutputCouplingClock(runTime,radiationEnabled);
         Info<<"CHT_COUPLING_CLOCK outputPeriod="<<couplingClock.outputPeriod
             <<" contactPeriod="<<couplingClock.contactPeriod
             <<" radiationPeriod="<<couplingClock.radiationPeriod

@@ -69,7 +69,7 @@ regions
 }
 thermalCoupling
 {
-    couplingInterval 1.0000000000000002e-06;
+    solidContactCouplingInterval 1;
 }
 
 wallLayer

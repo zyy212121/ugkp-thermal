@@ -8,15 +8,19 @@
 namespace chmt {
 bool advanceCoupledWindow(Backend& backend,CpuMaterialDriver& material,const ModelConfig&,
     const CouplingControls& controls,const CpuMaterialControls& materialControls,Real targetTime,
-    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport& report,std::string& error,WindowRadiation* radiation,bool publishHostState) {
+    bool retainStageGeometry,HostState& accepted,WindowEvolutionReport& report,std::string& error,WindowRadiation* radiation,bool publishHostState,
+    bool forceFinalOutput,bool windowOutput) {
     report=WindowEvolutionReport{};
     try {
         const HostState& base=accepted;
         CouplingWindowController controller;
         if(!controller.begin(base.time,targetTime,base.commitSequence+1,controls,error))return false;
         const CouplingInterval interval=controller.interval();
-        const bool radiate=radiation && radiation->due(interval,controls,base,
-            ugkp::gpu::reachedEventTime(interval.end,targetTime,interval.end-interval.begin));
+        report.physicalOutput=CouplingWindowController::outputDue(interval,controls);
+        const bool output=windowOutput || report.physicalOutput
+            || (forceFinalOutput&&ugkp::gpu::reachedEventTime(interval.end,targetTime,interval.end-interval.begin));
+        const bool radiate=radiation && ugkp::gpu::outputRelativeRadiationDue(controls.clock,controls.scheduleOrigin,
+            base.radiationTime,interval.end,output);
         WallProgram program;
         CpuMaterialReport prediction;
         if(!material.predictWindowWall(base,interval,program,error,&prediction,true))return false;

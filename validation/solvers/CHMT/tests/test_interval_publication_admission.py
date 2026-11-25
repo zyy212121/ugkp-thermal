@@ -30,9 +30,9 @@ def test_rounded_endpoint_and_supplied_history_are_not_refused(tmp_path):
 #include "coupling/IntervalAudit.H"
 #include <cassert>
 using namespace chmt;
-int main(){std::string e;double origin=1099511627776.;CouplingControls controls;controls.interval=1e-6;
+int main(){std::string e;double origin=1099511627776.;CouplingControls controls;controls.clock.contactPeriod=1e-6;
  CouplingWindowController c;controls.scheduleOrigin=origin;assert(!c.begin(origin,origin+1,1,controls,e));
- controls.interval=std::nextafter(origin,INFINITY)-origin;assert(c.begin(origin,origin+1,1,controls,e));assert(c.interval().end==origin+controls.interval);
+ controls.clock.contactPeriod=std::nextafter(origin,INFINITY)-origin;assert(c.begin(origin,origin+1,1,controls,e));assert(c.interval().end==origin+controls.clock.contactPeriod);
 
  IntervalHistory h;CouplingInterval w;w.begin=w.end=origin;assert(h.begin(w,e));GasIntervalRecord r;r.begin=r.end=origin;r.gasTrace.resize(1);r.gasGradient.resize(2);r.radiationEnergy={2};
  ExchangePacket p;p.kind=ExchangeKind::SolidFilm;p.mass=9;p.consumerMask=0;r.packets={p};assert(h.appendAccepted(r,e));

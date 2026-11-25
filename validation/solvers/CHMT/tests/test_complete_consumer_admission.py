@@ -138,7 +138,7 @@ bool gasWindowStageGeometry(Backend&,std::array<HostStageGeometry,2>& gas,std::a
     source=source.replace(old,new)+r'''
 int main(){using namespace chmt;
  ModelConfig model;CpuMaterialControls material;CpuMaterialDriver cpu(model,nullptr);
- CouplingControls controls;controls.interval=1;controls.gasMaxDt=.01;
+ CouplingControls controls;controls.clock.contactPeriod=1;controls.gasMaxDt=.01;
  HostState initial;GasQ q;q.mass=1;q.species[0]=1;q.energy=3;initial.gas={q};initial.gasMesh.points={{0,0,0}};
  for(bool retain:{false,true}){script=Script{};geometryCalls=0;Backend backend;backend.accepted=initial;HostState accepted=initial;WindowEvolutionReport report;std::string error;
   assert(advanceCoupledWindow(backend,cpu,model,controls,material,.2,retain,accepted,report,error));
