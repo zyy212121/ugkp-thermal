@@ -52,8 +52,8 @@ __global__ void selectThermalAdvance(ThermalEventState* event,AdvanceState* adva
             const bool output=advance->steps+1==request->thermalOutputStep ||
                 reachedEventTime(event->time,request->thermalOutputTime,advance->clockDt) ||
                 advance->submissionThermalEvents+1==request->thermalOutputEvent;
-            event->radiationDue=event->radiationEnabled && radiationDueAt(event->completedRadiationTime,event->time,
-                request->scheduleOrigin,event->period,event->radiationFrequency,event->sequence,output);
+            event->radiationDue=outputRelativeRadiationDue(event->clock,request->scheduleOrigin,
+                event->completedRadiationTime,event->time,output);
             event->stage=0;event->committed=false;event->particlePublished=!event->radiationDue;
             advance->stage=AdvanceStage::thermal;
         }else advance->stage=AdvanceStage::accept;
@@ -68,10 +68,11 @@ __global__ void acceptThermalAdvance(ThermalEventState* event,AdvanceState* adva
     event->previousTime=event->completedTime;event->completedTime=event->time;event->completedStep=advance->steps+1;
     if(event->radiationDue){event->completedRadiationTime=event->time;event->lastRadiationInterval=event->radiationInterval;++advance->submissionRadiationEvents;}
     advance->thermalSequence=event->sequence;++advance->submissionThermalEvents;
-    advance->nextHeat=fmin(request->thermalOutputTime,event->period>0
-        ?nextPeriodicTime(request->scheduleOrigin,event->period,event->completedTime):event->completedTime);
-    advance->nextRadiation=event->radiationEnabled && event->period>0
-        ?nextPeriodicTime(request->scheduleOrigin,event->period*event->radiationFrequency,event->completedRadiationTime):0;
+    advance->nextHeat=fmin(request->thermalOutputTime,
+        nextFullOrContactEvent(event->clock,request->scheduleOrigin,event->completedTime));
+    advance->nextRadiation=event->radiationEnabled
+        ?nextOutputRelativeEvent(request->scheduleOrigin,event->clock.outputPeriod,
+            event->clock.radiationPeriod,event->completedRadiationTime):0;
     advance->stage=AdvanceStage::accept;
 }
 template<class Build> cudaGraphNode_t eventBranch(cudaGraph_t graph,cudaGraphNode_t dependency,

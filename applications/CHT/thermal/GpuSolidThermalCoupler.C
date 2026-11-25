@@ -1204,8 +1204,7 @@ public:
     bool radiationEnabled;
     GpuReal rhoSolid;
     GpuReal particleHeatFactor;
-    scalar solidContactCouplingInterval;
-    label radiationCouplingFrequency;
+    ugkp::gpu::OutputCouplingClock couplingClock;
     label solidInterfaceMaxIterations;
     GpuReal solidInterfaceTemperatureTolerance;
     GpuReal solidInterfaceEnergyTolerance;
@@ -1254,8 +1253,6 @@ public:
         radiationEnabled(true),
         rhoSolid(0),
         particleHeatFactor(0),
-        solidContactCouplingInterval(0),
-        radiationCouplingFrequency(1),
         solidInterfaceMaxIterations(1),
         solidInterfaceTemperatureTolerance(0),
         solidInterfaceEnergyTolerance(0),
@@ -1285,17 +1282,14 @@ public:
         threeRegion = formatVersion == 2
           || (formatVersion != 1
            && coupling.found("solidSolidInterfaces", false, false));
-        const auto schedule=ugkp::thermal::readCouplingSchedule(coupling,runTime);
-        radiationEnabled=schedule.radiationEnabled;
-        solidContactCouplingInterval=schedule.interval;
-        radiationCouplingFrequency=schedule.radiationFrequency;
-        if
-        (
-            radiationEnabled && radiationCouplingFrequency == 0
-        )
-        {
-            solidFailure("active radiation frequency is zero");
-        }
+        radiationEnabled=coupling.lookupOrDefault<bool>("radiationEnabled",true);
+        couplingClock=ugkp::thermal::readChtCouplingClock(runTime,radiationEnabled);
+        Info<<"CHT_COUPLING_CLOCK outputPeriod="<<couplingClock.outputPeriod
+            <<" contactPeriod="<<couplingClock.contactPeriod
+            <<" radiationPeriod="<<couplingClock.radiationPeriod
+            <<" contactScheduleActive="<<(couplingClock.radiationPeriod<=0 ||
+                !ugkp::gpu::reachedEventTime(couplingClock.contactPeriod,couplingClock.radiationPeriod))
+            <<Foam::nl;
         if (threeRegion)
         {
             solidRegion = exactLookup<word>(coupling, "primarySolidRegion");
@@ -2026,8 +2020,8 @@ double GpuSolidThermalCoupler::nextCouplingTime() const
 {
     const double completed=data_->writeState.committedState().completedSimulationTimeS;
 
-    if(data_->solidContactCouplingInterval<=0) return completed;
-    return ugkp::gpu::nextPeriodicTime(data_->runTime.beginTime().value(),data_->solidContactCouplingInterval,completed);
+    return ugkp::gpu::nextFullOrContactEvent(data_->couplingClock,
+        data_->runTime.beginTime().value(),completed);
 }
 
 bool GpuSolidThermalCoupler::configureDeviceAdvance(volScalarField& Tgas){
@@ -2077,8 +2071,7 @@ bool GpuSolidThermalCoupler::configureDeviceAdvance(volScalarField& Tgas){
     event.completedRadiationTime=saved.completedRadiationSimulationTimeS;
     event.sequence=saved.exchangeSequence;
     event.completedStep=saved.completedTimeIndex;
-    event.period=d.solidContactCouplingInterval;
-    event.radiationFrequency=d.radiationCouplingFrequency;
+    event.clock=d.couplingClock;
     event.radiationEnabled=d.radiationEnabled;
     d.thermalEvent->setEvent(event);
     if(d.radiationEnabled){
@@ -2090,7 +2083,7 @@ bool GpuSolidThermalCoupler::configureDeviceAdvance(volScalarField& Tgas){
             forAll(emissivity,p)emissivity[p].setSize(d.fluidMesh.boundary()[p].size(),scalar(0));
         }else emissivity=d.fluidWallEmissivity();
         const ParticleRadiationMaterialSnapshot snapshot{epsilon,mass,temperature,diameter,Tgas,emissivity,
-            d.particleHeatFactor,d.solidContactCouplingInterval*d.radiationCouplingFrequency,
+            d.particleHeatFactor,d.couplingClock.radiationPeriod,
             d.resident.particleRadiationResponse(),resident};
         const auto parent=d.particleRadiationCoupler->prepareParent(snapshot,&d.thermalEvent->deviceState()->radiationInterval);
         d.thermalEvent->bindRadiation(*parent.radiation,*parent.material);d.parentRadiation=parent.material->deviceView();
@@ -2164,10 +2157,9 @@ GpuThermalCouplingResult GpuSolidThermalCoupler::exchangeIfDue
       - data_->writeState.committedState()
             .completedRadiationSimulationTimeS;
 
-    const bool radiationDue=data_->radiationEnabled && ugkp::gpu::radiationDueAt(
-        data_->writeState.committedState().completedRadiationSimulationTimeS,runTime.value(),
-        runTime.beginTime().value(),data_->solidContactCouplingInterval,data_->radiationCouplingFrequency,
-        decision.exchangeSequence,output || finalExchange);
+    const bool radiationDue=ugkp::gpu::outputRelativeRadiationDue(data_->couplingClock,
+        runTime.beginTime().value(),data_->writeState.committedState().completedRadiationSimulationTimeS,
+        runTime.value(),output || finalExchange);
     bool commitPhaseStarted = false;
 
     try

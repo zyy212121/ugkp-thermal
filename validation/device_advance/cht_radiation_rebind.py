@@ -25,8 +25,8 @@ def run(binary, fixture, case, switched):
                            writeInterval=STEPS, runTimeModifiable='true', adjustTimeStep='false',
                            logInterval=1, maxThermalCouplingEvents=0).items():
         replace_entry(ctl, key, value)
-    for key, value in dict(couplingInterval=2*DT, solidContactCouplingInterval=2*DT,
-                           radiationCouplingFrequency=2).items():
+    for key, value in dict(solidContactCouplingInterval=2*DT,
+                           radiationCouplingFrequency=1).items():
         replace_entry(case/'constant/scheme', key, value)
     if switched:
         files = ' '.join(f'({(step-1.5)*DT} "$FOAM_CASE/system/control.{mode}")'
@@ -71,15 +71,15 @@ def inspect(case, switched):
             previous_radiation = radiation
     if re.search(r'\bsite=34001\b', text):
         raise ValueError(f'Unconverged device DOM in {log}')
-    expected = [(seq, seq//2, seq*2*DT, 2*DT) for seq in range(1, STEPS//2+1)]
-    done = f'THERMAL_RUN_COMPLETE heatEvents={STEPS//2} radiationEvents={STEPS//4} '
+    expected = [(seq, seq, seq*2*DT, 2*DT) for seq in range(1, STEPS//2+1)]
+    done = f'THERMAL_RUN_COMPLETE heatEvents={STEPS//2} radiationEvents={STEPS//2} '
     if events != expected or done not in text:
         raise ValueError(f'Unexpected committed events in {log}: {events}')
     mode = 'timeStep'
     changes = dict(SWITCHES) if switched else {}
     on_device = []
     for step in range(1, STEPS+1):
-        if step % 4 == 0 and mode in ('runTime', 'timeStep'):
+        if step % 2 == 0 and mode in ('runTime', 'timeStep'):
             on_device.append(step//2)
         mode = changes.get(step, mode)
     if device_radiation != on_device:

@@ -575,7 +575,8 @@ int main(int argc, char *argv[])
                 requestedDeviceThermal=useDevice;
             }
             if(solidThermalCoupler.valid())request.nextHeat=solidThermalCoupler->nextCouplingTime();
-            if(maxThermalEvents)request.thermalOutputEvent=maxThermalEvents-completedThermalEvents;
+            if(writeAtThermalCoupling)request.thermalOutputEvent=1;
+            else if(maxThermalEvents)request.thermalOutputEvent=maxThermalEvents-completedThermalEvents;
             if(solidThermalCoupler.valid()&&!deviceThermal){
 
                 if(request.nextHeat>runTime.value())
@@ -623,7 +624,8 @@ int main(int argc, char *argv[])
                         theta,
                         Tp,
                         dMeanCell,
-                        maxThermalEvents && completedThermalEvents+1==maxThermalEvents
+                        writeAtThermalCoupling ||
+                        (maxThermalEvents && completedThermalEvents+1==maxThermalEvents)
                 );
                 if (coupling.coupled)
                 {

@@ -105,7 +105,6 @@ particle
 }
 thermalCoupling
 {
-    couplingInterval .00002;
-    solidContactCouplingInterval .00002;
+    solidContactCouplingInterval 1;
     radiationCouplingFrequency 1;
 }

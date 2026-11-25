@@ -41,18 +41,15 @@ class ThermalCouplingScheduleContract(unittest.TestCase):
             )
             self.assertIn("PASS", completed.stdout)
 
-    def test_contact_uses_tolerant_time_schedule_and_radiation_uses_sequence(self) -> None:
-        source = COUPLER.read_text(encoding="utf-8")
-        self.assertIn('#include "../../../common/gpu/PhysicalEventClock.H"', source)
-        self.assertEqual(source.count("ugkp::gpu::reachedEventTime"), 1)
-        self.assertIn("radiationCouplingFrequency", source)
-        self.assertRegex(
-            source,
-            r"decision\.exchangeSequence[\s\S]{0,160}?%[\s\S]{0,160}?radiationCouplingFrequency",
-        )
-        self.assertNotIn("radiationCouplingInterval", source)
-        self.assertNotIn("elapsedSinceCoupling + SMALL", source)
-        self.assertNotIn("elapsedSinceRadiation + SMALL", source)
+    def test_host_and_device_share_the_output_relative_clock(self) -> None:
+        host = COUPLER.read_text(encoding="utf-8")
+        device = (SOURCE_ROOT / "common/gpu/ThermalEventGraph.cu").read_text(encoding="utf-8")
+        for source in (host, device):
+            self.assertIn("nextFullOrContactEvent", source)
+            self.assertIn("outputRelativeRadiationDue", source)
+        self.assertIn("stepToEvent", (SOURCE_ROOT / "common/gpu/AdvanceState.cuh").read_text())
+        self.assertNotIn("elapsedSinceCoupling + SMALL", host)
+        self.assertNotIn("elapsedSinceRadiation + SMALL", host)
 
 
 if __name__ == "__main__":

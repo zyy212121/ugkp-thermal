@@ -23,7 +23,7 @@ def number(path, key):
     return float(match[1])
 
 
-def simulate(args, name, binary, *, adaptive, dt, end, period, write, frequency=2, restart=None, log_interval=1, write_control=None, event_cap=0):
+def simulate(args, name, binary, *, adaptive, dt, end, period, write, frequency=1, restart=None, log_interval=1, write_control=None, event_cap=0, relative_contact=None, legacy=False):
     case = args.output / name
     case.mkdir()
     for directory in ('0','constant','system'):
@@ -38,7 +38,14 @@ def simulate(args, name, binary, *, adaptive, dt, end, period, write, frequency=
         replace_entry(ctl,key,value)
     if write_control:
         replace_entry(ctl,'writeControl',write_control)
-    for key,value in dict(precision=args.precision,couplingInterval=period,solidContactCouplingInterval=period,
+    physical_output = (write_control or "adjustableRunTime") in ("runTime", "adjustableRunTime") and write > 0
+    contact = relative_contact if relative_contact is not None else (period / write if physical_output else period)
+    if legacy:
+        contents=scheme.read_text()
+        contents=re.sub(r"(thermalCoupling\s*\{)", rf"\1\n    couplingInterval {period};", contents)
+        scheme.write_text(contents)
+        contact,frequency=period,2
+    for key,value in dict(precision=args.precision,solidContactCouplingInterval=contact,
                           radiationCouplingFrequency=frequency,maxDeltaT=8e-6,
                           maximumTimeStepGrowth=2,courantUpdateInterval=3).items():
         replace_entry(scheme,key,value)
@@ -95,22 +102,22 @@ def main():
     cases={}
     options=dict(adaptive=True,dt=1e-6,end=4e-5,period=2e-5,write=-1)
     if args.before_fix:
-        old=simulate(args,'archived-adaptive',args.before_fix,**options)
+        old=simulate(args,'archived-adaptive',args.before_fix,legacy=True,**options)
         assert old['observed_dt']==[1e-6]
         cases['archived-adaptive']=old
     fixed=simulate(args,'adaptive',args.binary,**options)
     assert fixed['first_dt']==2e-6 and max(fixed['observed_dt'])<=8e-6 and max(fixed['observed_dt'])>fixed['first_dt']
-    assert fixed['final']==4e-5 and (fixed['heat_events'],fixed['radiation_events'])==(2,1)
+    assert fixed['final']==4e-5 and (fixed['heat_events'],fixed['radiation_events'])==(2,2)
     assert set(fixed['snapshots'])=={2e-5,4e-5}
     assert fixed['snapshots'][4e-5]['radiation']==4e-5
     if args.before_fix:
         assert fixed['steps']<old['steps']
     cases['adaptive']=fixed
     adaptive_checkpoint=args.output/'adaptive'/fixed['snapshots'][2e-5]['directory']
-    assert fixed['snapshots'][2e-5]['radiation']==0
+    assert fixed['snapshots'][2e-5]['radiation']==2e-5
     cold=(adaptive_checkpoint/'domWarmStart.bin').read_bytes()
     warm=(args.output/'adaptive'/fixed['snapshots'][4e-5]['directory']/'domWarmStart.bin').read_bytes()
-    assert len(cold)==56 and int.from_bytes(cold[48:56],'little')==0
+    assert len(cold)>56 and int.from_bytes(cold[48:56],'little')==1
     assert len(warm)>56 and int.from_bytes(warm[48:56],'little')==1
     actual=number(adaptive_checkpoint/'uniform/time','deltaT')
     nominal=number(adaptive_checkpoint/'uniform/time','cflDeltaT')
@@ -127,8 +134,14 @@ def main():
     offset=simulate(args,'offset-output',args.binary,adaptive=False,dt=7e-6,end=4.5e-5,period=2e-5,write=2.1e-5)
     assert set(offset['snapshots'])=={2.1e-5,4.2e-5,4.5e-5} and offset['first_dt']==7e-6
     assert [(offset['snapshots'][t]['sequence'],offset['snapshots'][t]['heat']) for t in sorted(offset['snapshots'])]==[(2,2.1e-5),(4,4.2e-5),(5,4.5e-5)]
-    assert (offset['heat_events'],offset['radiation_events'])==(5,4)
+    assert (offset['heat_events'],offset['radiation_events'])==(5,3)
     cases['offset-output']=offset
+
+    denser=simulate(args,'radiation-denser',args.binary,adaptive=False,dt=7e-6,end=4.2e-5,
+                    period=2e-5,write=2.1e-5,relative_contact=.5,frequency=.2)
+    assert set(denser['snapshots'])=={2.1e-5,4.2e-5}
+    assert (denser['heat_events'],denser['radiation_events'])==(10,10)
+    cases['radiation-denser']=denser
 
     near_end=args.output/'offset-output'/offset['snapshots'][4.2e-5]['directory']
     short=simulate(args,'short-final-restart',args.binary,adaptive=False,dt=7e-6,end=4.5e-5,
@@ -151,9 +164,9 @@ def main():
     grouped=simulate(args,'grouped',args.binary,adaptive=False,dt=7e-5,end=.01001,period=.005,
                      write=.01001,log_interval=5000)
     assert set(grouped['snapshots'])=={.01001}
-    assert (grouped['heat_events'],grouped['radiation_events'])==(3,2)
+    assert (grouped['heat_events'],grouped['radiation_events'])==(3,1)
     assert grouped['snapshots'][.01001]['last_exchange']==.01 and grouped['snapshots'][.01001]['heat']==.01001
-    event=re.search(r'^THERMAL_EVENT accepted=3 radiation=2 time=(\S+)',(args.output/'grouped/run.log').read_text(),re.M)
+    event=re.search(r'^THERMAL_EVENT accepted=3 radiation=1 time=(\S+)',(args.output/'grouped/run.log').read_text(),re.M)
     assert event and float(event[1])==.01001
     cases['grouped']=grouped
 
@@ -162,25 +175,25 @@ def main():
     starts=args.output/'aligned'/aligned['snapshots'][.005]['directory']
     phase=simulate(args,'resumed-phase',args.binary,adaptive=False,dt=7e-5,end=.012,period=.005,
                    write=.012,restart=starts,log_interval=5000)
-    assert (phase['heat_events'],phase['radiation_events'])==(2,2)
+    assert (phase['heat_events'],phase['radiation_events'])==(2,1)
     cases['resumed-phase']=phase
 
     indexed=simulate(args,'step-output',args.binary,adaptive=False,dt=1e-5,end=7e-5,period=3e-5,
                      write=2,write_control='timeStep',log_interval=5000)
     assert set(indexed['snapshots'])=={2e-5,4e-5,6e-5,7e-5}
-    assert (indexed['heat_events'],indexed['radiation_events'])==(5,4)
+    assert (indexed['heat_events'],indexed['radiation_events'])==(5,5)
     cases['step-output']=indexed
 
     for name,end in [('heat-tail',.025),('dom-tail',.03)]:
         tail=simulate(args,name,args.binary,adaptive=False,dt=.0005,end=end,period=.01,write=1,
                       frequency=2,log_interval=5000)
-        assert (tail['heat_events'],tail['radiation_events'])==(3,2)
+        assert (tail['heat_events'],tail['radiation_events'])==(3,1)
         assert (tail['snapshots'][end]['heat'],tail['snapshots'][end]['radiation'])==(end,end)
         cases[name]=tail
 
     host=simulate(args,'host-clock',args.binary,adaptive=False,dt=5e-6,end=2.5e-5,period=1e-5,
                   write=600,write_control='clockTime',log_interval=5000)
-    assert (host['heat_events'],host['radiation_events'])==(3,2) and set(host['snapshots'])=={2.5e-5}
+    assert (host['heat_events'],host['radiation_events'])==(3,3) and set(host['snapshots'])=={2.5e-5}
     cases['host-clock']=host
 
     archived=args.output/'legacy-restart'/'0.29500248649130967'

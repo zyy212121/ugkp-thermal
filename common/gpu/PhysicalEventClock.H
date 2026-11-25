@@ -46,6 +46,62 @@ UGKP_CLOCK_HD inline bool radiationDueAt(double begin,double end,double origin,d
     return reachedEventTime(end,nextPeriodicTime(origin,heatPeriod*frequency,begin),end-begin);
 }
 
+UGKP_CLOCK_HD inline double couplingFraction(double value)
+{
+    return value>0 && value<1 ? value : 1;
+}
+
+struct OutputCouplingClock {
+    double outputPeriod=0,contactPeriod=0,radiationPeriod=0;
+};
+
+UGKP_CLOCK_HD inline OutputCouplingClock makeOutputCouplingClock
+(
+    double outputPeriod,double contact,double radiation,bool radiationEnabled
+)
+{
+    const double contactPeriod=outputPeriod>0?outputPeriod*couplingFraction(contact):
+        (contact==0?0:couplingFraction(contact));
+    const double radiationPeriod=radiationEnabled
+        ?(outputPeriod>0?outputPeriod:contactPeriod)*couplingFraction(radiation):0;
+    return {outputPeriod,contactPeriod,radiationPeriod};
+}
+
+UGKP_CLOCK_HD inline double nextOutputRelativeEvent
+(
+    double origin,double outputPeriod,double eventPeriod,double now
+)
+{
+    if(!(eventPeriod>0))return INFINITY;
+    if(!(outputPeriod>0))return nextPeriodicTime(origin,eventPeriod,now);
+    const double outputEnd=nextPeriodicTime(origin,outputPeriod,now);
+    const double outputStart=outputEnd-outputPeriod;
+    const double next=nextPeriodicTime(outputStart,eventPeriod,now);
+    return reachedEventTime(next,outputEnd)?outputEnd:next;
+}
+
+UGKP_CLOCK_HD inline double nextFullOrContactEvent
+(
+    const OutputCouplingClock& clock,double origin,double now
+)
+{
+    if(clock.outputPeriod<=0 && clock.contactPeriod==0)return now;
+    const auto radiation=nextOutputRelativeEvent(origin,clock.outputPeriod,clock.radiationPeriod,now);
+    if(clock.radiationPeriod>0 && reachedEventTime(clock.contactPeriod,clock.radiationPeriod))return radiation;
+    const auto contact=nextOutputRelativeEvent(origin,clock.outputPeriod,clock.contactPeriod,now);
+    return ::fmin(contact,radiation);
+}
+
+UGKP_CLOCK_HD inline bool outputRelativeRadiationDue
+(
+    const OutputCouplingClock& clock,double origin,double previousRadiation,double end,bool output
+)
+{
+    return clock.radiationPeriod>0 && end>previousRadiation && (output ||
+        reachedEventTime(end,nextOutputRelativeEvent(origin,clock.outputPeriod,
+            clock.radiationPeriod,previousRadiation),end-previousRadiation));
+}
+
 UGKP_CLOCK_HD inline double eventDeadline(double begin, double target, double limit)
 {
     return reachedEventTime(target,limit,target-begin) ? limit : target;
