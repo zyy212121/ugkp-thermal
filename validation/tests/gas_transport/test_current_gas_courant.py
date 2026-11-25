@@ -11,7 +11,6 @@ from test_legacy_ale_transport import fixture
 ROOT=SOURCE_ROOT
 
 def launches(source):
-    source=source.replace('#include \"GpuGasTransportPreparation.cuh\"',(ROOT/'common/GpuGasTransportPreparation.cuh').read_text())
     pattern=r'((?:\w+::)*\w+(?:<[^;{}]*?>)?)\s*<<<([\s\S]*?)>>>\s*\(([^;]*?)\);'
     def convert(m):
         grid,block,*_=m[2].split(',')
@@ -59,30 +58,3 @@ ck(computeGasCurrentCourant(&s,dt,2.,4,4,nullptr,sentinel,Maximum{})!=0&&sentine
     for name in ['SST','DIFFUSION','ZERO','LARGE']:
         main=main.replace('MODE_'+name,'true' if mode==name.lower() else 'false')
     compile_probe(tmp_path,fixture()+CUDA+helper+main)
-
-
-def test_diffusive_courant_is_opt_in_for_all_wall_treatments(tmp_path):
-    helper=launches((ROOT/'common/GpuGasCourant.cuh').read_text())
-    compile_probe(tmp_path,fixture()+CUDA+helper+r'''
-int main(){
-    Host state;initialise(state);
-    state.gasMu=Real(4000);
-    const auto nut=state.nut;
-    for(int treatment=0;treatment<3;++treatment){
-        state.sstConfigured=treatment!=2;
-        state.sstWallTreatment=treatment;
-        state.nut=state.sstConfigured?nut:nullptr;
-        if(state.nut)state.nut[0]=state.nut[1]=Real(10);
-        GasCourantMaxima acoustic,diffusive;
-        ck(computeGasCurrentCourant(&state,.001,0.,4,4,nullptr,acoustic,Maximum{})==0,"default Courant failed");
-        ck(computeGasCurrentCourant(&state,.001,0.,4,4,nullptr,diffusive,Maximum{},true)==0,"diffusive Courant failed");
-        ck(diffusive.maximum>acoustic.maximum,"diffusion switch ignored");
-        bool onDevice=true;
-        ck(computeGasCurrentCourantField(&state,.001,0.,4,4,nullptr,onDevice)==0,"configured switch failed");
-        near(std::max(state.gasFluxPositivityScale[0],state.gasFluxPositivityScale[1]),Real(diffusive.maximum),"configured switch differs from host switch");
-        onDevice=false;
-        ck(computeGasCurrentCourantField(&state,.001,0.,4,4,nullptr,onDevice)==0,"configured off switch failed");
-        near(std::max(state.gasFluxPositivityScale[0],state.gasFluxPositivityScale[1]),Real(acoustic.maximum),"configured off switch added diffusion");
-    }
-}
-''')

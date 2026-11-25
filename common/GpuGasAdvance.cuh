@@ -1,6 +1,5 @@
 #pragma once
 #include <type_traits>
-#include "GpuGasTransportPreparation.cuh"
 #include "gasTransport/GasPseudoTime.H"
 #include "gasTransport/GasStateView.H"
 #include "gasTransport/GasBoundaryLayerHost.H"
@@ -29,7 +28,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
 
     if (!primitivesReady)
     {
-        recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement,ugkwp::gasTransportPreparation(*s));
+        recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -39,7 +38,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     }
     if (s->hostTurbulenceModel == 3)
     {
-        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement,ugkwp::gasTransportPreparation(*s));
+        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -67,7 +66,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     {setLastErrorText("boundaryLayer stage preparation failed");return 1;}
     if (s->hostTurbulenceModel == 3 && !preparedBoundaryLayer)
     {
-        applySstWallFunctionStateKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement,ugkwp::gasTransportPreparation(*s));
+        applySstWallFunctionStateKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -77,7 +76,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     }
     if (s->hostGasFluxScheme == 7 && !ugkwp::mixtureGasActive(*s))
     {
-        computeGasHllcAdcSensorKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,ugkwp::gasTransportPreparation(*s));
+        computeGasHllcAdcSensorKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -85,8 +84,35 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
             return 1;
         }
     }
-    if(prepareGasTransportCoefficients(s,cellBlock,s->gasCaptureStream,nativeRefinement,
-        ugkwp::gasBoundaryLayerEnabled(*s),true,ugkwp::gasTransportPreparation(*s)))return 1;
+    if(!ugkwp::gasBoundaryLayerEnabled(*s))
+    {
+        computeGasPrimitiveGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+        {
+            setLastError("computeGasPrimitiveGradientsKernel launch", err);
+            return 1;
+        }
+    }
+    if (s->hostTurbulenceModel==0) {
+        using CellState=std::remove_pointer_t<decltype(s->deviceState)>;
+        computeGasGradientLimiterKernel<CellState,true><<<cellGrid,cellBlock,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
+    } else {
+        computeGasGradientLimiterKernel<<<cellGrid,cellBlock,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
+    }
+    err=cudaGetLastError();
+    if (err!=cudaSuccess) {
+        setLastError("computeGasGradientLimiterKernel launch",err);
+        return 1;
+    }
+    if (s->hostTurbulenceModel!=0) {
+        computeGasEddyViscosityKernel<<<cellGrid,cellBlock,0,s->gasCaptureStream>>>(s->deviceState);
+        err=cudaGetLastError();
+        if (err!=cudaSuccess) {
+            setLastError("computeGasEddyViscosityKernel launch",err);
+            return 1;
+        }
+    }
     if (faceGrid <= 0)
     {
         return 0;
@@ -135,7 +161,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     }
     applyGasFluxPositivityScaleKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>
     (
-        s->deviceState,nativeRefinement,ugkwp::gasTransportPreparation(*s));
+        s->deviceState,nativeRefinement);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -159,7 +185,16 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
             return 1;
         }
     }
-    if(prepareGasSstTransportCoefficients(s,cellBlock,s->gasCaptureStream,ugkwp::gasTransportPreparation(*s)))return 1;
+    if (s->hostTurbulenceModel == 3)
+    {
+        computeSstGradientsKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState);
+        err = cudaGetLastError();
+        if (err != cudaSuccess)
+        {
+            setLastError("computeSstGradientsKernel launch", err);
+            return 1;
+        }
+    }
     if (s->hostTurbulenceModel == 3)
     {
         computeSstFaceFluxKernel<<<faceGrid, faceBlock, 0, s->gasCaptureStream>>>(s->deviceState);
@@ -194,14 +229,14 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
             return 1;
         }
     }
-    applyGasFluxDivergenceByCellKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState, dt, nativeRefinement,ugkwp::gasTransportPreparation(*s));
+    applyGasFluxDivergenceByCellKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState, dt, nativeRefinement);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
         setLastError("applyGasFluxDivergenceByCellKernel launch", err);
         return 1;
     }
-    recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement,ugkwp::gasTransportPreparation(*s));
+    recoverGasPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -210,7 +245,7 @@ int advanceGasEulerSubstage(GasHostState* s, const GasHostPolicy::Time dt, const
     }
     if (s->hostTurbulenceModel == 3)
     {
-        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement,ugkwp::gasTransportPreparation(*s));
+        recoverSstPrimitivesKernel<<<cellGrid, cellBlock, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -244,7 +279,7 @@ int blendGasRungeKuttaStage
         setLastError("blendGasConservativeStateKernel launch", err);
         return 1;
     }
-    recoverGasPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement,ugkwp::gasTransportPreparation(*s));
+    recoverGasPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
     err = cudaGetLastError();
     if (err != cudaSuccess)
     {
@@ -253,7 +288,7 @@ int blendGasRungeKuttaStage
     }
     if (s->hostTurbulenceModel == 3)
     {
-        recoverSstPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement,ugkwp::gasTransportPreparation(*s));
+        recoverSstPrimitivesKernel<<<cellGrid, block, 0, s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
@@ -279,7 +314,7 @@ int advanceGasFluxStage(GasHostState* s, const GasHostPolicy::Time dt, const Gas
     if(!primitivesReady){
         recoverGasPrimitivesKernel<<<preparationCellGrid, preparationCellBlock, 0, s->gasCaptureStream>>>
         (
-            s->deviceState,nativeRefinement,ugkwp::gasTransportPreparation(*s));
+            s->deviceState,nativeRefinement);
         preparationError = cudaGetLastError();
         if (preparationError != cudaSuccess)
         {
@@ -605,7 +640,7 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
                 if(error!=cudaSuccess){setLastError("pre-transport gas chemistry",error);return 1;}
             }
             if(!primitivesReady||chemistry){
-                recoverGasPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement,ugkwp::gasTransportPreparation(*s));
+                recoverGasPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
                 const auto recoveryError=cudaGetLastError();
                 if(recoveryError!=cudaSuccess){setLastError("pre-transport mixture recovery",recoveryError);return 1;}
             }
@@ -616,7 +651,7 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
 
                 if(s->hostTurbulenceModel==3)
                 {
-                    recoverSstPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement,ugkwp::gasTransportPreparation(*s));
+                    recoverSstPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
                     const auto error=cudaGetLastError();
                     if(error!=cudaSuccess){setLastError("wall preflight SST recovery",error);return 1;}
                 }
@@ -637,7 +672,7 @@ int prepareGasTrialTransport(GasHostState* s,const GasHostPolicy::Time dt,
                 {setLastErrorText("boundaryLayer preflight preparation failed");return 1;}
                 if(s->hostTurbulenceModel==3)
                 {
-                    applySstWallFunctionStateKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement,ugkwp::gasTransportPreparation(*s));
+                    applySstWallFunctionStateKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
                     const auto error=cudaGetLastError();
                     if(error!=cudaSuccess){setLastError("wall preflight owner omega",error);return 1;}
                 }
@@ -675,7 +710,7 @@ int finaliseGasTrialSources(GasHostState* s,const GasHostPolicy::Time dt,
                 const auto error=cudaGetLastError();
                 if(error!=cudaSuccess){setLastError("post-transport gas chemistry",error);return 1;}
             }
-            recoverGasPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement,ugkwp::gasTransportPreparation(*s));
+            recoverGasPrimitivesKernel<<<grid,block,0,s->gasCaptureStream>>>(s->deviceState,nativeRefinement);
             const auto error=cudaGetLastError();
             if(error!=cudaSuccess){setLastError("post-source mixture recovery",error);return 1;}
             if(validateGasTrialState<TrialPolicy>(s,nativeRefinement,0)!=0)return 1;

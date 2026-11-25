@@ -1,4 +1,3 @@
-#include "../../../common/gasTransport/GasTransportPreparation.H"
 #include "gpu/GasTimeStepControl.H"
 #include "../../../common/thermal/ParticleRadiationApi.H"
 #include "../../../common/gpu/WorkPlan.H"
@@ -125,8 +124,6 @@ struct Backend {
     Real gasBoundaryLayerStageTime=0;
     Real preparedWallTime=0,preparedWallDt=0;bool preparedWallReady=false;
     SharedGasDeviceView* deviceState=nullptr;cudaStream_t gasCaptureStream=nullptr;
-    Buffer<ugkwp::GasTransportPreparation> windowTransportPreparation;
-    ugkwp::GasTransportPreparation* gasCourantPreparation=nullptr;
     cudaGraph_t gasGraph=nullptr;cudaGraphExec_t gasGraphExec=nullptr;
     cudaGraphNode_t gasGraphIntervalNode=nullptr;cudaKernelNodeParams gasGraphIntervalParams{};
     ugkwp::GasResidentInterval gasGraphLastInterval{};
@@ -687,7 +684,7 @@ static bool currentGasCourant(Backend& b,Real referenceDt,transport::GasCourantM
         value=reduced.value;
         const auto code=cudaGetLastError();if(code!=cudaSuccess){transport::setLastError("gas Courant maximum reduction",code);return 1;}return 0;
     };
-    return transport::computeGasCurrentCourant(&view,referenceDt,b.microTime,b.fixedCellBlockThreads,b.fixedFaceBlockThreads,b.gasCaptureStream,result,maximum,b.options.limitDiffusiveTimeStep)==0;
+    return transport::computeGasCurrentCourant(&view,referenceDt,b.microTime,b.fixedCellBlockThreads,b.fixedFaceBlockThreads,b.gasCaptureStream,result,maximum)==0;
 }
 static bool advanceGasMicrostepImpl(Backend& b,Real cap,GasMicroReport& report,std::string& error){
     report={};report.recoverable=false;

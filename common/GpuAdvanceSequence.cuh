@@ -27,13 +27,11 @@ template<class State> void collectAdvanceDirectoryMirror(State& state,const ugkp
     else{state.useSplitPreDirectory=owner.splitActive;state.preInjectionSegmentActive=owner.injectionActive;}
 }
 void releaseAdvanceSequence(DeviceState* state){delete state->advanceGraph;state->advanceGraph=nullptr;}
-void buildAdvanceSequence(DeviceState* state,bool withCourant,bool withDiffusion){
+void buildAdvanceSequence(DeviceState* state,bool withCourant){
     using namespace ugkp::gpu;using namespace executionGraphDetail;
     auto& owner=*state->advanceGraph;
     struct Restore {DeviceState* target;DeviceState saved;~Restore(){*target=saved;}} restore{state,*state};
     state->advanceRecording=true;state->gasCaptureStream=owner.stream;
-    state->gasCourantPreparation=withCourant&&withDiffusion&&ugkwp::gasTransportPreparationEligible(*state)
-        ?owner.transportPreparation:nullptr;
     owner.clearGraph();checked(cudaGraphCreate(&owner.graph,0));
     const bool split=state->particlesMayBePresent && state->csrCellLocalPathEnabled && !owner.pureGas;
     cudaGraphConditionalHandle loop,initial,retained{};
@@ -42,7 +40,6 @@ void buildAdvanceSequence(DeviceState* state,bool withCourant,bool withDiffusion
     if(split)checked(cudaGraphConditionalHandleCreate(&retained,owner.graph,0,cudaGraphCondAssignDefault));
     const auto start=appendRecorded(owner.graph,{},owner.stream,[&]{
         checked(cudaMemcpyAsync(owner.request,owner.hostRequest,sizeof(AdvanceRequest),cudaMemcpyHostToDevice,owner.stream));
-        checked(cudaMemsetAsync(owner.transportPreparation,0,sizeof(*owner.transportPreparation),owner.stream));
         beginAdvanceSubmission<<<1,1,0,owner.stream>>>(owner.state,owner.request,state->diagnostics,loop);
     });
     cudaGraph_t body=nullptr;const auto advanced=addWhile(owner.graph,loop,{start},body);
@@ -56,8 +53,7 @@ void buildAdvanceSequence(DeviceState* state,bool withCourant,bool withDiffusion
         cudaGraph_t cfl=nullptr;
         selectionInputs.push_back(addIf(body,refresh,{prepared},cfl));
         appendRecorded(cfl,{},owner.stream,[&]{
-            if(computeGasCurrentCourantField(state,1.0,0.0,state->fixedCellBlockThreads,state->fixedFaceBlockThreads,owner.stream,
-                withDiffusion,state->gasCourantPreparation))
+            if(computeGasCurrentCourantField(state,1.0,0.0,state->fixedCellBlockThreads,state->fixedFaceBlockThreads,owner.stream))
                 throw std::runtime_error(lastError);
             advanceMaximum(state->gasFluxPositivityScale,state->nCells,state->reductionBlockThreads,owner);
             if(state->gasSpecies.mode!=ugkwp::GasMode::SingleLegacy&&UGKP_ADVANCE_TRIAL_POLICY::validate(state))
@@ -123,7 +119,6 @@ void buildAdvanceSequence(DeviceState* state,bool withCourant,bool withDiffusion
     checked(cudaGraphInstantiateWithFlags(&owner.executable,owner.graph,0));
     owner.epoch=state->particleGraphEpoch;
     owner.includesCourant=withCourant;
-    owner.includesDiffusion=withDiffusion;
 }
 }
 extern "C" int ugkwpGpuResidentStrictConfigureAdvance(void* handle,const ugkp::gpu::AdvanceState* initial,int pureGas){
@@ -155,9 +150,8 @@ extern "C" int ugkwpGpuResidentStrictEnqueueAdvance(void* handle,const ugkp::gpu
         if(owner.pending)throw std::logic_error("device advance result lease is still active");
         if(!(request->boundary==request->boundary)||!request->maximumSteps||request->courantInterval<1)
             throw std::invalid_argument("invalid device advance boundary or step budget");
-        if(!owner.executable||owner.epoch!=state->particleGraphEpoch||(request->adjustTimeStep&&!owner.includesCourant)
-            ||owner.includesDiffusion!=request->limitDiffusiveTimeStep)
-            buildAdvanceSequence(state,request->adjustTimeStep||owner.includesCourant,request->limitDiffusiveTimeStep);
+        if(!owner.executable||owner.epoch!=state->particleGraphEpoch||(request->adjustTimeStep&&!owner.includesCourant))
+            buildAdvanceSequence(state,request->adjustTimeStep||owner.includesCourant);
         auto bounded=*request;
         if(bounded.progressInterval)
             bounded.maximumSteps=std::min(bounded.maximumSteps,std::uint64_t(advanceProgressCapacity)*bounded.progressInterval);

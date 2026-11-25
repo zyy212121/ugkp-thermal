@@ -57,7 +57,6 @@ int main(int argc,char** argv) {
         }
         chmt::GasExecutionOptions options;
         options.adjustTimeStep=input.gasTime.adjustTimeStep;
-        options.limitDiffusiveTimeStep=input.gasTime.limitDiffusiveTimeStep;
         options.fixedDeltaT=time.controlDict().lookup<Foam::scalar>("deltaT");
         options.fluxScheme=input.gasNumerics.gasFluxScheme;options.reconstruction=input.gasNumerics.gasReconstruction;
         options.limiter=input.gasNumerics.gasLimiter;options.timeIntegrator=input.gasNumerics.gasTimeIntegrator;

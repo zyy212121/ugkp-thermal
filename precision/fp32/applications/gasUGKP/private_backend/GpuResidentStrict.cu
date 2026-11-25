@@ -10,7 +10,6 @@
 #include "GpuParticleDirectoryGraph.H"
 #include "GpuCsrConditionalGraph.H"
 #include "gasTransport/GasResidentInterval.H"
-#include "gasTransport/GasTransportPreparation.H"
 #include "gasBoundary/Resident.cuh"
 #include "gasBoundary/Evaluate.H"
 #include "gasTransport/MixturePorosity.H"
@@ -271,7 +270,6 @@ struct DeviceState
     ugkp::gpu::CsrChoiceGraphs csrChoiceGraphs;
     ugkp::gpu::CsrAutomaticRuntime* csrAutomaticRuntime=nullptr;
     ugkwp::GasResidentInterval gasResidentInterval;
-    ugkwp::GasTransportPreparation* gasCourantPreparation=nullptr;
     cudaGraphNode_t gasGraphIntervalNode=nullptr;
     cudaKernelNodeParams gasGraphIntervalParams{};
     ugkwp::GasResidentInterval gasGraphLastInterval{};

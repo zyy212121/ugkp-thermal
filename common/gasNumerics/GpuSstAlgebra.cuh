@@ -83,22 +83,6 @@ template<class Real> UGKWP_SST_HD inline Real sstMinimum(const Real a, const Rea
 UGKWP_SST_HD inline GpuReal sstMinimum(const GpuReal a, const GpuReal b)
 { return sstMinimum<GpuReal>(a, b); }
 
-inline constexpr int sstInternalDiffusionLimit = 2;
-
-template<class Real> UGKWP_SST_HD inline Real sstBoundedDiffusionGradient
-(
-    const Real corrected,
-    const Real twoPointGradient
-)
-{
-    if (!std::isfinite(corrected)) return corrected;
-    if (!std::isfinite(twoPointGradient)) return twoPointGradient;
-    const Real limit = Real(sstInternalDiffusionLimit)*twoPointGradient;
-    const Real lower = sstMinimum(Real(0), limit);
-    const Real upper = sstMaximum(Real(0), limit);
-    return sstMinimum(sstMaximum(corrected, lower), upper);
-}
-
 template<class Real> UGKWP_SST_HD inline Real sstPositive(const Real value, const Real floor)
 {
     return sstMaximum(value, floor);

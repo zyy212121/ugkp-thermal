@@ -1,5 +1,4 @@
 #pragma once
-#include "gasTransport/GasTransportPreparation.H"
 #include "CompressibleSstWallFace.cuh"
 #include "gasTransport/GasPseudoTime.H"
 #include <cfloat>
@@ -224,18 +223,6 @@ __global__ void computeSstFaceFluxKernel(GasState* sp)
             ownerWeight,
             geometry
         );
-        if (s.sstWallTreatment == 0)
-        {
-            const GPU_OPERATOR_REAL inverseDistance = s.deltaCoeffs[f];
-            snGradK = ugkwp::sstBoundedDiffusionGradient
-            (
-                snGradK, inverseDistance*(kExterior - s.k[own])
-            );
-            snGradOmega = ugkwp::sstBoundedDiffusionGradient
-            (
-                snGradOmega, inverseDistance*(omegaExterior - s.omega[own])
-            );
-        }
     }
     else
     {
@@ -435,8 +422,7 @@ __device__ GPU_OPERATOR_REAL sstKProductionForCell
 #include "SstSourceAdvance.inc"
 
 template<class GasState>
-__global__ void computeGasCourantFieldKernel(GasState* sp,const GPU_OPERATOR_TIME dt,const bool nativeRefinement=false,
-    bool limitDiffusiveTimeStep=false,const bool* deviceDiffusionLimit=nullptr)
+__global__ void computeGasCourantFieldKernel(GasState* sp,const GPU_OPERATOR_TIME dt,const bool nativeRefinement=false)
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
@@ -476,9 +462,7 @@ __global__ void computeGasCourantFieldKernel(GasState* sp,const GPU_OPERATOR_TIM
         f >= s.nInternalFaces
      &&
         (
-            (s.riemannBoundaryKind[f] == 1 && !ugkwp::gasMovingGeometry(s)
-                &&(!(deviceDiffusionLimit?*deviceDiffusionLimit:limitDiffusiveTimeStep)
-                    ||!s.riemannBoundaryTFix[f]))
+            (s.riemannBoundaryKind[f] == 1 && !ugkwp::gasMovingGeometry(s))
          || s.riemannBoundaryKind[f] == 3
          || s.riemannBoundaryKind[f] == 4
         )
@@ -548,11 +532,7 @@ __global__ void computeGasCourantFieldKernel(GasState* sp,const GPU_OPERATOR_TIM
         fabs(unLeft) + aLeft,
         fabs(unRight) + aRight
     );
-    GPU_OPERATOR_REAL signal=f>=s.nInternalFaces&&s.riemannBoundaryKind[f]==1
-        &&!ugkwp::gasMovingGeometry(s)?GPU_OPERATOR_R(0):spectralRadius;
-    if(deviceDiffusionLimit?*deviceDiffusionLimit:limitDiffusiveTimeStep)
-        signal+=gasDiffusiveSignal(s,f,own,coupledFaceNeighbour(s,f),left,right,aLeft,aRight);
-    const GPU_OPERATOR_REAL amaxSf = signal*area;
+    const GPU_OPERATOR_REAL amaxSf = spectralRadius*area;
 
     s.gasPhiRhoE[f] = nativeRefinement && !ugkwp::gasFinite(amaxSf) ? OfGreat : amaxSf;
     if(!ugkwp::gasFinite(amaxSf))ugkwp::gasRecordFaceFailure(s,f,ugkwp::GasTransportCode::NonFiniteState);
@@ -563,9 +543,7 @@ __global__ void computeGasConvectiveCourantByCellKernel
 (
     GasState* sp,
     const GPU_OPERATOR_TIME dt,
-    const bool nativeRefinement=false,
-    ugkwp::GasTransportPreparation* preparation=nullptr,unsigned preparedFields=0,
-    GPU_OPERATOR_TIME preparationTime=0
+    const bool nativeRefinement=false
 )
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
@@ -576,10 +554,6 @@ __global__ void computeGasConvectiveCourantByCellKernel
         return;
     }
 
-    if(c==0 && preparation){
-        preparation->fields=preparedFields;
-        preparation->time=double(ugkwp::gasResidentStageTime(s,preparationTime));
-    }
     GPU_OPERATOR_REAL stabilityVolume=s.V[c];
     if(ugkwp::gasMovingGeometry(s))
     {
@@ -616,7 +590,7 @@ __global__ void computeGasConvectiveCourantByCellKernel
 }
 
 template<class GasState>
-__global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERATOR_TIME stepDt, const bool nativeRefinement=false,ugkwp::GasTransportPreparation* preparation=nullptr)
+__global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERATOR_TIME stepDt, const bool nativeRefinement=false)
 {
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
@@ -628,7 +602,6 @@ __global__ void applyGasFluxDivergenceByCellKernel(GasState* sp, const GPU_OPERA
         return;
     }
 
-    if(c==0 && preparation)preparation->fields=0;
     const GPU_OPERATOR_TIME dt = ugkwp::gasCellTimeStep(s, c, stepDt);
 
     GPU_OPERATOR_REAL dRho = GPU_OPERATOR_R(0.0);
@@ -1135,9 +1108,8 @@ __device__ void recoverGasPrimitiveCell(GasState& s, const int c, const bool nat
 }
 
 template<class GasState>
-__global__ void recoverGasPrimitivesKernel(GasState* sp, const bool nativeRefinement=false,const ugkwp::GasTransportPreparation* preparation=nullptr)
+__global__ void recoverGasPrimitivesKernel(GasState* sp, const bool nativeRefinement=false)
 {
-    if(ugkwp::gasTransportPrepared(*sp,preparation,ugkwp::GasTransportPreparation::primitive))return;
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;

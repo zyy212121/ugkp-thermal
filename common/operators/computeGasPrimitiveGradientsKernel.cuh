@@ -1,6 +1,5 @@
 
 #pragma once
-#include "gasTransport/GasTransportPreparation.H"
 #include "gasWall/WallFamily.H"
 #include "gasStencilDiagnostics.cuh"
 #include "gasTransport/GasGeometryValidation.H"
@@ -10,9 +9,8 @@ __global__ void computeGasPrimitiveGradientsKernel
 (
     GasState* sp,
     const bool nativeRefinement=false
-,const ugkwp::GasTransportPreparation* preparation=nullptr)
+)
 {
-    if(ugkwp::gasTransportPrepared(*sp,preparation,ugkwp::GasTransportPreparation::gradient))return;
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;
@@ -295,9 +293,8 @@ __device__ void applySstWallFunctionStateCell(GasState& s, const int c, const bo
 }
 
 template<class GasState>
-__global__ void applySstWallFunctionStateKernel(GasState* sp, const bool nativeRefinement=false,const ugkwp::GasTransportPreparation* preparation=nullptr)
+__global__ void applySstWallFunctionStateKernel(GasState* sp, const bool nativeRefinement=false)
 {
-    if(ugkwp::gasTransportPrepared(*sp,preparation,ugkwp::GasTransportPreparation::sstPrimitive))return;
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     applySstWallFunctionStateCell
     (
@@ -377,9 +374,8 @@ __device__ void recoverSstPrimitiveCell(GasState& s, const int c, const bool nat
 }
 
 template<class GasState>
-__global__ void recoverSstPrimitivesKernel(GasState* sp, const bool nativeRefinement=false,const ugkwp::GasTransportPreparation* preparation=nullptr)
+__global__ void recoverSstPrimitivesKernel(GasState* sp, const bool nativeRefinement=false)
 {
-    if(ugkwp::gasTransportPrepared(*sp,preparation,ugkwp::GasTransportPreparation::sstPrimitive))return;
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     recoverSstPrimitiveCell(*sp, blockIdx.x*blockDim.x + threadIdx.x,nativeRefinement);
 }

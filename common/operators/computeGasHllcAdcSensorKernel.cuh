@@ -1,11 +1,9 @@
 #pragma once
-#include "gasTransport/GasTransportPreparation.H"
 #include "GpuCellNeighbour.cuh"
 
 template<class GasState>
-__global__ void computeGasHllcAdcSensorKernel(GasState* sp,const ugkwp::GasTransportPreparation* preparation=nullptr)
+__global__ void computeGasHllcAdcSensorKernel(GasState* sp)
 {
-    if(ugkwp::gasTransportPrepared(*sp,preparation,ugkwp::GasTransportPreparation::sensor))return;
     if(!ugkp::diagnostics::blockMayProceed(sp->diagnostics))return;
     GasState& s = *sp;
     const int c = blockIdx.x*blockDim.x + threadIdx.x;

@@ -5,7 +5,6 @@
 namespace ugkp { namespace solverControls {
 struct GasTimeStepControls {
     bool adjustTimeStep=false;
-    Foam::Switch limitDiffusiveTimeStep=false;
     Foam::scalar maxCo=.5,maxDeltaT=Foam::GREAT;
     Foam::label courantUpdateInterval=Foam::GpuSchedulingConfiguration{}.courantUpdateInterval;
     Foam::scalar maximumTimeStepGrowth=Foam::GpuSchedulingConfiguration{}.maxDeltaTGrowth;
@@ -21,7 +20,7 @@ inline GasTimeStepControls readGasTimeStepControls(const Foam::Time& time,
     c.adjustTimeStep=readAdaptiveSwitch(time.controlDict(),c.adjustTimeStep);
     Foam::Info << "TIME_CONTROL adjustTimeStep=" << c.adjustTimeStep
         << " source=system/controlDict readOnce=1" << Foam::endl;
-    UGKP_GAS_TIME(maxCo);UGKP_GAS_TIME(limitDiffusiveTimeStep);UGKP_GAS_TIME(maxDeltaT);
+    UGKP_GAS_TIME(maxCo);UGKP_GAS_TIME(maxDeltaT);
     UGKP_GAS_TIME(courantUpdateInterval);UGKP_GAS_TIME(maximumTimeStepGrowth);
 #undef UGKP_GAS_TIME
     return c;

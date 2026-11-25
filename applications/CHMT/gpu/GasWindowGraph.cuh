@@ -216,23 +216,11 @@ ugkp::gpu::ExecutionGraphNode appendGasWindowBatch(Backend& b,ugkp::gpu::Executi
     using namespace ugkp::gpu;using namespace executionGraphDetail;
     if(!b.windowBatchPrepared)throw std::logic_error("prepare gas window storage before appending its graph");
     const auto stream=b.gasCaptureStream;const auto frame=b.windowBatch.storage;
-    struct RestorePreparation {
-        Backend& backend;ugkwp::GasTransportPreparation* previous;
-        ~RestorePreparation(){backend.gasCourantPreparation=previous;}
-    } restorePreparation{b,b.gasCourantPreparation};
-    if(b.options.adjustTimeStep&&b.options.limitDiffusiveTimeStep&&!b.movingWindow
-        &&ugkwp::gasTransportPreparationEligible(b)){
-        if(!b.windowTransportPreparation.resize(1,b.executionFault))
-            throw std::runtime_error(b.executionFault.message);
-        b.gasCourantPreparation=b.windowTransportPreparation.data();
-    }else b.gasCourantPreparation=nullptr;
-
     const int count=int(b.interfaceRecords.size());
     const int reductionBlock=256,parts=(b.nCells+reductionBlock-1)/reductionBlock;
     cudaGraphConditionalHandle loop,refresh,physical;
     for(auto handle:{&loop,&refresh,&physical})checked(cudaGraphConditionalHandleCreate(handle,graph,0,cudaGraphCondAssignDefault));
     const auto initialized=appendRecorded(graph,dependency?std::vector<cudaGraphNode_t>{dependency}:std::vector<cudaGraphNode_t>{},stream,[&]{
-        if(b.gasCourantPreparation)checked(cudaMemsetAsync(b.gasCourantPreparation,0,sizeof(*b.gasCourantPreparation),stream));
         gas_window_detail::begin<<<1,1,0,stream>>>(b.deviceState,b.windowProgress.data(),b.windowControls.data(),loop);
     });
     cudaGraph_t body=nullptr;const auto completed=addWhile(graph,loop,{initialized},body);
@@ -243,8 +231,7 @@ ugkp::gpu::ExecutionGraphNode appendGasWindowBatch(Backend& b,ugkp::gpu::Executi
     const auto referenceGeometry=appendGasWindowGeometry(b,body,requested,false);
     cudaGraph_t cfl=nullptr;const auto refreshed=addIf(body,refresh,{referenceGeometry},cfl);
     appendRecorded(cfl,{},stream,[&]{
-        if(transport::computeGasCurrentCourantField(&b,Real(1),Real(0),b.fixedCellBlockThreads,b.fixedFaceBlockThreads,stream,
-            b.options.limitDiffusiveTimeStep,b.gasCourantPreparation))
+        if(transport::computeGasCurrentCourantField(&b,Real(1),Real(0),b.fixedCellBlockThreads,b.fixedFaceBlockThreads,stream))
             throw std::runtime_error(transport::lastError);
         gas_window_detail::courantParts<<<parts,reductionBlock,reductionBlock*sizeof(GasWindowCourant),stream>>>(
             b.storage.hostView().gasFluxPositivityScale,b.gasSpecies.cellStatus,b.nCells,b.windowCourant.data()+(parts==1?parts:0));
