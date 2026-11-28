@@ -12,7 +12,7 @@ s=s.replace('int main(int argc,char**argv){','extern "C" void* makeCavityOwner()
 s+=r'''
 extern "C" void resetCavityOwner(void* handle,double t0,double t1,double c0,double c1,int csr){
  auto* s=asState(handle);s->TpMin=100;s->TpMax=5000;s->csrCellLocalPathEnabled=csr;s->preBaseDirectoryReady=csr;
- const int count=3,cell[3]={0,0,0},status[3]={1,1,1},offset[2]={0,3};const unsigned char wall[3]={0,0,1};
+ const int count=3,cell[3]={0,0,0},status[3]={1,1,1},offset[2]={0,3};const unsigned char wall[3]={0,0,Foam::gpuThermal::particleWallTransientDeposit};
  const double mass[3]={.3,.7,10},temp[3]={t0,t1,3500},carry[3]={c0,c1,0},diameter[3]={.001,.001,.001};
  CHECK(copyToDevice(s->particleCountDevice,&count,1,"count")==0);CHECK(copyToDevice(s->pCellId,cell,3,"cell")==0);
  CHECK(copyToDevice(s->pStatus,status,3,"status")==0);CHECK(copyToDevice(s->pStuck,wall,3,"wall")==0);

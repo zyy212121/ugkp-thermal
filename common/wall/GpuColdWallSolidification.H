@@ -1,3 +1,4 @@
+#include "wall/ParticleWallState.H"
 #include "GpuPrecisionTypes.H"
 #ifndef GPU_THERMAL_GPU_COLD_WALL_SOLIDIFICATION_H
 #define GPU_THERMAL_GPU_COLD_WALL_SOLIDIFICATION_H
@@ -21,18 +22,8 @@ namespace Foam
 namespace gpuThermal
 {
 
-constexpr int coldWallAxialNodeCount = 8;
-constexpr int coldWallRadialRingCount = 8;
 constexpr GpuReal coldWallPi =
     GPU_R(3.141592653589793238462643383279502884);
-
-enum ParticleWallInteractionModel : unsigned char
-{
-    particleWallInteractionNone = 0,
-    particleWallReboundContact = 1,
-    particleWallSolidifyingDeposition = 3,
-    particleWallColdWall2D = 4
-};
 
 struct ColdWallSolidificationParameters
 {

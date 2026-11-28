@@ -44,7 +44,7 @@ __global__ void countResponseParticles(ParticleRadiationResponseView view,int ce
     if(diagnostics::hasFatal(context))return;
     view=resolveParticleRadiationResponse(view);
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<*view.count;i+=blockDim.x*gridDim.x){
-        if(view.status[i]!=1||view.wallState[i]!=0)continue;
+        if(!radiationParticleEligible(view.status[i],view.wallState[i]))continue;
         const int c=view.cell[i];if(c<0||c>=cells){
             using namespace diagnostics;recordFatal(context,makeRecord(Code::InvalidIndex,37002,0,0,
                 EntityKind::Particle,i,-1,c,cells,0,Quantity::Index));return;
@@ -56,7 +56,7 @@ __global__ void indexResponseParticles(ParticleRadiationResponseView view,int* c
     if(diagnostics::hasFatal(context))return;
     view=resolveParticleRadiationResponse(view);
     for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<*view.count;i+=blockDim.x*gridDim.x){
-        if(view.status[i]!=1||view.wallState[i]!=0)continue;
+        if(!radiationParticleEligible(view.status[i],view.wallState[i]))continue;
         indices[atomicAdd(cursor+view.cell[i],1)]=i;
     }
 }
@@ -238,13 +238,14 @@ RadiationThermalCouplingDeviceView ParticleRadiationMaterial::beginAnchoredWindo
   d.anchors.reserve(std::max(1,n));
   if(!d.preparingParent)anchorLumped<<<(n+1+width-1)/width,width,0,d.stream>>>(n,v.mass,v.temperature,d.anchorOffsets.ptr,d.anchors.ptr);
  }
- if(n&&!d.preparingParent){anchorInitialize<<<(n+width-1)/width,width,0,d.stream>>>(n,d.anchorParcels,d.anchorCp,d.anchors.ptr,d.anchorOffsets.ptr,d.anchorMinimum,d.anchorMaximum,d.anchorDt,d.optical.deviceTable(),v,d.arrays());}
+ if(n&&!d.preparingParent){anchorInitialize<<<(n+width-1)/width,width,0,d.stream>>>(n,d.anchorParcels,d.anchorCp,d.anchors.ptr,d.anchorOffsets.ptr,d.anchorMinimum,d.anchorMaximum,d.anchorDt,d.optical.deviceTable(),v,d.arrays(),input.response);}
  if(!d.preparingParent)checkedMaterial(cudaMemsetAsync(d.maximumMaterialResidual.ptr,0,sizeof(RadiationReal),d.stream));checkedMaterial(cudaGetLastError());d.anchorActive=true;d.resultReady=false;d.escapedReady=false;
 
 
  d.windowDescriptor.reserve(1);
  AnchorWindowDescriptor window{n,d.anchorParcels,d.anchorCp,d.anchorMinimum,d.anchorMaximum,d.anchorDt,d.anchors.ptr,d.anchorOffsets.ptr,d.optical.deviceTable(),d.arrays(),d.deviceElapsed,d.diagnostics};
- if(borrowEntries){window.residentEntries=input.response;window.residentIndices=d.responseIndices.ptr;}
+ window.residentEntries=input.response;
+ if(borrowEntries)window.residentIndices=d.responseIndices.ptr;
  d.transfer.upload(d.windowDescriptor.ptr,&window,sizeof(window));
  const std::vector<const void*> pointers{
   d.windowDescriptor.ptr,d.anchors.ptr,d.anchorOffsets.ptr,d.anchorDomains.ptr,

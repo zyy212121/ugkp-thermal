@@ -15,21 +15,22 @@ __global__ void anchorAggregate(RadiationParticleDeviceView p,int n,const Radiat
 __global__ void anchorDirectory(ParticleRadiationResponseView borrowed,int cells,const int* fallback,int* offsets){auto v=resolveParticleRadiationResponse(borrowed);int c=blockIdx.x*blockDim.x+threadIdx.x;if(c<=cells)offsets[c]=v.cellOffsets?v.cellOffsets[c]:fallback[c];}
 __global__ void anchorLumped(int n,const RadiationReal* mass,const RadiationReal* t,int* offsets,RadiationEntryParticle<GpuReal>* entries){int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>n)return;offsets[c]=c;if(c==n)return;RadiationEntryParticle<GpuReal> a{};a.mass=mass[c];a.thermal.temperature=t[c];a.eligible=mass[c]>0;entries[c]=a;}
 __device__ RadiationReal anchorKappa(MieOpticalTableView table,RadiationReal eps,RadiationReal d,RadiationReal t,RadiationReal cutoff){if(!(eps>cutoff)||!(d>0))return 0;return RadiationReal(3)*eps*mieBilinear(table.absorption,table.temperatures,mieLogBracket(table.diameter,table.diameters,d),mieLinearBracket(table.temperature,table.temperatures,t))/(RadiationReal(2)*d);}
-template<class Law,class Entries> __device__ void anchorInitCell(int c,Law law,Entries entries,int count,RadiationReal lo,RadiationReal hi,RadiationReal dt,MieOpticalTableView table,RadiationDeviceView v,AnchorArrays a){
- AnchoredParticleRadiationResponse<RadiationReal,Law,Entries> r{entries,count,lo,hi,law};auto domain=r.domain();a.domain[c]=domain;const auto t=domain.mass>0?domain.entryTemperature:v.temperature[c];a.temperature[c]=a.searchTemperature[c]=t;a.request[c]=a.actual[c]=a.fraction[c]=a.searchRequest[c]=a.searchActual[c]=0;
+template<class Law,class Entries> __device__ void anchorInitCell(int c,Law law,Entries entries,int count,RadiationReal lo,RadiationReal hi,RadiationReal dt,MieOpticalTableView table,RadiationDeviceView v,AnchorArrays a,ugkwp::ParticleCaloric coldCaloric={}){
+ AnchoredParticleRadiationResponse<RadiationReal,Law,Entries> r{entries,count,lo,hi,law,coldCaloric};auto domain=r.domain();a.domain[c]=domain;const auto t=domain.mass>0?domain.entryTemperature:v.temperature[c];a.temperature[c]=a.searchTemperature[c]=t;a.request[c]=a.actual[c]=a.fraction[c]=a.searchRequest[c]=a.searchActual[c]=0;
  auto plus=bandEmissionDerivative(table.temperature,table.band,table.temperatures,t,true),minus=bandEmissionDerivative(table.temperature,table.band,table.temperatures,t,false);auto dp=anchoredTemperatureDerivative(r,true),dm=anchoredTemperatureDerivative(r,false);
  a.B0[c]=plus.B;a.plus[c]=dp.available?plus.derivative*dp.derivative:0;a.minus[c]=dm.available?minus.derivative*dm.derivative:0;a.slope[c]=a.plus[c];auto l=linearizeAnchoredRadiation(RadiationReal(0),plus.B,plus.B,a.slope[c],dt,v.volume[c]*anchorKappa(table,v.epsilon[c],v.diameter[c],t,a.cutoff));a.emission[c]=l.linearizedEmission;a.feedback[c]=l.thermalFeedback;a.residual[c]=a.relative[c]=0;a.valid[c]=l.valid;a.inDomain[c]=1;
  const auto initial=r.evaluate(RadiationReal(0),domain);a.temperatureGrid[c]=initial.temperatureGridAllowance;a.effectiveRelative[c]=a.allowedResidual[c]=0;a.usedTemperatureGrid[c]=0;
 }
 __global__ void anchorInitialize(int n,bool parcels,RadiationReal cp,const RadiationEntryParticle<GpuReal>* entries,
- const int* offsets,RadiationReal lo,RadiationReal hi,RadiationReal dt,MieOpticalTableView table,RadiationDeviceView v,AnchorArrays a){
+ const int* offsets,RadiationReal lo,RadiationReal hi,RadiationReal dt,MieOpticalTableView table,RadiationDeviceView v,AnchorArrays a,ParticleRadiationResponseView response){
  const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=n)return;
  const int count=offsets[c+1]-offsets[c];entries+=offsets[c];
- if(parcels)anchorInitCell(c,ugkwp::ParticleCaloric{},entries,count,lo,hi,dt,table,v,a);
+ if(parcels)anchorInitCell(c,ugkwp::ParticleCaloric{},entries,count,lo,hi,dt,table,v,a,
+     resolveParticleRadiationResponse(response).coldProfiles.caloric);
  else anchorInitCell(c,AnchorCp{cp},entries,count,lo,hi,dt,table,v,a);
 }
-template<class Law,class Entries> __device__ void anchorUpdateCell(int c,Law law,Entries entries,int count,RadiationReal lo,RadiationReal hi,RadiationReal dt,MieOpticalTableView table,RadiationThermalIterationDeviceView v,AnchorArrays a,diagnostics::DeviceContext* context){
- AnchoredParticleRadiationResponse<RadiationReal,Law,Entries> r{entries,count,lo,hi,law};
+template<class Law,class Entries> __device__ void anchorUpdateCell(int c,Law law,Entries entries,int count,RadiationReal lo,RadiationReal hi,RadiationReal dt,MieOpticalTableView table,RadiationThermalIterationDeviceView v,AnchorArrays a,diagnostics::DeviceContext* context,ugkwp::ParticleCaloric coldCaloric={}){
+ AnchoredParticleRadiationResponse<RadiationReal,Law,Entries> r{entries,count,lo,hi,law,coldCaloric};
  const auto domain=a.domain[c];const auto oldQ=a.searchRequest[c];
  const auto oldT=a.searchTemperature[c],G=v.incident[c];
  const auto slope=G>=a.B0[c]?a.plus[c]:a.minus[c];
@@ -115,19 +116,22 @@ __global__ void anchorInitializeWindow(const AnchorWindowDescriptor* window,Radi
  const auto& w=*window;const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=w.cells)return;
  const RadiationReal dt=w.deviceElapsed?RadiationReal(*w.deviceElapsed):w.dt;
  const int begin=w.offsets[c],count=w.offsets[c+1]-begin;
- if(w.residentEntries.enabled)
-     anchorInitCell(c,ugkwp::ParticleCaloric{},residentAnchorEntries(w,begin),count,w.minimum,w.maximum,dt,w.table,v,w.arrays);
- else
+ if(w.residentEntries.enabled){
+     const auto entries=residentAnchorEntries(w,begin);
+     anchorInitCell(c,ugkwp::ParticleCaloric{},entries,count,w.minimum,w.maximum,dt,w.table,v,w.arrays,entries.view.coldProfiles.caloric);
+ }else
      anchorInitCell(c,AnchorCp{w.cp},w.entries+begin,count,w.minimum,w.maximum,dt,w.table,v,w.arrays);
 }
 __global__ void anchorUpdate(const AnchorWindowDescriptor* window,RadiationThermalIterationDeviceView v){
  const auto& w=*window;const int c=blockIdx.x*blockDim.x+threadIdx.x;if(c>=w.cells)return;
  const RadiationReal dt=w.deviceElapsed?RadiationReal(*w.deviceElapsed):w.dt;
  const int begin=w.offsets[c],count=w.offsets[c+1]-begin;
- if(w.residentEntries.enabled)
-     anchorUpdateCell(c,ugkwp::ParticleCaloric{},residentAnchorEntries(w,begin),count,w.minimum,w.maximum,dt,w.table,v,w.arrays,w.diagnostics);
- else if(w.parcels)
-     anchorUpdateCell(c,ugkwp::ParticleCaloric{},w.entries+begin,count,w.minimum,w.maximum,dt,w.table,v,w.arrays,w.diagnostics);
+ if(w.residentEntries.enabled && !w.entries){
+     const auto entries=residentAnchorEntries(w,begin);
+     anchorUpdateCell(c,ugkwp::ParticleCaloric{},entries,count,w.minimum,w.maximum,dt,w.table,v,w.arrays,w.diagnostics,entries.view.coldProfiles.caloric);
+ }else if(w.parcels)
+     anchorUpdateCell(c,ugkwp::ParticleCaloric{},w.entries+begin,count,w.minimum,w.maximum,dt,w.table,v,w.arrays,w.diagnostics,
+         resolveParticleRadiationResponse(w.residentEntries).coldProfiles.caloric);
  else
      anchorUpdateCell(c,AnchorCp{w.cp},w.entries+begin,count,w.minimum,w.maximum,dt,w.table,v,w.arrays,w.diagnostics);
 }

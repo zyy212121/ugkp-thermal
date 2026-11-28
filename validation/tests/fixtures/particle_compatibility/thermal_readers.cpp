@@ -11,12 +11,25 @@
 template<class T>T finiteOr(T x,T y){return std::isfinite(x)?x:y;}
 template<class T>T clampMin(T x,T y){return std::max(x,y);}
 template<class T>T clampRange(T x,T lo,T hi){return std::min(std::max(x,lo),hi);}
+#if __has_include("gpu/ParticleRadiationProfile.H")
+#include "gpu/ParticleRadiationProfile.H"
+#else
 namespace Foam {namespace gpuThermal {constexpr int particleWallMobile=0;}}
+#endif
+#if __has_include("wall/ParticleColdProfileNodes.cuh")
+namespace Foam {namespace gpuWall {
+template<class State> int coldWallSlot(const State&,int i,bool) { return i; }
+}}
+using AxialEnthalpyStorage = GpuReal;
+#else
+using AxialEnthalpyStorage = float;
+#endif
 struct DeviceState {
  int nFaces=1,pStuck[1]{},compactPStuck[1]{},pStuckFaceId[1]{-1},compactPStuckFaceId[1]{-1},particleStuckCandidateMask[1]{};
  GpuReal pT[1]{300},compactPT[1]{300},pm[1]{2},pd[1]{.001},TpMin=200,TpMax=4000,particleDiameterFallback=.001;
  double pThermalEnthalpyResidual[1]{},compactPThermalEnthalpyResidual[1]{};
- float pColdNodeSpecificEnthalpy[8]{},pCold2DNodeSpecificEnthalpy[64]{},compactPColdNodeSpecificEnthalpy[8]{},compactPCold2DNodeSpecificEnthalpy[64]{};
+ AxialEnthalpyStorage pColdNodeSpecificEnthalpy[8]{},compactPColdNodeSpecificEnthalpy[8]{};
+ float pCold2DNodeSpecificEnthalpy[64]{},compactPCold2DNodeSpecificEnthalpy[64]{};
  Foam::gpuThermal::ColdWallSolidificationParameters coldWallSolidificationParameters{2327,20,1.16e6,3990,1273,5.9,.25,0,0,12};
 };
 #include "operators/particleSpecificHeatDevice.cuh"

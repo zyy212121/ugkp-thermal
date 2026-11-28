@@ -1,5 +1,6 @@
 #include "thermal/ParticleSurfaceState.H"
 #include "GpuPrecisionTypes.H"
+#include "wall/ParticleWallState.H"
 #ifndef GPU_THERMAL_GPU_FINITE_WALL_CONTACT_H
 #define GPU_THERMAL_GPU_FINITE_WALL_CONTACT_H
 
@@ -33,13 +34,6 @@ constexpr GpuReal defaultWallDensityKgM3 = GPU_R(1800.0);
 constexpr GpuReal defaultWallSpecificHeatJkgK = GPU_R(710.0);
 constexpr GpuReal defaultWallConductivityWmK = GPU_R(100.0);
 
-enum ParticleWallState : unsigned char
-{
-    particleWallMobile = 0,
-    particleWallDeposited = 1,
-    particleWallTransientRebound = 2,
-    particleWallTransientDeposit = 3
-};
 
 
 

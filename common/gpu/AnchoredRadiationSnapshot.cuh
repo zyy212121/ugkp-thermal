@@ -25,7 +25,9 @@ __host__ __device__ inline RadiationEntryParticle<GpuReal> readRadiationEntry(
     entry.mass=view.mass[particle];
     entry.thermal.temperature=view.temperature[particle];
     anchoredSnapshotDetail::copyCarry(entry.thermal,view,particle,0);
-    entry.eligible=view.status[particle]==1&&view.wallState[particle]==0;
+    const auto wallState=view.wallState[particle];
+    entry.eligible=radiationParticleEligible(view.status[particle],wallState);
+    if(entry.eligible)entry.profile=view.coldProfiles.profile(particle,wallState);
     return entry;
 }
 

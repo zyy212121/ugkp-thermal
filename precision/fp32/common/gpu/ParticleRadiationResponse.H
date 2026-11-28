@@ -2,6 +2,7 @@
 #include "RadiationPrecision.H"
 #include "../GpuParticleCaloric.H"
 #include "RadiationImplicitMath.H"
+#include "ParticleRadiationProfile.H"
 #if defined(__CUDACC__)
 #define UGKP_RAD_RESPONSE_HD __host__ __device__
 #else
@@ -18,6 +19,7 @@ struct ParticleRadiationResponseView {
     const GpuReal *mass=nullptr,*temperature=nullptr;
     RadiationReal minimumTemperature=0,maximumTemperature=0;
     const ParticleRadiationResponseView* deviceView=nullptr;
+    ParticleRadiationColdProfiles coldProfiles{};
 };
 UGKP_RAD_RESPONSE_HD inline ParticleRadiationResponseView resolveParticleRadiationResponse(ParticleRadiationResponseView view){
     return view.deviceView?*view.deviceView:view;
@@ -37,7 +39,12 @@ struct IndexedParticleRadiationResponse {
         const ugkwp::ParticleCaloric law{};CaloricRadiationSample result;
         const RadiationReal lower=law.enthalpy(current.minimumTemperature),upper=law.enthalpy(current.maximumTemperature);
         for(int slot=begin;slot<end;++slot){const int i=indices?indices[slot]:slot;
-            if(current.status[i]!=1||current.wallState[i]!=0)continue;
+            if(!radiationParticleEligible(current.status[i],current.wallState[i]))continue;
+            const auto profile=current.coldProfiles.profile(i,current.wallState[i]);
+            if(profile.nodes){
+                accumulateColdRadiationResponse(current,i,profile,RadiationReal(0),fraction,heating,result);
+                continue;
+            }
             const RadiationReal m=current.mass[i],base=law.enthalpy(RadiationReal(current.temperature[i]));
             const RadiationReal q=fraction*radiationSpecificCapacity(base,lower,upper,heating);
             result.mass+=m;result.temperature+=m*law.temperature(base+q);result.energy+=m*q;

@@ -2019,43 +2019,7 @@ __global__ void applyParticleRadiationAffineTemperatureKernel
     }
 }
 
-__global__ void prepareResidentRadiationHeat(DeviceState* sp,const double* heat,
-    Foam::gpuThermal::RadiationAffineTemperatureUpdate* requests){
-    auto& s=*sp;if(s.diagnostics&&s.diagnostics->fatalClaim)return;
-    const int cell=blockIdx.x*blockDim.x+threadIdx.x;if(cell>=s.nCells)return;
-    const double value=heat[cell];requests[cell]={value,0};
-    if(!std::isfinite(value)){using namespace ugkp::diagnostics;
-        recordFatal(s.diagnostics,makeRecord(Code::NonFinite,30910,0,0,EntityKind::Cell,cell,-1,value));}
-}
-__global__ void radiationEnthalpyCapacityKernel(DeviceState* sp,const Foam::gpuThermal::RadiationAffineTemperatureUpdate* requests) {
-    auto& s=*sp;if(s.diagnostics&&s.diagnostics->fatalClaim)return;
-    for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<*s.particleCountDevice;i+=blockDim.x*gridDim.x){
-        if(s.pStatus[i]!=1||s.pStuck[i]!=Foam::gpuThermal::particleWallMobile)continue;
-        const int c=s.pCellId[i];const auto law=particleCaloricDevice(s,i);
-        const double delta=ugkp::gpu::radiationSpecificCapacity(law.enthalpy(double(s.pT[i])),
-            law.enthalpy(s.TpMin),law.enthalpy(s.TpMax),requests[c].scale>=0,s.pThermalEnthalpyResidual[i]);
-        const double cap=fabs(delta);
-        atomicAdd(s.radiationMobileMass+c,double(s.pm[i])*fmax(0.,cap));
-    }
-}
-__global__ void radiationEnthalpyApplyKernel(DeviceState* sp,const Foam::gpuThermal::RadiationAffineTemperatureUpdate* requests,
-    const GpuReal* publicationFraction) {
-    auto& s=*sp;if(s.diagnostics&&s.diagnostics->fatalClaim)return;
-    for(int i=blockIdx.x*blockDim.x+threadIdx.x;i<*s.particleCountDevice;i+=blockDim.x*gridDim.x){
-        if(s.pStatus[i]!=1||s.pStuck[i]!=Foam::gpuThermal::particleWallMobile)continue;
-        const int c=s.pCellId[i];const auto law=particleCaloricDevice(s,i);
-        const double q=requests[c].scale,capacity=s.radiationMobileMass[c];
-
-        const double fraction=publicationFraction?publicationFraction[c]:(capacity>0?fmin(1.,fabs(q)/capacity):0.);
-        ugkwp::ParticleThermalCarry<GpuReal> candidate{s.pT[i],s.pThermalEnthalpyResidual[i]};
-        const double delta=ugkp::gpu::radiationSpecificCapacity(law.enthalpy(double(candidate.temperature)),
-            law.enthalpy(s.TpMin),law.enthalpy(s.TpMax),q>=0,candidate.specificEnthalpyResidual);
-        const auto publication=ugkwp::publishParticleThermalHeat(candidate,fraction*delta,s.TpMin,s.TpMax,law);
-        if(!publication.valid){asm("trap;");return;}
-        s.pT[i]=candidate.temperature;s.pThermalEnthalpyResidual[i]=candidate.specificEnthalpyResidual;
-        atomicAdd(s.radiationMobileTemperatureMass+c,double(s.pm[i])*publication.acceptedSpecificHeat);
-    }
-}
+#include "../GpuParticleRadiationEnergy.cuh"
 
 #include "operators/clearSolidCell.cuh"
 
@@ -2305,8 +2269,7 @@ __global__ void accumulateMobileParticleRadiationSumsAtomicKernel
     {
         if
         (
-            s.pStatus[i] != 1
-         || s.pStuck[i] != Foam::gpuThermal::particleWallMobile
+            !ugkp::gpu::radiationParticleEligible(s.pStatus[i],s.pStuck[i])
         )
         {
             continue;
@@ -2345,9 +2308,8 @@ __global__ void accumulatePackedMobileParticleRadiationSumsKernel
         (
             i < 0
          || i >= s.particleCapacity
-         || s.pStatus[i] != 1
          || s.pCellId[i] != c
-         || s.pStuck[i] != Foam::gpuThermal::particleWallMobile
+         || !ugkp::gpu::radiationParticleEligible(s.pStatus[i],s.pStuck[i])
         )
         {
             continue;
@@ -5174,6 +5136,7 @@ extern "C" __global__ void publishParticleRadiationResponseKernel(DeviceState* s
     *s.radiationResponseDevice={true,s.particleCapacity,s.particleCountDevice,s.pCellId,s.pStatus,
         s.csrCellLocalPathEnabled&&s.preBaseDirectoryReady?s.preBaseCellOffset:nullptr,
         s.pStuck,s.pm,s.pT,s.pThermalEnthalpyResidual,double(s.TpMin),double(s.TpMax)};
+    s.radiationResponseDevice->coldProfiles=residentRadiationColdProfiles(s);
 }
 int ugkwpGpuResidentStrictParticleRadiationResponse(void* handle,ugkp::gpu::ParticleRadiationResponseView* output) {
     auto* s=asState(handle);if(validateState(s,"particle radiation response")||!output)return 1;
@@ -5239,7 +5202,7 @@ extern "C" int ugkwpGpuResidentStrictApplyParticleRadiationDeviceEnergy(void* ha
                 if(observed==cudaSuccess)observed=cudaMemcpy(wall.data(),s->pStuck,count*sizeof(unsigned char),cudaMemcpyDeviceToHost);
             }
             if(observed==cudaSuccess) {
-                for(int i=0;i<count;++i)if(status[i]==1 && wall[i]==Foam::gpuThermal::particleWallMobile && cell[i]>=0 && cell[i]<s->nCells)++eligible[cell[i]];
+                for(int i=0;i<count;++i)if(ugkp::gpu::radiationParticleEligible(status[i],wall[i]) && cell[i]>=0 && cell[i]<s->nCells)++eligible[cell[i]];
                 const std::string path=std::string(prefix)+"-"+std::to_string(++observation)+".csv";
                 if(FILE* f=std::fopen(path.c_str(),"w")) {
                     std::fprintf(f,"cell,request_J,capacity_J,eligible_count,accepted_J,capacity_limited_J,capacity_delta_J,publication_delta_J\n");
@@ -5296,7 +5259,7 @@ int prepareResidentRadiationSums(DeviceState* s){
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
-            setLastError("clear mobile particle radiation sums launch", err);
+            setLastError("clear particle radiation sums launch", err);
             return 1;
         }
     }
@@ -5318,7 +5281,7 @@ int prepareResidentRadiationSums(DeviceState* s){
         err = cudaGetLastError();
         if (err != cudaSuccess)
         {
-            setLastError("accumulate mobile particle radiation sums launch", err);
+            setLastError("accumulate particle radiation sums launch", err);
             return 1;
         }
     }
@@ -5349,7 +5312,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadMobileParticleRadiationSums
     DeviceState* s = asState(handle);
     if
     (
-        validateState(s, "mobile particle radiation material download") != 0
+        validateState(s, "particle radiation material download") != 0
     )
     {
         return 1;
@@ -5361,7 +5324,7 @@ extern "C" int ugkwpGpuResidentStrictDownloadMobileParticleRadiationSums
      || particleDiameterMassKgM == nullptr
     )
     {
-        setLastErrorText("invalid mobile particle radiation download arrays");
+        setLastErrorText("invalid particle radiation download arrays");
         return 1;
     }
     (void)nCells;
@@ -5373,21 +5336,21 @@ extern "C" int ugkwpGpuResidentStrictDownloadMobileParticleRadiationSums
             particleMassKg,
             s->radiationMobileMass,
             static_cast<size_t>(s->nCells),
-            "cudaMemcpy mobile radiation mass download"
+            "cudaMemcpy radiating particle mass download"
         ) != 0
      || copyToHost
         (
             particleTemperatureMassKgK,
             s->radiationMobileTemperatureMass,
             static_cast<size_t>(s->nCells),
-            "cudaMemcpy mobile radiation temperature mass download"
+            "cudaMemcpy radiating particle temperature mass download"
         ) != 0
      || copyToHost
         (
             particleDiameterMassKgM,
             s->radiationMobileDiameterMass,
             static_cast<size_t>(s->nCells),
-            "cudaMemcpy mobile radiation diameter mass download"
+            "cudaMemcpy radiating particle diameter mass download"
         ) != 0
     )
     {

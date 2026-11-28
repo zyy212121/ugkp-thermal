@@ -99,7 +99,7 @@ CONTRIBUTION_SOURCE = r'''
 template<class T>T finiteOr(T x,T other){return std::isfinite(x)?x:other;}
 template<class T>T clampMin(T x,T lower){return std::max(x,lower);}
 template<class T>T clampRange(T x,T lower,T upper){return std::min(std::max(x,lower),upper);}
-namespace Foam {namespace gpuThermal {constexpr int particleWallMobile=0,particleWallSolidifyingDeposition=1,particleWallColdWall2D=2;}}
+#include "gpu/ParticleRadiationProfile.H"
 struct Cold {GpuReal meltingTemperatureK=2327,mushyRangeK=20,latentHeatJkg=0,solidSpecificHeatJkgK=1000;};
 struct DeviceState {
  int nCells=1,nFaces=1,particleCapacity=2,count=2,*particleCountDevice=&count;

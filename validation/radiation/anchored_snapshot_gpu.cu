@@ -14,7 +14,7 @@ __global__ void evaluate(const RadiationEntryParticle<GpuReal>* entries,const in
 int main(){
  std::vector<GpuReal> mass={GpuReal(.2),GpuReal(.3),GpuReal(.4),GpuReal(.5)},temp={GpuReal(300),GpuReal(400),GpuReal(600),GpuReal(800)};
  std::vector<int> status={1,1,1,1},cell={0,1,0,1},offset={0,2,4},index={2,0,3,1},count={4};
- std::vector<unsigned char> wall={0,0,0,1};
+ std::vector<unsigned char> wall={0,0,0,3};
  auto* dm=upload(mass);auto* dt=upload(temp);auto* ds=upload(status);auto* dc=upload(cell);auto* dw=upload(wall);auto* dn=upload(count);auto* off=upload(offset);auto* idx=upload(index);
  ParticleRadiationResponseView v{};v.enabled=true;v.capacity=4;v.count=dn;v.cell=dc;v.status=ds;v.wallState=dw;v.mass=dm;v.temperature=dt;v.minimumTemperature=100;v.maximumTemperature=5000;
 #ifndef TEST_FP32

@@ -56,12 +56,12 @@ s->solveParticleTemperature=1;s->particleCapacity=8;*s->particleCountDevice=8;do
 for(int c=0;c<2;c++){s->V[c]=1;s->preBaseCellOffset[c]=4*c;s->momRhoP[c]=2;s->momRhoHpP[c]=0;}
 s->preBaseCellOffset[2]=8;
 for(int i=0;i<8;i++){int c=i/4;s->pStatus[i]=1;s->pCellId[i]=c;s->pStuck[i]=(i%3==0);s->pm[i]=.5;s->pT[i]=300+10*i;s->pd[i]=1e-4;
- expected[c][3]+=.5*Foam::gpuThermal::aluminaSpecificEnthalpyJkg(s->pT[i]);if(!s->pStuck[i]){expected[c][0]+=.5;expected[c][1]+=.5*s->pT[i];expected[c][2]+=.5*s->pd[i];}}
+ expected[c][3]+=.5*Foam::gpuThermal::aluminaSpecificEnthalpyJkg(s->pT[i]);if(ugkp::gpu::radiationParticleEligible(s->pStatus[i],s->pStuck[i])){expected[c][0]+=.5;expected[c][1]+=.5*s->pT[i];expected[c][2]+=.5*s->pd[i];}}
 clearMobileParticleRadiationSumsKernel<<<1,32>>>(s);accumulateMobileParticleRadiationSumsAtomicKernel<<<1,32>>>(s);accumulateParticleEnthalpyMomentAtomicKernel<<<1,32>>>(s);deviceSync();
 for(int c=0;c<2;c++){near(s->radiationMobileMass[c],expected[c][0],"atomic radiation mass");near(s->radiationMobileTemperatureMass[c],expected[c][1],"atomic radiation temperature");near(s->radiationMobileDiameterMass[c],expected[c][2],"atomic radiation diameter");near(s->momRhoHpP[c],expected[c][3],"atomic enthalpy");}
 accumulatePackedMobileParticleRadiationSumsKernel<<<2,32,3*sizeof(GpuReal)>>>(s);refreshPackedParticleEnthalpyKernel<<<2,32,sizeof(GpuReal)>>>(s);deviceSync();
 for(int c=0;c<2;c++){near(s->radiationMobileMass[c],expected[c][0],"packed radiation mass");near(s->radiationMobileTemperatureMass[c],expected[c][1],"packed radiation temperature");near(s->radiationMobileDiameterMass[c],expected[c][2],"packed radiation diameter");near(s->momRhoHpP[c],expected[c][3],"packed enthalpy");}
-puts("PASS atomic/packed radiation mobile membership and all-alive material enthalpy");
+puts("PASS atomic/packed radiation mobile and deposited membership and all-alive material enthalpy");
 '''
 code=code.replace('RADIATION',radiation if app=='CHT' else '')
 f=out/'extended.cu';f.write_text(code);exe=out/'extended';cmd=[str(Path(os.environ.get('CUDA_HOME','/usr/local/cuda'))/'bin/nvcc'),'-std=c++17','-O3','-arch='+os.environ.get('UGKWP_CUDA_ARCH','sm_89'),'--fmad='+('false' if app=='CHT' else 'true'),'-I'+str(src),'-I'+str(root/'common'),'-I'+str(root/'applications'/app/'gpu'),str(f),'-o',str(exe)]

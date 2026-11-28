@@ -12,7 +12,7 @@ s=s.replace('CHECK(advanceResidentThermalParticles(s,dt,dt)==0);',r'''
  using namespace ugkp::gpu;const ugkwp::ParticleCaloric law;
  s->TpMin=1;s->TpMax=5000;
  const int offsets[2]={0,3},number=3,ids[3]={0,0,0},active[3]={1,1,1};
- const unsigned char walls[3]={0,0,1};const double weights[3]={.3,.7,10.};
+ const unsigned char walls[3]={0,0,3};const double weights[3]={.3,.7,10.};
  CHECK(copyToDevice(s->particleCountDevice,&number,1,"radiation count")==0);
  CHECK(copyToDevice(s->pCellId,ids,3,"radiation cells")==0);
  CHECK(copyToDevice(s->pStatus,active,3,"radiation activity")==0);

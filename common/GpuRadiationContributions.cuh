@@ -10,9 +10,7 @@ __device__ __forceinline__ ParticleRadiationContribution particleRadiationContri
     const GPU_OPERATOR_REAL mass=clampMin(finiteOr(s.pm[i],GPU_OPERATOR_R(0.0)),GPU_OPERATOR_R(0.0));
 
 
-    const ugkwp::ParticleCaloric law;
-    const GPU_OPERATOR_REAL effective=GPU_OPERATOR_REAL(law.temperature(
-        law.enthalpy(double(s.pT[i]))+s.pThermalEnthalpyResidual[i]));
+    const GPU_OPERATOR_REAL effective=GPU_OPERATOR_REAL(particleEffectiveTemperatureDevice(s,i));
     const GPU_OPERATOR_REAL temperature=clampRange(finiteOr(effective,s.TpMin),s.TpMin,s.TpMax);
     const GPU_OPERATOR_REAL diameter=clampMin(finiteOr(s.pd[i],s.particleDiameterFallback),GPU_OPERATOR_R(1.0e-12));
     return {mass,mass*temperature,mass*diameter};

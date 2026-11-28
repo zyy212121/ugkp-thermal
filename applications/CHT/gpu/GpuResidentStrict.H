@@ -1280,7 +1280,7 @@ public:
                 temperatureMassKgK.begin(),
                 diameterMassKgM.begin()
             ),
-            "download mobile-only particle radiation material"
+            "download participating particle radiation material"
         );
         particleMeanTemperatureK.setSize(mesh.nCells(), residentTpMin_);
         representativeDiameterM.setSize(mesh.nCells(), scalar(0));

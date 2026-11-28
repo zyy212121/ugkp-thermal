@@ -6,7 +6,7 @@
 #include <cmath>
 int main(){
  using namespace ugkp::gpu;const ugkwp::ParticleCaloric law{};
- int count=3,cell[]={0,0,0},status[]={1,1,1};unsigned char wall[]={0,0,1};
+ int count=3,cell[]={0,0,0},status[]={1,1,1};unsigned char wall[]={0,0,3};
  double mass[]={.3,.7,10},temperature[]={1000,2500,3500},carry[]={1e-5,-3e-5,0};
  ParticleRadiationResponseView view{true,3,&count,cell,status,nullptr,wall,mass,temperature,carry,1,5000};
  IndexedParticleRadiationResponse response{view,nullptr,0,3};
@@ -50,5 +50,5 @@ int main(){
  const auto a=solveCaloricParticleRadiation(Linear{},power,100.);
  const auto b=radiationMath::solveBoundedImplicitMaterialTemperature(1000.,1.,5000.,1542.,100.,100,1e-10,1e-9,power,power);
  assert(std::abs(a.temperature-b.temperatureK)<1e-6);
- std::cout<<"CALORIC_RADIATION_PASS cases="<<cases<<" heterogeneous_carry_bounds_attached_exclusion linear_limit\n";
+ std::cout<<"CALORIC_RADIATION_PASS cases="<<cases<<" heterogeneous_carry_bounds_transient_exclusion linear_limit\n";
 }

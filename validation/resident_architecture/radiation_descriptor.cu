@@ -18,7 +18,7 @@ static MieOpticalTable table(){MieOpticalTable t;t.temperature={100,2000};t.diam
     t.absorption.assign(4,1);t.scattering.assign(4,.3);t.extinction.assign(4,1.3);t.phase.assign(8,1);return t;}
 int main(){
     Array<int> count({6}),cell({0,0,0,1,1,1}),status({1,1,1,1,1,1}),offset({0,3,6,6,6});
-    Array<unsigned char> free({0,0,0,0,0,0}),contact({0,1,0,0,0,0});
+    Array<unsigned char> free({0,0,0,0,0,0}),contact({0,3,0,0,0,0});
     Array<GpuReal> mass({1.,2.,3.,1.,2.,3.}),ta({500.,600.,700.,650.,700.,750.}),tb({900.,800.,700.,750.,700.,650.});
     Array<double> carry({1e-9,0.,-1e-9,0.,0.,0.}),epsilon({.001,.001,0.,0.}),bulkMass({6.,6.,0.,0.}),bulkT({650.,700.,300.,300.}),diameter({.001,.001,.001,.001}),incident({1e5,2e5,0.,0.}),volume({1.,1.,1.,1.});
     ParticleRadiationResponseView a{true,6,count.data,cell.data,status.data,offset.data,free.data,mass.data,ta.data,carry.data,100.,2000.};

@@ -23,10 +23,10 @@ UGKP_RAD_DERIV_HD AnchoredTemperatureDerivative<Real> anchoredTemperatureDerivat
     Real sum=0;r.valid=true;
     for(int i=0;i<response.count;++i){const auto& p=response.entries[i];if(!p.eligible||p.mass==Real(0))continue;
         const Real a=std::abs(response.specificCapacity(p,heating));
-        const Real t=Real(ugkwp::effectiveParticleTemperature(p.thermal,response.caloric));
+        const Real t=response.entryTemperature(p);
 
         const Real side=std::nextafter(t,heating?Real(INFINITY):-Real(INFINITY));
-        const Real cp=response.caloric.enthalpyDerivative(side);
+        const Real cp=response.enthalpyDerivative(p,side);
         if(!std::isfinite(cp)||!(cp>Real(0))){r.valid=false;continue;}
         sum+=p.mass*a/cp;
     }
